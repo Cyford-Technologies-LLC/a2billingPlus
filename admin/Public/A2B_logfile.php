@@ -78,11 +78,14 @@ function array2drop_down($name, $currentvalue, $arr_value)
 $directory = '/var/log/asterisk/';
 $d = dir($directory);
 
-while (false !== ($entry = $d->read())) {
+if($d!==false){
+while ($entry = $d->read()) {
     if (is_file($directory . $entry) && $entry != '.' && $entry != '..')
         $arr_log[] = $directory . $entry;
 }
 $d->close();
+}
+
 
 foreach ($A2B->config["log-files"] as $log_file) {
     if (strlen(trim($log_file)) > 1) {

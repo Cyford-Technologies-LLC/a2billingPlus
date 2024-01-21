@@ -31,11 +31,6 @@
  *
 **/
 
-if (! has_rights (ACX_ACCESS)) {
-    Header ("HTTP/1.0 401 Unauthorized");
-    Header ("Location: PP_error.php?c=accessdenied");
-    die();
-}
 
 
 $HD_Form = new FormHandler("cc_card LEFT JOIN cc_card_group ON cc_card.id_group=cc_card_group.id ","Card");

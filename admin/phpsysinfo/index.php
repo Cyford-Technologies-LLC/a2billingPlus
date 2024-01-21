@@ -25,7 +25,7 @@ ini_set('register_globals', 'off');
 // ini_set('display_errors','on');
 
 require_once(APP_ROOT . '/includes/class.error.inc.php');
-$error = new Error;
+$error = new AppError;
 
 // Figure out which OS where running on, and detect support
 if ( file_exists( APP_ROOT . '/includes/os/class.' . PHP_OS . '.inc.php' ) ) {

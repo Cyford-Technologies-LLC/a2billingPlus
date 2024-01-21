@@ -1,0 +1,20 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name="FG_var_ticket_agent.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_ticket.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_signup_agent.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_remittance_request.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_paymentlog.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_payment_agent.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_payment.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_moneysituation_details.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_moneysituation.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_logrefill_agent.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_logrefill.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_friend.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_def_ratecard.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_commission.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_card.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_callerid.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="FG_var_agent.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+</dwsync>

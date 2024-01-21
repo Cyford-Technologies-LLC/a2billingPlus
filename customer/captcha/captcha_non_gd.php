@@ -22,7 +22,7 @@ class captcha
     /**
     * Define filtered pngs on init
     */
-    public function __construct()
+    public function captcha()
     {
         // If we can we will generate a single filtered png, we avoid nastiness via emulation of some Zlib stuff
         $this->define_filtered_pngs();

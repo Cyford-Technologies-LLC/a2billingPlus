@@ -210,11 +210,15 @@ $smarty->display('main.tpl');
     <td><?php echo gettext("file types allowed");?>:</td><td>
 
     <?php
-    for ($i=0;$i<count($file_ext_allow);$i++) {
+
+   // print_r($file_ext_allow);
+    echo implode(",", $file_ext_allow);
+    
+    /*for ($i=0;$i<count($file_ext_allow);$i++) {
         if (($i<>count($file_ext_allow)-1))$commas=", ";else $commas="";
         list($key,$value)=each($file_ext_allow);
         echo $value.$commas;
-    }
+    }*/
     ?>   </td>
   </tr>
 
@@ -245,7 +249,7 @@ $smarty->display('main.tpl');
 
       <?php
         //When there is a message, after an action, show it
-        if (session_is_registered('message')) {
+        if (session_is_registered['message']) {
           echo "<br></br><font color='red'>" . $_SESSION['message'] . "</font>";
         }
       ?>

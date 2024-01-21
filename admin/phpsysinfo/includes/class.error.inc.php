@@ -1,4 +1,5 @@
 <?php
+
 /***************************************************************************
  *   Copyright (C) 2006 by phpSysInfo - A PHP System Information Script    *
  *   http://phpsysinfo.sourceforge.net/                                    *
@@ -21,7 +22,7 @@
 
 // $Id: class.error.inc.php,v 1.9 2007/02/11 15:57:17 bigmichi1 Exp $
 
-class Error
+class AppError
 {
     // Array which holds the error messages
     public $arrErrorList 	= array();

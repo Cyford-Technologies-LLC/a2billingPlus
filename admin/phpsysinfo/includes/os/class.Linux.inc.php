@@ -28,7 +28,7 @@ class sysinfo
     public $parser;
 
     // get the distro name and icon when create the sysinfo object
-    public function sysinfo()
+    public function __construct()
     {
           $this->parser = new Parser();
         $this->parser->df_param = 'P';
@@ -298,12 +298,19 @@ class sysinfo
         }
         $keys = array_keys($results);
         $keys2be = array('model', 'cpuspeed', 'cache', 'bogomips', 'cpus');
+         foreach($ar_buf as $key=>$value){
+           if(!in_array($ar_buf[1], $keys)){
+            $results[$ar_buf[1]] = 'N.A.';
+           }
 
-        while ($ar_buf = each($keys2be)) {
+         }
+        
+
+     /*   while ($ar_buf = each($keys2be)) {
             if (! in_array($ar_buf[1], $keys)) {
                 $results[$ar_buf[1]] = 'N.A.';
             }
-        }
+        }*/
 
         $buf = rfts( '/proc/acpi/thermal_zone/THRM/temperature', 1, 4096, false );
         if ($buf != "ERROR") {
@@ -531,15 +538,20 @@ class sysinfo
         }
       }
 
-      $results['ram']['used'] = $results['ram']['total'] - $results['ram']['free'];
-      $results['ram']['percent'] = round(($results['ram']['used'] * 100) / $results['ram']['total']);
+ 
+    
+
+      $results['ram']['used'] = (int)$results['ram']['total'] - (int)$results['ram']['free'];
+
+ 
+      $results['ram']['percent'] = round(($results['ram']['used'] * 100) / (int)$results['ram']['total']);
 
       // values for splitting memory usage
       if (isset($results['ram']['cached']) && isset($results['ram']['buffers'])) {
-        $results['ram']['app'] = $results['ram']['used'] - $results['ram']['cached'] - $results['ram']['buffers'];
-    $results['ram']['app_percent'] = round(($results['ram']['app'] * 100) / $results['ram']['total']);
-    $results['ram']['buffers_percent'] = round(($results['ram']['buffers'] * 100) / $results['ram']['total']);
-    $results['ram']['cached_percent'] = round(($results['ram']['cached'] * 100) / $results['ram']['total']);
+        $results['ram']['app'] = (int)$results['ram']['used'] - (int)$results['ram']['cached'] - (int)$results['ram']['buffers'];
+    $results['ram']['app_percent'] = round(($results['ram']['app'] * 100) / (int)$results['ram']['total']);
+    $results['ram']['buffers_percent'] = round(((int)$results['ram']['buffers'] * 100) / (int)$results['ram']['total']);
+    $results['ram']['cached_percent'] = round(((int)$results['ram']['cached'] * 100) / (int)$results['ram']['total']);
       }
 
       $bufr = rfts( '/proc/swaps' );

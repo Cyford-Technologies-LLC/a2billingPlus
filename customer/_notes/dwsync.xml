@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name="userinfo.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="simulator.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="signup_service.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="signup_confirmation.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="signup.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="PP_error.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="payment-history.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="logout.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="index2.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="index.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="importsamples.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="forgotpassword.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="cvv.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="checkout_success.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="checkout_process.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="checkout_payment.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="checkout_confirmation.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="CC_entity_edit_speeddial.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="CC_entity_edit_did_destination.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="card-history.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="callback.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="call-history.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="activate.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_ticket_view.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_support.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_recurring_payment.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_receipt_view.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_receipt_preview_detail.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_receipt_detail.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_notification.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_invoice_view.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_voucher.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_speeddial.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_sipiax_info.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_receipt.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_ratecard.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_password.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_invoice.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_did.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_card.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_callerid.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_entity_autodialer.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="A2B_billing_preview.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+</dwsync>

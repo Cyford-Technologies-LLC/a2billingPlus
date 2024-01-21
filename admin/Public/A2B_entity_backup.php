@@ -34,6 +34,7 @@
 include '../lib/admin.defines.php';
 include '../lib/admin.module.access.php';
 include '../lib/Form/Class.FormHandler.inc.php';
+include './form_data/FG_var_backup.inc';
 include '../lib/admin.smarty.php';
 
 if (!has_rights(ACX_MAINTENANCE)) {
@@ -41,8 +42,6 @@ if (!has_rights(ACX_MAINTENANCE)) {
     Header("Location: PP_error.php?c=accessdenied");
     die();
 }
-
-include './form_data/FG_var_backup.inc';
 
 $HD_Form->setDBHandler(DbConnect());
 $HD_Form->init();

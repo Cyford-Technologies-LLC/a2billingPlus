@@ -47,7 +47,7 @@
          * root:     template directory.
          * unknowns: how to handle unknown variables.
          */
-        function Template($root = '.', $unknowns = 'remove')
+        function __construct($root = '.', $unknowns = 'remove')
         {
             $this->set_root($root);
             $this->set_unknowns($unknowns);
@@ -95,9 +95,12 @@
                 $this->file[$handle] = $this->filename($filename);
             } else {
                 reset($handle);
-                while (list($h, $f) = each($handle)) {
+                foreach($handle as $h=>$f){
                     $this->file[$h] = $this->filename($f);
                 }
+                //while (list($h, $f) = each($handle)) {
+                  //  $this->file[$h] = $this->filename($f);
+               // }
             }
         }
 

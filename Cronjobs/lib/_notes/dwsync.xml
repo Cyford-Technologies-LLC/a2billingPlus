@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8" ?>
+<dwsync>
+<file name="regular_express.inc" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="protect_sqli.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415675990000000" remote="132415675990000000" Dst="1" />
+<file name="ProcessHandler.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="PhpQuickProfiler.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Misc.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132416425960000000" remote="132416425960000000" Dst="1" />
+<file name="languageSettings.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="index.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="iam_csvdump.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="didx.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415668480000000" remote="132415668480000000" Dst="1" />
+<file name="customer.smarty.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="customer.module.access.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="customer.help.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="customer.defines.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="COPYING" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="config_functions.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="common.defines.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132416425950000000" remote="132416425950000000" Dst="1" />
+<file name="Class.Table.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132418946110000000" remote="132418946110000000" Dst="1" />
+<file name="Class.SOAP-function.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Class.Realtime.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Class.RateEngine.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415578790000000" remote="132415578790000000" Dst="1" />
+<file name="Class.NotificationsDAO.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Class.Notification.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Class.MytoPg.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415474860000000" remote="132415474860000000" Dst="1" />
+<file name="Class.Mail.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Class.Logger.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415475850000000" remote="132415475850000000" Dst="1" />
+<file name="Class.Connection.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="Class.A2Billing.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415472160000000" remote="132415472160000000" Dst="1" />
+<file name="agent.smarty.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="132415469480000000" remote="132415469480000000" Dst="1" />
+<file name="agent.module.access.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="agent.help.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="agent.defines.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="admin.smarty.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="admin.module.access.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="admin.help.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name="admin.defines.php" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+<file name=".htaccess" server="192.168.133.129//mnt/WEB/internal/SATA/testing/CT/internal/a2billing/" local="130873080380000000" remote="130873080380000000" Dst="1" />
+</dwsync>

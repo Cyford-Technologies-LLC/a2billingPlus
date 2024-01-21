@@ -164,7 +164,7 @@
 // Include guard, protects file being included twice
 $ConstantName = 'INCLUDED_'.strtoupper(__FILE__);
 if (defined($ConstantName)) return;
-define($ConstantName,1, TRUE);
+define($ConstantName,1);
 
 /************************************************************************************************
 * ===============================================================================================
@@ -196,7 +196,7 @@ class XPathBase {
   /**
    * Constructor
    */
-  function XPathBase() {
+  function __construct() {
     # $this->bDebugXmlParse = TRUE;
     $this->properties['verboseLevel'] = 1;  // 0=silent, 1 and above produce verbose output (an echo to screen).
 
@@ -947,7 +947,7 @@ class XPathEngine extends XPathBase {
    *                                 options.
    * @see   importFromFile(), importFromString(), setXmlOptions()
    */
-  function XPathEngine($userXmlOptions=array()) {
+  function __construct($userXmlOptions=array()) {
     parent::XPathBase();
     // Default to not folding case
     $this->parseOptions[XML_OPTION_CASE_FOLDING] = FALSE;
@@ -3849,14 +3849,14 @@ class XPathEngine extends XPathBase {
         $step = '.';
         $axis['axis']      = 'self';
         $axis['node-test'] = '*';
-        break $parseBlock;
+      return  $parseBlock;
       }
 
       if ($step == '..') {
         // Select the parent axis.
         $axis['axis']      = 'parent';
         $axis['node-test'] = '*';
-        break $parseBlock;
+        return  $parseBlock;
       }
 
       ///////////////////////////////////////////////////
@@ -3908,7 +3908,7 @@ class XPathEngine extends XPathBase {
       if ($step == '*') {
         // Use the child axis and select all children.
         $axis['node-test'] = '*';
-        break $parseBlock;
+        return $parseBlock;
       }
 
       // ### I'm pretty sure our current handling of cdata is a fudge, and we should
@@ -3916,7 +3916,7 @@ class XPathEngine extends XPathBase {
       if ($step == "text()") {
         // Handle the text node
         $axis["node-test"] = "cdata";
-        break $parseBlock;
+        return $parseBlock;
       }
 
       // There are a few node tests that we match verbatim.
@@ -3925,14 +3925,14 @@ class XPathEngine extends XPathBase {
           || $step == "text()"
           || $step == "processing-instruction") {
         $axis["node-test"] = $step;
-        break $parseBlock;
+        return $parseBlock;
       }
 
       // processing-instruction() is allowed to take an argument, but if it does, the argument
       // is a literal, which we will have parsed out to $[number].
       if (preg_match(":processing-instruction\(\$\d*\):", $step)) {
         $axis["node-test"] = $step;
-        break $parseBlock;
+        return $parseBlock;
       }
 
       // The only remaining way this can be a step, is if the remaining string is a simple name
@@ -3961,7 +3961,7 @@ class XPathEngine extends XPathBase {
         // Not currently recursing
         $LastFailedStep = '';
         $LastFailedContext = '';
-        break $parseBlock;
+        return $parseBlock;
       }
 
       // It's not a node then, we must treat it as a PrimaryExpr
@@ -5213,8 +5213,8 @@ class XPath extends XPathEngine {
    *                                  import fails, the object will be set to FALSE.
    * @see    parent::XPathEngine()
    */
-  function XPath($fileName='', $userXmlOptions=array()) {
-    parent::XPathEngine($userXmlOptions);
+  function __construct($fileName='', $userXmlOptions=array()) {
+   /* parent::XPathEngine($userXmlOptions);
     $this->properties['modMatch'] = XPATH_QUERYHIT_ALL;
     if ($fileName) {
       if (!$this->importFromFile($fileName)) {
@@ -5223,7 +5223,8 @@ class XPath extends XPathEngine {
         // them the chance to catch and handle the error properly.
         parent::XPathEngine($userXmlOptions);
       }
-    }
+    }*/
+    return true;
   }
 
   /**
@@ -5910,7 +5911,7 @@ class XPath extends XPathEngine {
       $attribute = $matches[2];
       if (!isSet($this->nodeIndex[$absoluteXPath]['attributes'][$attribute])) {
         $this->_displayError("The $absoluteXPath/attribute::$attribute value isn't a node in this document.", __LINE__, __FILE__, FALSE);
-        continue;
+        
       }
       return array($this->nodeIndex[$absoluteXPath]['attributes'][$attribute]);
     } else if (preg_match(":(.*)/text\(\)(\[(.*)\])?$:U", $xPathQuery, $matches)) {
@@ -6057,7 +6058,7 @@ class XPath extends XPathEngine {
                     XML_OPTION_CASE_FOLDING => $this->getProperties('caseFolding'),
                     XML_OPTION_SKIP_WHITE   => $this->getProperties('skipWhiteSpaces')
                   );
-    $xmlParser =& new XPathEngine($xmlOptions);
+    $xmlParser = new XPathEngine($xmlOptions);
     $xmlParser->setVerbose($this->properties['verboseLevel']);
     // Parse the XML string
     if (!$xmlParser->importFromString($xmlString)) {
@@ -6315,7 +6316,7 @@ EOD;
 
   // The sample code:
   $xmlOptions = array(XML_OPTION_CASE_FOLDING => TRUE, XML_OPTION_SKIP_WHITE => TRUE);
-  $xPath =& new XPath(FALSE, $xmlOptions);
+  $xPath = new XPath(FALSE, $xmlOptions);
   //$xPath->bDebugXmlParse = TRUE;
   if (!$xPath->importFromString($xmlSource)) { echo $xPath->getLastError(); exit; }
 

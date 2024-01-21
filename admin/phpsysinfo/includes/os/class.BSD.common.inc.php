@@ -31,7 +31,7 @@ class bsd_common
   public $parser;
   // Our constructor
   // this function is run on the initialization of this class
-  public function bsd_common ()
+  public function __construct ()
   {
     $this->parser = new Parser();
     $this->parser->df_param = "";
