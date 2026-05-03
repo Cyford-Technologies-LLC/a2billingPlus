@@ -587,6 +587,11 @@ final class RestApiController
 
     private function handleInvoices(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_invoice_id', 'Invoice id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
         $from = trim($request->getString('from'));
         $to = trim($request->getString('to'));
         foreach (['from' => $from, 'to' => $to] as $field => $value) {
@@ -612,6 +617,21 @@ final class RestApiController
 
         try {
             $service = new InvoiceService(new InvoiceRepository(($this->pdoFactory)()));
+            if ($id !== null) {
+                $invoice = $service->detail($id);
+                if ($invoice === null) {
+                    return ApiResponder::error('invoice_not_found', 'Invoice was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([
+                    'invoice' => $invoice,
+                    'download' => $service->downloadMetadata($invoice),
+                ], [
+                    'resource' => 'invoices',
+                    'id' => $id,
+                ]);
+            }
+
             $result = $service->search(new InvoiceSearchCriteria($limit, $offset, $from, $to, $customerId, $status, $paidStatus));
         } catch (\Throwable $exception) {
             return ApiResponder::error('invoice_query_failed', $exception->getMessage(), 500);
@@ -636,6 +656,11 @@ final class RestApiController
 
     private function handleReceipts(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_receipt_id', 'Receipt id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
         $from = trim($request->getString('from'));
         $to = trim($request->getString('to'));
         foreach (['from' => $from, 'to' => $to] as $field => $value) {
@@ -656,6 +681,21 @@ final class RestApiController
 
         try {
             $service = new ReceiptService(new ReceiptRepository(($this->pdoFactory)()));
+            if ($id !== null) {
+                $receipt = $service->detail($id);
+                if ($receipt === null) {
+                    return ApiResponder::error('receipt_not_found', 'Receipt was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([
+                    'receipt' => $receipt,
+                    'download' => $service->downloadMetadata($receipt),
+                ], [
+                    'resource' => 'receipts',
+                    'id' => $id,
+                ]);
+            }
+
             $result = $service->search(new ReceiptSearchCriteria($limit, $offset, $from, $to, $customerId, $status));
         } catch (\Throwable $exception) {
             return ApiResponder::error('receipt_query_failed', $exception->getMessage(), 500);

@@ -38,6 +38,17 @@ final class ReceiptServiceTest extends TestCase
         $this->assertNull($service->customerDetail(3, 1));
     }
 
+    public function testBuildsReceiptDownloadMetadata(): void
+    {
+        $service = new ReceiptService(new ReceiptRepository($this->pdo()));
+
+        $metadata = $service->downloadMetadata($service->detail(1));
+
+        $this->assertSame('receipt-1.pdf', $metadata['filename']);
+        $this->assertSame('application/pdf', $metadata['content_type']);
+        $this->assertFalse($metadata['available']);
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

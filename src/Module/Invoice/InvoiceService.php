@@ -38,4 +38,22 @@ final class InvoiceService
 
         return $invoice;
     }
+
+    /**
+     * @param array<string, mixed> $invoice
+     * @return array<string, mixed>
+     */
+    public function downloadMetadata(array $invoice): array
+    {
+        $reference = trim((string)($invoice['reference'] ?? ('invoice-' . (string)($invoice['id'] ?? ''))));
+
+        return [
+            'id' => (int)($invoice['id'] ?? 0),
+            'reference' => $reference,
+            'filename' => $reference . '.pdf',
+            'content_type' => 'application/pdf',
+            'available' => false,
+            'message' => 'Invoice PDF generation is not module-backed yet.',
+        ];
+    }
 }

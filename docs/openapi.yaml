@@ -937,10 +937,16 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /invoices.php:
     get:
-      summary: List invoices with module-backed filters
+      summary: List invoices or load one invoice with download metadata
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          description: When present, return one invoice and download metadata.
+          schema:
+            type: integer
+            minimum: 1
         - $ref: '#/components/parameters/DateFrom'
         - $ref: '#/components/parameters/DateTo'
         - $ref: '#/components/parameters/CustomerId'
@@ -948,28 +954,46 @@ paths:
         - $ref: '#/components/parameters/InvoicePaidStatus'
       responses:
         '200':
-          description: Invoice rows from cc_invoice.
+          description: Invoice rows or one invoice from cc_invoice.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Invoice was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /receipts.php:
     get:
-      summary: List receipts with module-backed filters
+      summary: List receipts or load one receipt with download metadata
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          description: When present, return one receipt and download metadata.
+          schema:
+            type: integer
+            minimum: 1
         - $ref: '#/components/parameters/DateFrom'
         - $ref: '#/components/parameters/DateTo'
         - $ref: '#/components/parameters/CustomerId'
         - $ref: '#/components/parameters/CustomerStatus'
       responses:
         '200':
-          description: Receipt rows from cc_receipt.
+          description: Receipt rows or one receipt from cc_receipt.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Receipt was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /payment-intents.php:
     post:
       summary: Create a hosted Stripe payment intent

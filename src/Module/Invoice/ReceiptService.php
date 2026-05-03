@@ -38,4 +38,21 @@ final class ReceiptService
 
         return $receipt;
     }
+
+    /**
+     * @param array<string, mixed> $receipt
+     * @return array<string, mixed>
+     */
+    public function downloadMetadata(array $receipt): array
+    {
+        $id = (int)($receipt['id'] ?? 0);
+
+        return [
+            'id' => $id,
+            'filename' => 'receipt-' . $id . '.pdf',
+            'content_type' => 'application/pdf',
+            'available' => false,
+            'message' => 'Receipt PDF generation is not module-backed yet.',
+        ];
+    }
 }

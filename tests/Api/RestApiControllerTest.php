@@ -487,6 +487,20 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame(0, $payload['meta']['filters']['paid_status']);
     }
 
+    public function testLoadsInvoiceDetailWithDownloadMetadata(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('invoices', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('INV-1', $payload['data']['invoice']['reference']);
+        $this->assertSame('INV-1.pdf', $payload['data']['download']['filename']);
+    }
+
     public function testRejectsInvalidInvoicePaidStatusFilter(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());
@@ -516,6 +530,20 @@ final class RestApiControllerTest extends TestCase
         $this->assertCount(1, $payload['data']['receipts']);
         $this->assertSame('Receipt', $payload['data']['receipts'][0]['title']);
         $this->assertSame(0, $payload['meta']['filters']['status']);
+    }
+
+    public function testLoadsReceiptDetailWithDownloadMetadata(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('receipts', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('Receipt', $payload['data']['receipt']['title']);
+        $this->assertSame('receipt-1.pdf', $payload['data']['download']['filename']);
     }
 
     public function testRejectsInvalidReceiptStatusFilter(): void
