@@ -921,6 +921,105 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /trunks.php:
+    get:
+      summary: List trunks or load one trunk by id
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: status
+          in: query
+          schema:
+            type: integer
+            enum: [0, 1]
+      responses:
+        '200':
+          description: Trunk rows from cc_trunk.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+    post:
+      summary: Create a trunk
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [trunk]
+              properties:
+                trunk:
+                  type: object
+                  required: [trunkcode, providertech, providerip]
+                  properties:
+                    trunkcode:
+                      type: string
+                      maxLength: 50
+                    providertech:
+                      type: string
+                      enum: [SIP, IAX2, PJSIP]
+                    providerip:
+                      type: string
+                      maxLength: 80
+                    trunkprefix:
+                      type: string
+                      maxLength: 20
+                    removeprefix:
+                      type: string
+                      maxLength: 20
+                    status:
+                      type: integer
+                      enum: [0, 1]
+      responses:
+        '201':
+          description: Trunk created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Update a trunk
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, trunk]
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                trunk:
+                  type: object
+      responses:
+        '200':
+          description: Trunk updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Trunk was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /provider-records.php:
     get:
       summary: List provider database records
