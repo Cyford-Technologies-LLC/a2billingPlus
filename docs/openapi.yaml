@@ -439,6 +439,78 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /customer-payments.php:
+    get:
+      summary: List signed customer payment history with invoice and receipt references
+      security:
+        - CustomerIdHeader: []
+          CustomerSignatureHeader: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: from
+          in: query
+          schema:
+            type: string
+        - name: to
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Customer payment ledger rows and owned invoice/receipt references.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Create a hosted Stripe payment intent for the signed customer
+      security:
+        - CustomerIdHeader: []
+          CustomerSignatureHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment]
+              properties:
+                payment:
+                  type: object
+                  required: [amount_minor_units, currency]
+                  properties:
+                    amount_minor_units:
+                      type: integer
+                      minimum: 1
+                    currency:
+                      type: string
+                      minLength: 3
+                      maxLength: 3
+                    description:
+                      type: string
+                      maxLength: 255
+                    idempotency_key:
+                      type: string
+      responses:
+        '201':
+          description: Hosted payment intent created. Raw card fields are rejected and never stored.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /customer-invoices.php:
     get:
       summary: List or load invoices owned by the signed customer
