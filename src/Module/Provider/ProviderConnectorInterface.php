@@ -10,6 +10,10 @@ interface ProviderConnectorInterface
 
     public function getDisplayName(): string;
 
+    public function getSupportEmail(): string;
+
+    public function getApiBaseUrl(): string;
+
     public function testConnection(ProviderCredentials $credentials): ProviderConnectionResult;
 
     public function getRateImporter(ProviderCredentials $credentials): RateImporterInterface;

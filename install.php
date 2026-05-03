@@ -2,6 +2,10 @@
 
 declare(strict_types=1);
 
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
+
 /*
  * VectaVoIP / A2BillingPlus web installer.
  *
@@ -10,11 +14,17 @@ declare(strict_types=1);
  */
 
 $projectRoot = __DIR__;
+$autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARATOR . 'autoload.php';
+if (is_file($autoloadPath)) {
+    require_once $autoloadPath;
+}
+
 $envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 $envExamplePath = $projectRoot . DIRECTORY_SEPARATOR . '.env.example';
 $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'a2billing.conf';
 $schemaPath = $projectRoot . DIRECTORY_SEPARATOR . 'DataBase' . DIRECTORY_SEPARATOR . 'mariadb' . DIRECTORY_SEPARATOR . '11' . DIRECTORY_SEPARATOR . 'mariadb-11.sql';
 $lockPath = $projectRoot . DIRECTORY_SEPARATOR . 'install.lock';
+$defaultProviderApiBaseUrl = class_exists(VectaVoIPConnector::class) ? VectaVoIPConnector::API_BASE_URL : 'https://api.VectaVoIP.com';
 
 $defaults = [
     'company_name' => 'VectaVoIP',
@@ -40,6 +50,18 @@ $defaults = [
     'admin_password' => '',
     'admin_password_confirm' => '',
     'setup_admin' => '1',
+    'register_provider' => '',
+    'provider_api_base_url' => $defaultProviderApiBaseUrl,
+    'provider_company_name' => '',
+    'provider_company_domain' => '',
+    'provider_contact_name' => '',
+    'provider_contact_email' => '',
+    'provider_contact_phone' => '',
+    'provider_details' => '',
+    'provider_install_key' => '',
+    'provider_installation_id' => '',
+    'provider_api_key' => '',
+    'provider_api_secret' => '',
     'overwrite_env' => '',
     'write_lock' => '1',
 ];
@@ -60,6 +82,7 @@ if ($posted) {
     $input['compose_asterisk'] = isset($_POST['compose_asterisk']) ? '1' : '';
     $input['compose_mailpit'] = isset($_POST['compose_mailpit']) ? '1' : '';
     $input['setup_admin'] = isset($_POST['setup_admin']) ? '1' : '';
+    $input['register_provider'] = isset($_POST['register_provider']) ? '1' : '';
     $input['overwrite_env'] = isset($_POST['overwrite_env']) ? '1' : '';
     $input['write_lock'] = isset($_POST['write_lock']) ? '1' : '';
 
@@ -81,6 +104,31 @@ if ($posted) {
     if ($input['db_external_port'] === '' || !ctype_digit($input['db_external_port'])) {
         $errors[] = 'Host database port must be numeric.';
     }
+    if ($input['register_provider'] === '1' && $input['provider_api_base_url'] === '') {
+        $errors[] = 'VectaVoIP API base URL is required for automatic provider registration.';
+    }
+    if ($input['register_provider'] === '1') {
+        if ($input['provider_company_name'] === '') {
+            $input['provider_company_name'] = $input['company_name'];
+        }
+        if ($input['provider_company_domain'] === '') {
+            $input['provider_company_domain'] = $input['company_domain'];
+        }
+        if ($input['provider_contact_name'] === '') {
+            $input['provider_contact_name'] = $input['admin_name'];
+        }
+        if ($input['provider_contact_email'] === '') {
+            $input['provider_contact_email'] = $input['admin_email'];
+        }
+        if ($input['provider_contact_name'] === '') {
+            $errors[] = 'Provider registration contact name is required when VectaVoIP registration is enabled.';
+        }
+        if ($input['provider_contact_email'] === '') {
+            $errors[] = 'Provider registration contact email is required when VectaVoIP registration is enabled.';
+        } elseif (!filter_var($input['provider_contact_email'], FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'Provider registration contact email is invalid.';
+        }
+    }
     if ($input['setup_admin'] === '1') {
         if ($input['admin_login'] === '') {
             $errors[] = 'Admin username is required.';
@@ -96,6 +144,12 @@ if ($posted) {
         }
         if ($input['admin_email'] !== '' && !filter_var($input['admin_email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Admin email is invalid.';
+        }
+    }
+
+    if (!$errors) {
+        if ($input['register_provider'] === '1') {
+            registerVectaVoIPInstall($input, $messages, $errors);
         }
     }
 
@@ -268,6 +322,11 @@ function writeEnvFile(string $envPath, string $envExamplePath, array $input, arr
         'A2BP_DB_NAME' => $input['db_name'],
         'A2BP_DB_USER' => $input['db_user'],
         'A2BP_DB_PASSWORD' => $input['db_password'],
+        'VECTAVOIP_API_BASE_URL' => $input['provider_api_base_url'],
+        'VECTAVOIP_INSTALL_KEY' => $input['provider_install_key'],
+        'VECTAVOIP_INSTALLATION_ID' => $input['provider_installation_id'],
+        'VECTAVOIP_API_KEY' => $input['provider_api_key'],
+        'VECTAVOIP_API_SECRET' => $input['provider_api_secret'],
     ];
 
     $contents = mergeEnv($base, $values);
@@ -277,6 +336,50 @@ function writeEnvFile(string $envPath, string $envExamplePath, array $input, arr
     }
 
     $messages[] = 'Wrote .env.';
+}
+
+function registerVectaVoIPInstall(array &$input, array &$messages, array &$errors): void
+{
+    if (!class_exists(VectaVoIPRegistrationClient::class)) {
+        $errors[] = 'Cannot register with VectaVoIP because Composer autoload is unavailable. Run composer install first.';
+        return;
+    }
+
+    if ($input['provider_install_key'] === '') {
+        $input['provider_install_key'] = generateInstallKey();
+    }
+
+    $client = new VectaVoIPRegistrationClient($input['provider_api_base_url']);
+    $result = $client->register(new VectaVoIPRegistrationRequest(
+        $input['provider_install_key'],
+        $input['provider_company_name'],
+        $input['provider_company_domain'],
+        $input['provider_contact_name'],
+        $input['provider_contact_email'],
+        $input['provider_contact_phone'],
+        $input['provider_details'],
+        $input['app_name'],
+        '0.1.0-alpha'
+    ));
+
+    if (!$result->isSuccessful()) {
+        $errors[] = $result->getMessage() . ' Contact info@VectaVoIP.com if registration keeps failing.';
+        return;
+    }
+
+    $input['provider_installation_id'] = $result->getInstallationId();
+    $input['provider_api_key'] = $result->getApiKey();
+    $input['provider_api_secret'] = $result->getApiSecret();
+    $messages[] = 'Registered this install with VectaVoIP and stored provider API credentials.';
+}
+
+function generateInstallKey(): string
+{
+    try {
+        return 'a2bp_' . bin2hex(random_bytes(32));
+    } catch (Throwable $exception) {
+        return 'a2bp_' . hash('sha256', uniqid('', true) . microtime(true));
+    }
 }
 
 function mergeEnv(string $contents, array $values): string
@@ -518,15 +621,21 @@ function h(string $value): string
             color: #344054;
             margin-bottom: 6px;
         }
-        input[type="text"], input[type="password"], input[type="number"] {
+        input[type="text"], input[type="password"], input[type="number"], textarea {
             width: 100%;
             min-height: 40px;
             border: 1px solid #cbd5e1;
             border-radius: 6px;
             padding: 8px 10px;
             font-size: 14px;
+            font-family: Arial, Helvetica, sans-serif;
+        }
+        textarea {
+            min-height: 90px;
+            resize: vertical;
         }
         .full { grid-column: 1 / -1; }
+        .hidden { display: none; }
         .option {
             display: flex;
             gap: 10px;
@@ -735,6 +844,44 @@ function h(string $value): string
                     <input id="admin_password_confirm" name="admin_password_confirm" type="password" value="<?php echo h($input['admin_password_confirm']); ?>">
                 </div>
                 <div class="full option">
+                    <input id="register_provider" name="register_provider" type="checkbox" value="1" <?php echo $input['register_provider'] === '1' ? 'checked' : ''; ?>>
+                    <label for="register_provider">Automatically register this install with VectaVoIP and store provider API credentials. The installer generates the install key; the user does not need to manually sign up.</label>
+                </div>
+                <div data-provider-registration>
+                    <label for="provider_company_name">Provider Registration Company</label>
+                    <input id="provider_company_name" name="provider_company_name" type="text" value="<?php echo h($input['provider_company_name'] !== '' ? $input['provider_company_name'] : $input['company_name']); ?>">
+                </div>
+                <div data-provider-registration>
+                    <label for="provider_company_domain">Provider Registration Domain</label>
+                    <input id="provider_company_domain" name="provider_company_domain" type="text" value="<?php echo h($input['provider_company_domain'] !== '' ? $input['provider_company_domain'] : $input['company_domain']); ?>">
+                </div>
+                <div data-provider-registration>
+                    <label for="provider_contact_name">Provider Contact Name</label>
+                    <input id="provider_contact_name" name="provider_contact_name" type="text" value="<?php echo h($input['provider_contact_name']); ?>">
+                </div>
+                <div data-provider-registration>
+                    <label for="provider_contact_email">Provider Contact Email</label>
+                    <input id="provider_contact_email" name="provider_contact_email" type="text" value="<?php echo h($input['provider_contact_email'] !== '' ? $input['provider_contact_email'] : $input['admin_email']); ?>">
+                </div>
+                <div data-provider-registration>
+                    <label for="provider_contact_phone">Provider Contact Phone</label>
+                    <input id="provider_contact_phone" name="provider_contact_phone" type="text" value="<?php echo h($input['provider_contact_phone']); ?>">
+                </div>
+                <div class="full" data-provider-registration>
+                    <label for="provider_api_base_url">VectaVoIP API Base URL</label>
+                    <input id="provider_api_base_url" name="provider_api_base_url" type="text" value="<?php echo h($input['provider_api_base_url']); ?>">
+                    <p class="muted">Default: <code>https://api.VectaVoIP.com</code>. Registration endpoint: <code>/v1/installations/register</code>.</p>
+                </div>
+                <div class="full" data-provider-registration>
+                    <label for="provider_details">Provider Registration Details</label>
+                    <textarea id="provider_details" name="provider_details"><?php echo h($input['provider_details']); ?></textarea>
+                    <p class="muted">Optional notes for the VectaVoIP server, such as sandbox, production, expected traffic, or migration source.</p>
+                </div>
+                <input name="provider_install_key" type="hidden" value="<?php echo h($input['provider_install_key']); ?>">
+                <input name="provider_installation_id" type="hidden" value="<?php echo h($input['provider_installation_id']); ?>">
+                <input name="provider_api_key" type="hidden" value="<?php echo h($input['provider_api_key']); ?>">
+                <input name="provider_api_secret" type="hidden" value="<?php echo h($input['provider_api_secret']); ?>">
+                <div class="full option">
                     <input id="overwrite_env" name="overwrite_env" type="checkbox" value="1" <?php echo $input['overwrite_env'] === '1' ? 'checked' : ''; ?>>
                     <label for="overwrite_env">Overwrite `.env` if it already exists.</label>
                 </div>
@@ -751,5 +898,23 @@ function h(string $value): string
         </form>
     </section>
 </main>
+<script>
+    (function () {
+        var toggle = document.getElementById('register_provider');
+        var fields = document.querySelectorAll('[data-provider-registration]');
+        if (!toggle) {
+            return;
+        }
+
+        function syncProviderRegistration() {
+            fields.forEach(function (field) {
+                field.classList.toggle('hidden', !toggle.checked);
+            });
+        }
+
+        toggle.addEventListener('change', syncProviderRegistration);
+        syncProviderRegistration();
+    }());
+</script>
 </body>
 </html>

@@ -13,25 +13,26 @@ final class VectaVoIPConnectorTest extends TestCase
     public function testConnectionRequiresApiKey(): void
     {
         $connector = new VectaVoIPConnector();
-        $result = $connector->testConnection(new ProviderCredentials('https://VectaVoIP.com/api', ''));
+        $result = $connector->testConnection(new ProviderCredentials('https://api.VectaVoIP.com', ''));
 
         $this->assertFalse($result->isSuccessful());
-        $this->assertSame('VectaVoIP API key is required.', $result->getMessage());
+        $this->assertSame('VectaVoIP API key is required. Contact info@VectaVoIP.com for access.', $result->getMessage());
     }
 
     public function testConnectionAcceptsStructurallyValidCredentials(): void
     {
         $connector = new VectaVoIPConnector();
-        $result = $connector->testConnection(new ProviderCredentials('https://VectaVoIP.com/api/', 'test-key'));
+        $result = $connector->testConnection(new ProviderCredentials('https://api.VectaVoIP.com/', 'test-key'));
 
         $this->assertTrue($result->isSuccessful());
-        $this->assertSame('https://VectaVoIP.com/api', $result->getDetails()['base_url']);
+        $this->assertSame('https://api.VectaVoIP.com', $result->getDetails()['base_url']);
+        $this->assertSame('info@VectaVoIP.com', $result->getDetails()['support_email']);
     }
 
     public function testProvidesRateImporter(): void
     {
         $connector = new VectaVoIPConnector();
-        $importer = $connector->getRateImporter(new ProviderCredentials('https://VectaVoIP.com/api', 'test-key'));
+        $importer = $connector->getRateImporter(new ProviderCredentials('https://api.VectaVoIP.com', 'test-key'));
         $preview = $importer->preview(new RateImportRequest('usd'));
 
         $this->assertInstanceOf(VectaVoIPRateImporter::class, $importer);

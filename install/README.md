@@ -5,6 +5,7 @@ This directory contains public installation guides for A2BillingPlus.
 Start here:
 
 - [Web Installer](web-installer.md): browser-based `install.php` setup.
+- [VectaVoIP Provider Registration](provider-registration.md): automatic provider signup contract and sandbox endpoint.
 - [Sandbox Install](sandbox.md): local Docker setup for development and testing.
 - [Production Install](production.md): production-oriented container deployment checklist.
 - [Environment Reference](environment.md): required and optional `.env` variables.

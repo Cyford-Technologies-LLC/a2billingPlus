@@ -19,7 +19,33 @@ The installer can:
 - Update `a2billing.conf`.
 - Start Docker Compose when the installer process has Docker CLI access.
 - Set or create the first admin user so the default password is not left active.
+- Generate an install key and register this install with VectaVoIP.
+- Store returned VectaVoIP provider API credentials in `.env`.
 - Create `install.lock`.
+
+## VectaVoIP Registration
+
+Automatic provider registration is optional. When enabled, the installer
+generates a local install key and posts registration metadata to:
+
+```text
+https://api.VectaVoIP.com/v1/installations/register
+```
+
+The VectaVoIP server should return the installation ID, API key, and optional
+API secret. Users should not need to manually sign up for provider API access.
+
+When registration is enabled, the installer asks for provider registration
+details: company name, domain, contact name, contact email, contact phone, and
+optional install notes. The local admin details are used only as fallback values
+when the provider contact fields are left blank.
+
+For sandbox testing without the production VectaVoIP API, set the API base URL
+to:
+
+```text
+http://localhost:8080/api/sandbox
+```
 
 ## Option 1: New MariaDB Container
 

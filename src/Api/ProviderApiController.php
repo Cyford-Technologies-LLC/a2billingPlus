@@ -9,6 +9,7 @@ use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
 use A2BillingPlus\Module\Provider\RateImportRequest;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
 
 final class ProviderApiController
 {
@@ -40,6 +41,8 @@ final class ProviderApiController
             $providers[] = [
                 'code' => $connector->getProviderCode(),
                 'name' => $connector->getDisplayName(),
+                'support_email' => $connector->getSupportEmail(),
+                'api_base_url' => $connector->getApiBaseUrl(),
             ];
         }
 
@@ -102,11 +105,17 @@ final class ProviderApiController
     private function credentialsFromRequest(JsonRequest $request): ProviderCredentials
     {
         return new ProviderCredentials(
-            $request->getString('base_url', 'https://VectaVoIP.com/api'),
-            $request->getString('api_key'),
-            $request->getString('api_secret'),
+            $request->getString('base_url', $this->envString('VECTAVOIP_API_BASE_URL', VectaVoIPConnector::API_BASE_URL)),
+            $request->getString('api_key', $this->envString('VECTAVOIP_API_KEY')),
+            $request->getString('api_secret', $this->envString('VECTAVOIP_API_SECRET')),
             $this->stringMap($request->getArray('metadata'))
         );
+    }
+
+    private function envString(string $key, string $default = ''): string
+    {
+        $value = getenv($key);
+        return is_string($value) && $value !== '' ? $value : $default;
     }
 
     /**

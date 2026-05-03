@@ -44,6 +44,20 @@ and internal database port `3306`. The host port is controlled by
 
 If you change database credentials after the first run, recreate the database volume or update MariaDB users manually. Docker only applies `MYSQL_*` initialization variables to a new empty volume.
 
+## VectaVoIP Provider Registration
+
+```text
+VECTAVOIP_API_BASE_URL=https://api.VectaVoIP.com
+VECTAVOIP_INSTALL_KEY=
+VECTAVOIP_INSTALLATION_ID=
+VECTAVOIP_API_KEY=
+VECTAVOIP_API_SECRET=
+```
+
+`install.php` writes these values when automatic VectaVoIP registration
+succeeds. The install key is generated locally, and the API key/secret are
+returned by the VectaVoIP registration server.
+
 ## Redis
 
 ```text
