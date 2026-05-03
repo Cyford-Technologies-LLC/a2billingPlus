@@ -41,7 +41,7 @@ if (-not $SkipPhp84) {
 }
 
 Invoke-Step 'PHP 8 static scan' {
-    powershell -ExecutionPolicy Bypass -File development/tools/php8-static-scan.ps1
+    powershell -ExecutionPolicy Bypass -File bin/php8-static-scan.ps1
 }
 
 Invoke-Step 'Provider API status smoke' {
