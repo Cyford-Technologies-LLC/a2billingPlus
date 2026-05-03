@@ -1348,6 +1348,62 @@ paths:
           $ref: '#/components/responses/Unauthorized'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /admin-settings.php:
+    get:
+      summary: List or load safe admin configuration settings
+      parameters:
+        - name: key
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Safe allowlisted cc_config settings only.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Setting is missing or not exposed by the safe settings API.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      summary: Update an allowlisted admin configuration setting
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+        - name: key
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [value]
+              properties:
+                value:
+                  type: string
+      responses:
+        '200':
+          description: Setting updated and audited.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /telephony-accounts.php:
     get:
       summary: List SIP/IAX realtime accounts or load one account
