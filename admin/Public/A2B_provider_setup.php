@@ -110,6 +110,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $status = providerStatus();
+$ratecards = fetchRatecards();
 
 $smarty->display('main.tpl');
 
@@ -194,6 +195,51 @@ function providerRateRequestBody(string $action, array $input): array
         'currency' => $input['currency'],
         'filters' => $filters,
     ];
+}
+
+function fetchRatecards(): array
+{
+    try {
+        $statement = providerSetupPdo()->query('SELECT id, tariffname FROM cc_tariffplan ORDER BY tariffname ASC');
+        if (!$statement) {
+            return [];
+        }
+
+        $ratecards = [];
+        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
+            $ratecards[] = [
+                'id' => (string)($row['id'] ?? ''),
+                'name' => (string)($row['tariffname'] ?? ''),
+            ];
+        }
+
+        return $ratecards;
+    } catch (Throwable $exception) {
+        return [];
+    }
+}
+
+function providerSetupPdo(): PDO
+{
+    $dsn = envString('A2BP_DB_DSN');
+    if ($dsn === '') {
+        $dsn = sprintf(
+            'mysql:host=%s;dbname=%s;charset=utf8mb4',
+            envString('A2BP_DB_HOST', 'db'),
+            envString('A2BP_DB_NAME', 'mya2billing')
+        );
+    }
+
+    return new PDO($dsn, envString('A2BP_DB_USER', 'a2billinguser'), envString('A2BP_DB_PASSWORD', 'a2billing'), [
+        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+    ]);
+}
+
+function envString(string $key, string $default = ''): string
+{
+    $value = getenv($key);
+    return is_string($value) && $value !== '' ? $value : $default;
 }
 
 function saveProviderCredentials(string $envPath, string $baseUrl, array $registration, array &$messages, array &$errors): void
@@ -409,8 +455,19 @@ function h(string $value): string
                     <tr>
                         <td><label for="target_ratecard_id">Target Ratecard ID</label></td>
                         <td>
-                            <input id="target_ratecard_id" name="target_ratecard_id" type="text" size="10" value="<?php echo h($input['target_ratecard_id']); ?>">
-                            <br><span style="color:#666;">Required for dry-run import and import. Find IDs under Rates &gt; RateCards.</span>
+                            <?php if ($ratecards): ?>
+                                <select id="target_ratecard_id" name="target_ratecard_id">
+                                    <option value="">Select a ratecard</option>
+                                    <?php foreach ($ratecards as $ratecard): ?>
+                                        <option value="<?php echo h($ratecard['id']); ?>" <?php echo $input['target_ratecard_id'] === $ratecard['id'] ? 'selected' : ''; ?>>
+                                            <?php echo h($ratecard['name'] . ' (#' . $ratecard['id'] . ')'); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php else: ?>
+                                <input id="target_ratecard_id" name="target_ratecard_id" type="text" size="10" value="<?php echo h($input['target_ratecard_id']); ?>">
+                            <?php endif; ?>
+                            <br><span style="color:#666;">Required for dry-run import and import. Create ratecards under Rates &gt; RateCards.</span>
                         </td>
                     </tr>
                     <tr>
