@@ -79,6 +79,13 @@ components:
       schema:
         type: integer
         enum: [0, 1]
+    InvoicePaidStatus:
+      name: paid_status
+      in: query
+      description: Filter invoices by paid status.
+      schema:
+        type: integer
+        enum: [0, 1]
     RatePrefix:
       name: prefix
       in: query
@@ -285,10 +292,15 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /invoices.php:
     get:
-      summary: List invoices
+      summary: List invoices with module-backed filters
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CustomerId'
+        - $ref: '#/components/parameters/CustomerStatus'
+        - $ref: '#/components/parameters/InvoicePaidStatus'
       responses:
         '200':
           description: Invoice rows from cc_invoice.

@@ -13,6 +13,9 @@ use A2BillingPlus\Module\Billing\CdrSearchService;
 use A2BillingPlus\Module\Customer\CustomerAccountRepository;
 use A2BillingPlus\Module\Customer\CustomerAccountService;
 use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
+use A2BillingPlus\Module\Invoice\InvoiceRepository;
+use A2BillingPlus\Module\Invoice\InvoiceSearchCriteria;
+use A2BillingPlus\Module\Invoice\InvoiceService;
 use A2BillingPlus\Module\Payment\PaymentLedgerRepository;
 use A2BillingPlus\Module\Payment\PaymentLedgerService;
 use A2BillingPlus\Module\Payment\PaymentSearchCriteria;
@@ -73,6 +76,10 @@ final class RestApiController
 
         if ($resource === 'payments') {
             return $this->handlePayments($request, $limit, $offset);
+        }
+
+        if ($resource === 'invoices') {
+            return $this->handleInvoices($request, $limit, $offset);
         }
 
         try {
@@ -323,5 +330,74 @@ final class RestApiController
                 'customer_id' => $customerId,
             ],
         ]);
+    }
+
+    private function handleInvoices(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $from = trim($request->getString('from'));
+        $to = trim($request->getString('to'));
+        foreach (['from' => $from, 'to' => $to] as $field => $value) {
+            if ($value !== '' && preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $value) !== 1) {
+                return ApiResponder::error('invalid_' . $field, ucfirst($field) . ' must be YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.', 422, ['field' => $field]);
+            }
+        }
+
+        $customerId = $this->positiveIntFilter($request, 'customer_id');
+        if ($customerId === false) {
+            return ApiResponder::error('invalid_customer_id', 'Customer id must be a positive integer.', 422, ['field' => 'customer_id']);
+        }
+
+        $status = $this->binaryIntFilter($request, 'status');
+        if ($status === false) {
+            return ApiResponder::error('invalid_status', 'Status must be 0 or 1.', 422, ['field' => 'status']);
+        }
+
+        $paidStatus = $this->binaryIntFilter($request, 'paid_status');
+        if ($paidStatus === false) {
+            return ApiResponder::error('invalid_paid_status', 'Paid status must be 0 or 1.', 422, ['field' => 'paid_status']);
+        }
+
+        try {
+            $service = new InvoiceService(new InvoiceRepository(($this->pdoFactory)()));
+            $result = $service->search(new InvoiceSearchCriteria($limit, $offset, $from, $to, $customerId, $status, $paidStatus));
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('invoice_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'invoices' => $result['items'],
+        ], [
+            'resource' => 'invoices',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+                'customer_id' => $customerId,
+                'status' => $status,
+                'paid_status' => $paidStatus,
+            ],
+        ]);
+    }
+
+    private function positiveIntFilter(JsonRequest $request, string $key): int|null|false
+    {
+        $value = $request->getString($key);
+        if ($value === '') {
+            return null;
+        }
+
+        return preg_match('/^[1-9][0-9]*$/', $value) === 1 ? (int)$value : false;
+    }
+
+    private function binaryIntFilter(JsonRequest $request, string $key): int|null|false
+    {
+        $value = $request->getString($key);
+        if ($value === '') {
+            return null;
+        }
+
+        return in_array($value, ['0', '1'], true) ? (int)$value : false;
     }
 }
