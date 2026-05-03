@@ -99,6 +99,65 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame(1, $payload['meta']['filters']['status']);
     }
 
+    public function testLoadsCustomerDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('alice', $payload['data']['customer']['username']);
+        $this->assertSame(1, $payload['meta']['id']);
+    }
+
+    public function testReturnsNotFoundForMissingCustomerDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET', ['id' => '999'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('customer_not_found', $response->getPayload()['error']['code']);
+    }
+
+    public function testUpdatesCustomerStatusAndAuditsActor(): void
+    {
+        $pdo = $this->pdo();
+        $controller = $this->controller('secret-key', $pdo);
+        $response = $controller->handle('customers', new JsonRequest('PATCH', [], [
+            'id' => '1',
+            'status' => '0',
+        ], [
+            'Authorization' => 'Bearer secret-key',
+            'X-A2BP-Actor' => 'admin:root',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(0, (int)$payload['data']['customer']['status']);
+        $this->assertSame('status_update', $payload['meta']['action']);
+        $this->assertSame('admin:root', $pdo->query('SELECT actor FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
+    public function testRejectsInvalidCustomerStatusUpdate(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('PATCH', [], [
+            'id' => '1',
+            'status' => '2',
+        ], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('invalid_status', $response->getPayload()['error']['code']);
+    }
+
     public function testListsAllInitialResources(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());

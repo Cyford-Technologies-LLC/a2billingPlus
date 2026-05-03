@@ -101,15 +101,56 @@ components:
 paths:
   /customers.php:
     get:
-      summary: List customer accounts
+      summary: List customer accounts or load one customer by id
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          description: When present, return one customer detail record.
+          schema:
+            type: integer
+            minimum: 1
         - $ref: '#/components/parameters/CustomerSearch'
         - $ref: '#/components/parameters/CustomerStatus'
       responses:
         '200':
           description: Customer rows from cc_card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    patch:
+      summary: Activate or block a customer account
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          description: Optional audit actor identifier.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, status]
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                status:
+                  type: integer
+                  enum: [0, 1]
+      responses:
+        '200':
+          description: Updated customer record.
           content:
             application/json:
               schema:

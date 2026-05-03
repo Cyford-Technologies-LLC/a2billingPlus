@@ -10,6 +10,7 @@ use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Customer\CustomerAccountRepository;
 use A2BillingPlus\Module\Customer\CustomerAccountService;
 use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
+use A2BillingPlus\Module\Security\AuditLogRepository;
 
 final class RestApiController
 {
@@ -35,7 +36,7 @@ final class RestApiController
             return ApiResponder::error('resource_not_found', 'Unknown API resource.', 404);
         }
 
-        if ($request->getMethod() !== 'GET') {
+        if ($request->getMethod() !== 'GET' && !($resource === 'customers' && $request->getMethod() === 'PATCH')) {
             return ApiResponder::error('method_not_allowed', 'This API resource currently supports GET only.', 405);
         }
 
@@ -74,6 +75,11 @@ final class RestApiController
 
     private function handleCustomers(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
+        $id = $request->getInt('id');
+        if ($request->getMethod() === 'PATCH') {
+            return $this->handleCustomerStatusUpdate($request, $id);
+        }
+
         $statusValue = $request->getString('status');
         $status = null;
         if ($statusValue !== '') {
@@ -89,7 +95,21 @@ final class RestApiController
         }
 
         try {
-            $service = new CustomerAccountService(new CustomerAccountRepository(($this->pdoFactory)()));
+            $service = $this->customerService();
+            if ($id > 0) {
+                $customer = $service->detail($id);
+                if ($customer === null) {
+                    return ApiResponder::error('customer_not_found', 'Customer was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([
+                    'customer' => $customer,
+                ], [
+                    'resource' => 'customers',
+                    'id' => $id,
+                ]);
+            }
+
             $result = $service->search(new CustomerSearchCriteria($limit, $offset, $search, $status));
         } catch (\Throwable $exception) {
             return ApiResponder::error('customer_query_failed', $exception->getMessage(), 500);
@@ -107,5 +127,49 @@ final class RestApiController
                 'status' => $status,
             ],
         ]);
+    }
+
+    private function handleCustomerStatusUpdate(JsonRequest $request, int $id): JsonResponse
+    {
+        if ($id <= 0) {
+            return ApiResponder::error('invalid_customer_id', 'Customer id is required.', 422, ['field' => 'id']);
+        }
+
+        $statusValue = $request->getString('status');
+        if (!in_array($statusValue, ['0', '1'], true)) {
+            return ApiResponder::error('invalid_status', 'Status must be 0 or 1.', 422, ['field' => 'status']);
+        }
+
+        try {
+            $customer = $this->customerService()->changeStatus(
+                $id,
+                (int)$statusValue,
+                $request->getHeader('X-A2BP-Actor') ?: 'service-key'
+            );
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('customer_update_failed', $exception->getMessage(), 500);
+        }
+
+        if ($customer === null) {
+            return ApiResponder::error('customer_not_found', 'Customer was not found.', 404, ['id' => $id]);
+        }
+
+        return ApiResponder::ok([
+            'customer' => $customer,
+        ], [
+            'resource' => 'customers',
+            'id' => $id,
+            'action' => 'status_update',
+        ]);
+    }
+
+    private function customerService(): CustomerAccountService
+    {
+        $pdo = ($this->pdoFactory)();
+
+        return new CustomerAccountService(
+            new CustomerAccountRepository($pdo),
+            new AuditLogRepository($pdo)
+        );
     }
 }

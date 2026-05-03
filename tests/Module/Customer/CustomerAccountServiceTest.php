@@ -5,6 +5,7 @@ declare(strict_types=1);
 use A2BillingPlus\Module\Customer\CustomerAccountRepository;
 use A2BillingPlus\Module\Customer\CustomerAccountService;
 use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
+use A2BillingPlus\Module\Security\AuditLogRepository;
 use PHPUnit\Framework\TestCase;
 
 final class CustomerAccountServiceTest extends TestCase
@@ -29,6 +30,33 @@ final class CustomerAccountServiceTest extends TestCase
 
         $this->assertCount(1, $result['items']);
         $this->assertSame('bob', $result['items'][0]['username']);
+    }
+
+    public function testLoadsCustomerDetailById(): void
+    {
+        $service = new CustomerAccountService(new CustomerAccountRepository($this->pdo()));
+
+        $customer = $service->detail(3);
+
+        $this->assertIsArray($customer);
+        $this->assertSame('alice', $customer['username']);
+        $this->assertArrayNotHasKey('uipass', $customer);
+    }
+
+    public function testChangesStatusAndRecordsAuditLog(): void
+    {
+        $pdo = $this->pdo();
+        $service = new CustomerAccountService(
+            new CustomerAccountRepository($pdo),
+            new AuditLogRepository($pdo)
+        );
+
+        $customer = $service->changeStatus(3, 0, 'admin:root');
+
+        $this->assertIsArray($customer);
+        $this->assertSame(0, (int)$customer['status']);
+        $this->assertSame('customer.status.update', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+        $this->assertSame('admin:root', $pdo->query('SELECT actor FROM cc_a2bp_audit_log')->fetchColumn());
     }
 
     private function pdo(): PDO

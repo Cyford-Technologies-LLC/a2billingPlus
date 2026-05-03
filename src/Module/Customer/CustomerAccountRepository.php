@@ -83,6 +83,56 @@ final class CustomerAccountRepository
     }
 
     /**
+     * @return array<string, mixed>|null
+     */
+    public function findById(int $id): ?array
+    {
+        $columns = $this->availableColumns(self::TABLE, self::COLUMNS);
+        if ($columns === []) {
+            throw new \RuntimeException('No supported customer columns were found.');
+        }
+
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s WHERE %s = :id',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier(self::TABLE),
+            $this->quoteIdentifier('id')
+        ));
+        $statement->bindValue(':id', $id, \PDO::PARAM_INT);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function updateStatus(int $id, int $status): ?array
+    {
+        $columns = $this->availableColumns(self::TABLE, self::COLUMNS);
+        if (!in_array('status', $columns, true)) {
+            throw new \RuntimeException('Customer status column is unavailable.');
+        }
+
+        $statement = $this->pdo->prepare(sprintf(
+            'UPDATE %s SET %s = :status WHERE %s = :id',
+            $this->quoteIdentifier(self::TABLE),
+            $this->quoteIdentifier('status'),
+            $this->quoteIdentifier('id')
+        ));
+        $statement->bindValue(':status', $status, \PDO::PARAM_INT);
+        $statement->bindValue(':id', $id, \PDO::PARAM_INT);
+        $statement->execute();
+
+        if ($statement->rowCount() === 0) {
+            return $this->findById($id);
+        }
+
+        return $this->findById($id);
+    }
+
+    /**
      * @param list<string> $preferred
      * @return list<string>
      */
