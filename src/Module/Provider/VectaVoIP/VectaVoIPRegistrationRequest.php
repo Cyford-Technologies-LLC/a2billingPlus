@@ -19,6 +19,51 @@ final class VectaVoIPRegistrationRequest
     ) {
     }
 
+    public function getInstallKey(): string
+    {
+        return $this->installKey;
+    }
+
+    public function getCompanyName(): string
+    {
+        return $this->companyName;
+    }
+
+    public function getCompanyDomain(): string
+    {
+        return $this->companyDomain;
+    }
+
+    public function getContactName(): string
+    {
+        return $this->contactName;
+    }
+
+    public function getContactEmail(): string
+    {
+        return $this->contactEmail;
+    }
+
+    public function getContactPhone(): string
+    {
+        return $this->contactPhone;
+    }
+
+    public function getDetails(): string
+    {
+        return $this->details;
+    }
+
+    public function getAppName(): string
+    {
+        return $this->appName;
+    }
+
+    public function getAppVersion(): string
+    {
+        return $this->appVersion;
+    }
+
     /**
      * @return array<string, string>
      */

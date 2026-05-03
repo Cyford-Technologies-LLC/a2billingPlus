@@ -26,7 +26,7 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertSame('vectavoip', $response->getPayload()['providers'][0]['code']);
         $this->assertSame('info@VectaVoIP.com', $response->getPayload()['providers'][0]['support_email']);
-        $this->assertSame('https://api.VectaVoIP.com', $response->getPayload()['providers'][0]['api_base_url']);
+        $this->assertSame('https://api.vectavoip.com', $response->getPayload()['providers'][0]['api_base_url']);
     }
 
     public function testTestsProviderConnection(): void
@@ -35,7 +35,7 @@ final class ProviderApiControllerTest extends TestCase
         $response = $controller->handle(new JsonRequest('POST', [], [
             'action' => 'test_connection',
             'provider' => 'vectavoip',
-            'base_url' => 'https://api.VectaVoIP.com',
+            'base_url' => 'https://api.vectavoip.com',
             'api_key' => 'test-key',
         ]));
 
@@ -56,7 +56,7 @@ final class ProviderApiControllerTest extends TestCase
 
             $this->assertSame(200, $response->getStatusCode());
             $this->assertTrue($response->getPayload()['success']);
-            $this->assertSame('https://api.VectaVoIP.com', $response->getPayload()['details']['base_url']);
+            $this->assertSame('https://api.vectavoip.com', $response->getPayload()['details']['base_url']);
         } finally {
             putenv('VECTAVOIP_API_KEY');
         }
@@ -66,7 +66,7 @@ final class ProviderApiControllerTest extends TestCase
     {
         putenv('VECTAVOIP_API_KEY=registered-key');
         putenv('VECTAVOIP_INSTALLATION_ID=inst_123');
-        putenv('VECTAVOIP_API_BASE_URL=https://api.VectaVoIP.com');
+        putenv('VECTAVOIP_API_BASE_URL=https://api.vectavoip.com');
 
         try {
             $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
@@ -78,7 +78,7 @@ final class ProviderApiControllerTest extends TestCase
             $this->assertSame(200, $response->getStatusCode());
             $this->assertTrue($response->getPayload()['registered']);
             $this->assertSame('inst_123', $response->getPayload()['installation_id']);
-            $this->assertSame('https://api.VectaVoIP.com', $response->getPayload()['api_base_url']);
+            $this->assertSame('https://api.vectavoip.com', $response->getPayload()['api_base_url']);
         } finally {
             putenv('VECTAVOIP_API_KEY');
             putenv('VECTAVOIP_INSTALLATION_ID');
@@ -216,7 +216,7 @@ final class ProviderApiControllerTest extends TestCase
 
             public function getApiBaseUrl(): string
             {
-                return 'https://api.VectaVoIP.com';
+                return 'https://api.vectavoip.com';
             }
 
             public function testConnection(ProviderCredentials $credentials): ProviderConnectionResult

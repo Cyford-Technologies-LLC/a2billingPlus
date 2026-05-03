@@ -30,7 +30,7 @@ Automatic provider registration is optional. When enabled, the installer
 generates a local install key and posts registration metadata to:
 
 ```text
-https://api.VectaVoIP.com/v1/installations/register
+https://api.vectavoip.com/v1/installations/register
 ```
 
 The VectaVoIP server should return the installation ID, API key, and optional

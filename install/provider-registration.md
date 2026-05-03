@@ -6,7 +6,7 @@ VectaVoIP. Manual API signup is not required when this option is enabled.
 ## Production Endpoint
 
 ```text
-POST https://api.VectaVoIP.com/v1/installations/register
+POST https://api.vectavoip.com/v1/installations/register
 Content-Type: application/json
 Accept: application/json
 ```
@@ -50,9 +50,37 @@ VECTAVOIP_API_KEY=
 VECTAVOIP_API_SECRET=
 ```
 
+Production-compatible endpoints are implemented in this repository under:
+
+```text
+POST /api/vectavoip/v1/installations/register.php
+GET  /api/vectavoip/v1/installations/status.php
+POST /api/vectavoip/v1/credentials/rotate.php
+GET  /api/vectavoip/v1/rates/preview.php
+```
+
+Use this local base URL to exercise the production-compatible provider API
+before deploying `api.vectavoip.com`:
+
+```text
+http://localhost:8080/api/vectavoip
+```
+
+Registration records are stored in `cc_vectavoip_installations`.
+
+Authenticated provider requests use:
+
+```text
+Authorization: Bearer <api_key>
+X-VectaVoIP-Secret: <api_secret>
+```
+
+Credential rotation returns the same API key and a new API secret. The old
+secret stops working immediately after rotation.
+
 ## Sandbox Endpoint
 
-For local testing before `api.VectaVoIP.com` is live, set the installer API base
+For local testing before `api.vectavoip.com` is live, set the installer API base
 URL to this value when the installer runs inside the Docker app container:
 
 ```text

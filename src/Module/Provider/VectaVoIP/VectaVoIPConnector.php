@@ -11,8 +11,15 @@ use A2BillingPlus\Module\Provider\RateImporterInterface;
 
 final class VectaVoIPConnector implements ProviderConnectorInterface
 {
-    public const API_BASE_URL = 'https://api.VectaVoIP.com';
+    public const API_BASE_URL = 'https://api.vectavoip.com';
     public const SUPPORT_EMAIL = 'info@VectaVoIP.com';
+
+    /**
+     * @param null|callable(): VectaVoIPStatusClient $statusClientFactory
+     */
+    public function __construct(private $statusClientFactory = null)
+    {
+    }
 
     public function getProviderCode(): string
     {
@@ -37,11 +44,15 @@ final class VectaVoIPConnector implements ProviderConnectorInterface
     public function testConnection(ProviderCredentials $credentials): ProviderConnectionResult
     {
         if ($credentials->getBaseUrl() === '') {
-            return new ProviderConnectionResult(false, 'VectaVoIP API base URL is required. Use https://api.VectaVoIP.com.');
+            return new ProviderConnectionResult(false, 'VectaVoIP API base URL is required. Use https://api.vectavoip.com.');
         }
 
         if ($credentials->getApiKey() === '') {
             return new ProviderConnectionResult(false, 'VectaVoIP API key is required. Contact info@VectaVoIP.com for access.');
+        }
+
+        if ($credentials->getApiSecret() !== '' && !str_starts_with($credentials->getApiKey(), 'sandbox_')) {
+            return $this->statusClient()->check($credentials);
         }
 
         return new ProviderConnectionResult(true, 'VectaVoIP credentials are structurally valid.', [
@@ -54,5 +65,14 @@ final class VectaVoIPConnector implements ProviderConnectorInterface
     public function getRateImporter(ProviderCredentials $credentials): RateImporterInterface
     {
         return new VectaVoIPRateImporter($credentials);
+    }
+
+    private function statusClient(): VectaVoIPStatusClient
+    {
+        if (is_callable($this->statusClientFactory)) {
+            return ($this->statusClientFactory)();
+        }
+
+        return new VectaVoIPStatusClient();
     }
 }

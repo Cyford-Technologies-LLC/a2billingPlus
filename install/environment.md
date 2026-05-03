@@ -53,7 +53,7 @@ A2BillingPlus schema exists. Applied migration filenames are recorded in
 ## VectaVoIP Provider Registration
 
 ```text
-VECTAVOIP_API_BASE_URL=https://api.VectaVoIP.com
+VECTAVOIP_API_BASE_URL=https://api.vectavoip.com
 VECTAVOIP_INSTALL_KEY=
 VECTAVOIP_INSTALLATION_ID=
 VECTAVOIP_API_KEY=

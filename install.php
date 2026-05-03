@@ -69,6 +69,7 @@ $defaults = [
 
 $messages = [];
 $errors = [];
+$warnings = [];
 $posted = $_SERVER['REQUEST_METHOD'] === 'POST';
 $input = $defaults;
 
@@ -104,6 +105,15 @@ if ($posted) {
     }
     if ($input['db_external_port'] === '' || !ctype_digit($input['db_external_port'])) {
         $errors[] = 'Host database port must be numeric.';
+    }
+    if ($input['http_port'] === '' || !ctype_digit($input['http_port'])) {
+        $errors[] = 'Web port must be numeric.';
+    }
+    if ($input['db_password'] === '') {
+        $errors[] = 'Database password is required.';
+    }
+    if ($input['mysql_root_password'] === '') {
+        $errors[] = 'Container database root password is required.';
     }
     if ($input['register_provider'] === '1' && $input['provider_api_base_url'] === '') {
         $errors[] = 'VectaVoIP API base URL is required for automatic provider registration.';
@@ -146,6 +156,12 @@ if ($posted) {
         if ($input['admin_email'] !== '' && !filter_var($input['admin_email'], FILTER_VALIDATE_EMAIL)) {
             $errors[] = 'Admin email is invalid.';
         }
+    }
+
+    collectCredentialWarnings($input, $warnings);
+
+    if (!$errors) {
+        validateInstallPrerequisites($input, $envPath, $configPath, $schemaPath, $lockPath, $errors);
     }
 
     if (!$errors) {
@@ -198,6 +214,72 @@ if ($posted) {
 }
 
 $checks = collectChecks($envPath, $configPath, $schemaPath, $lockPath);
+$productionChecklist = productionHardeningChecklist();
+
+function validateInstallPrerequisites(
+    array $input,
+    string $envPath,
+    string $configPath,
+    string $schemaPath,
+    string $lockPath,
+    array &$errors
+): void {
+    if (version_compare(PHP_VERSION, '8.2.0', '<')) {
+        $errors[] = 'PHP 8.2 or newer is required.';
+    }
+
+    foreach (['pdo_mysql', 'mysqli', 'gettext'] as $extension) {
+        if (!extension_loaded($extension)) {
+            $errors[] = 'Required PHP extension is missing: ' . $extension;
+        }
+    }
+
+    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
+        $errors[] = '.env is not writable or creatable.';
+    }
+
+    if (!is_file($configPath) || !is_writable($configPath)) {
+        $errors[] = 'a2billing.conf is missing or not writable.';
+    }
+
+    if ($input['initialize_schema'] === '1' && !is_file($schemaPath)) {
+        $errors[] = 'MariaDB schema file is missing.';
+    }
+
+    if ($input['write_lock'] === '1' && is_file($lockPath)) {
+        $errors[] = 'install.lock already exists. Remove it only when you intentionally need to rerun the installer.';
+    }
+
+    if ($input['run_compose'] === '1' && !dockerComposeAvailable()) {
+        $errors[] = 'Docker Compose is not available to this PHP process. Leave "Run Docker Compose" unchecked and run the displayed command on the host.';
+    }
+}
+
+function collectCredentialWarnings(array $input, array &$warnings): void
+{
+    $defaultDatabasePasswords = ['a2billing', 'a2billing-root', 'changepassword', 'password'];
+
+    if (in_array($input['db_password'], $defaultDatabasePasswords, true)) {
+        $warnings[] = 'The database password is still a sandbox/default value. Change it before any production use.';
+    }
+
+    if (in_array($input['mysql_root_password'], $defaultDatabasePasswords, true)) {
+        $warnings[] = 'The container database root password is still a sandbox/default value. Change it before any production use.';
+    }
+
+    if ($input['setup_admin'] !== '1') {
+        $warnings[] = 'Admin setup is disabled. Confirm the legacy default admin password has already been changed.';
+        return;
+    }
+
+    if ($input['admin_login'] === 'root') {
+        $warnings[] = 'The admin username is still root. This is acceptable for a sandbox, but use a named admin account for production.';
+    }
+
+    if (in_array($input['admin_password'], $defaultDatabasePasswords, true)) {
+        $warnings[] = 'The admin password is a known default value and must not be used in production.';
+    }
+}
 
 function connectDatabase(array $input, array &$errors): ?PDO
 {
@@ -598,6 +680,19 @@ function dockerComposeAvailable(): bool
     return is_string($version) && stripos($version, 'Docker Compose') !== false;
 }
 
+function productionHardeningChecklist(): array
+{
+    return [
+        'Remove or block install.php after setup.',
+        'Change all sandbox/default database, root, and admin passwords.',
+        'Restrict database, AMI, ARI, SIP, and RTP ports with host firewall rules.',
+        'Enable TLS before exposing the web, API, admin, agent, or customer portals.',
+        'Keep provider API credentials in a secret store where the deployment platform supports it.',
+        'Take and restore-test a database backup before migrating customer data.',
+        'Confirm VectaVoIP registration is using the production API endpoint before live traffic.',
+    ];
+}
+
 function h(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -684,6 +779,31 @@ function h(string $value): string
             background: #fef3f2;
             border: 1px solid #fecdca;
             color: #912018;
+        }
+        .notice.warn {
+            background: #fffaeb;
+            border: 1px solid #fedf89;
+            color: #93370d;
+        }
+        .finish-checklist {
+            margin: 14px 0;
+            padding: 14px 16px;
+            border: 1px solid #fedf89;
+            border-radius: 6px;
+            background: #fffaeb;
+        }
+        .finish-checklist h3 {
+            margin: 0 0 8px;
+            font-size: 15px;
+        }
+        .finish-checklist ul {
+            margin: 0;
+            padding-left: 20px;
+        }
+        .finish-checklist li {
+            margin: 5px 0;
+            font-size: 13px;
+            line-height: 1.4;
         }
         .grid {
             display: grid;
@@ -810,6 +930,21 @@ function h(string $value): string
         <?php foreach ($errors as $error): ?>
             <div class="notice bad"><?php echo h($error); ?></div>
         <?php endforeach; ?>
+
+        <?php foreach ($warnings as $warning): ?>
+            <div class="notice warn"><?php echo h($warning); ?></div>
+        <?php endforeach; ?>
+
+        <?php if ($posted && !$errors): ?>
+            <div class="finish-checklist">
+                <h3>Production Hardening Before Live Use</h3>
+                <ul>
+                    <?php foreach ($productionChecklist as $item): ?>
+                        <li><?php echo h($item); ?></li>
+                    <?php endforeach; ?>
+                </ul>
+            </div>
+        <?php endif; ?>
 
         <form method="post">
             <div class="grid">

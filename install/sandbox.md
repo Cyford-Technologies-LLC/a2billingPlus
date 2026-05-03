@@ -49,6 +49,35 @@ Default admin login:
 root / changepassword
 ```
 
+## Clean Sandbox From A Fresh Clone
+
+From a new checkout, this is the shortest sandbox path:
+
+```powershell
+if (!(Test-Path .env)) { Copy-Item .env.example .env }; docker compose --profile php84 up -d --build; powershell -ExecutionPolicy Bypass -File bin\verify-build.ps1
+```
+
+That command:
+
+- Creates `.env` from `.env.example` if needed.
+- Builds and starts MariaDB, Redis, the PHP 8.2 app, and the PHP 8.4 app.
+- Loads the bundled MariaDB schema into the sandbox database.
+- Runs syntax checks, PHPUnit, the PHP 8 static scan, provider API smoke tests,
+  provider rate dry-run import, and migration dry-run smoke tests.
+
+Open the installer after the containers are healthy:
+
+```text
+http://localhost:8080/install.php
+```
+
+For a full portal crawl, seed sandbox agent/customer accounts first:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File development\tools\seed-crawl-accounts.ps1
+powershell -ExecutionPolicy Bypass -File development\tools\crawl-all-portals.ps1 -BaseUrl http://localhost:8080 -AgentLogin crawlagent -AgentPassword crawlpass -CustomerLogin crawlcustomer@example.test -CustomerPassword crawlpass
+```
+
 ## Start Optional PHP 8.4 Runtime
 
 ```powershell

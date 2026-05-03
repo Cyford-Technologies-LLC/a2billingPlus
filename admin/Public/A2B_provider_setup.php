@@ -8,8 +8,7 @@ include_once '../lib/admin.smarty.php';
 
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
-use A2BillingPlus\Http\JsonRequest;
-use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
+use A2BillingPlus\Module\Provider\ProviderSetupService;
 
 if (!has_rights(ACX_ACXSETTING)) {
     Header('HTTP/1.0 401 Unauthorized');
@@ -31,7 +30,7 @@ $rateImport = [];
 $envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 
 $defaults = [
-    'base_url' => getenv('VECTAVOIP_API_BASE_URL') ?: 'https://api.VectaVoIP.com',
+    'base_url' => getenv('VECTAVOIP_API_BASE_URL') ?: 'https://api.vectavoip.com',
     'api_key' => getenv('VECTAVOIP_API_KEY') ?: '',
     'api_secret' => getenv('VECTAVOIP_API_SECRET') ?: '',
     'company_name' => 'VectaVoIP',
@@ -50,6 +49,7 @@ $defaults = [
 ];
 
 $input = $defaults;
+$providerSetup = providerSetupService();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formAction = trim((string)($_POST['form_action'] ?? ''));
 
@@ -76,7 +76,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors && $formAction === 'register_provider') {
-        $registration = registerProviderInstall($input);
+        $registration = $providerSetup->registerInstall($input);
         if (($registration['success'] ?? false) !== true) {
             $errors[] = (string)($registration['message'] ?? 'Provider registration failed.');
         } else {
@@ -89,7 +89,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors && $formAction === 'preview_rates') {
-        $ratePreview = previewProviderRates($input);
+        $ratePreview = $providerSetup->previewRates($input);
         if (isset($ratePreview['error'])) {
             $errors[] = (string)$ratePreview['error'];
         } else {
@@ -102,7 +102,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'Target ratecard ID is required for import.';
         }
         if (!$errors) {
-            $rateImport = importProviderRates($input, $formAction === 'dry_run_import_rates');
+            $rateImport = $providerSetup->importPreviewRates($input, $formAction === 'dry_run_import_rates');
             if (($rateImport['success'] ?? false) !== true) {
                 $errors[] = (string)($rateImport['message'] ?? 'Rate import failed.');
             } else {
@@ -112,125 +112,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 }
 
-$status = providerStatus();
-$ratecards = fetchRatecards();
-$recentImports = fetchRecentProviderImports();
+$status = $providerSetup->providerStatus();
+$ratecards = $providerSetup->ratecards();
+$recentImports = $providerSetup->recentImports();
 
 $smarty->display('main.tpl');
 
-function providerStatus(): array
+function providerSetupService(): ProviderSetupService
 {
-    $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
-    $response = $controller->handle(new JsonRequest('POST', [], [
-        'action' => 'provider_status',
-        'provider' => 'vectavoip',
-    ]));
+    $pdoFactory = fn (): PDO => providerSetupPdo();
 
-    return $response->getPayload();
-}
-
-function registerProviderInstall(array $input): array
-{
-    $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
-    $response = $controller->handle(new JsonRequest('POST', [], [
-        'action' => 'register_install',
-        'provider' => 'vectavoip',
-        'base_url' => $input['base_url'],
-        'install_key' => $input['install_key'],
-        'company_name' => $input['company_name'],
-        'company_domain' => $input['company_domain'],
-        'contact_name' => $input['contact_name'],
-        'contact_email' => $input['contact_email'],
-        'contact_phone' => $input['contact_phone'],
-        'details' => $input['details'],
-        'app_name' => 'A2BillingPlus',
-        'app_version' => '0.1.0-alpha',
-    ]));
-
-    $payload = $response->getPayload();
-    $payload['http_status'] = $response->getStatusCode();
-
-    return $payload;
-}
-
-function previewProviderRates(array $input): array
-{
-    $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
-    $body = providerRateRequestBody('preview_rates', $input);
-    $response = $controller->handle(new JsonRequest('POST', [], $body));
-    $payload = $response->getPayload();
-    $payload['http_status'] = $response->getStatusCode();
-
-    if ($response->getStatusCode() >= 400) {
-        $payload['error'] = (string)($payload['message'] ?? $payload['error'] ?? 'Rate preview failed.');
-    }
-
-    return $payload;
-}
-
-function importProviderRates(array $input, bool $dryRun): array
-{
-    $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
-    $body = providerRateRequestBody('import_preview_rates', $input);
-    $body['target_ratecard_id'] = $input['target_ratecard_id'];
-    $body['dry_run'] = $dryRun ? '1' : '0';
-    $body['update_existing'] = $input['update_existing'] === '1' ? '1' : '0';
-
-    $response = $controller->handle(new JsonRequest('POST', [], $body));
-    $payload = $response->getPayload();
-    $payload['http_status'] = $response->getStatusCode();
-
-    return $payload;
-}
-
-function providerRateRequestBody(string $action, array $input): array
-{
-    $filters = [];
-    if ($input['destination_filter'] !== '') {
-        $filters['destination'] = $input['destination_filter'];
-    }
-
-    return [
-        'action' => $action,
-        'provider' => 'vectavoip',
-        'base_url' => $input['base_url'],
-        'api_key' => $input['api_key'],
-        'api_secret' => $input['api_secret'],
-        'rate_deck' => $input['rate_deck'],
-        'currency' => $input['currency'],
-        'filters' => $filters,
-    ];
-}
-
-function fetchRatecards(): array
-{
-    try {
-        $statement = providerSetupPdo()->query('SELECT id, tariffname FROM cc_tariffplan ORDER BY tariffname ASC');
-        if (!$statement) {
-            return [];
-        }
-
-        $ratecards = [];
-        foreach ($statement->fetchAll(PDO::FETCH_ASSOC) as $row) {
-            $ratecards[] = [
-                'id' => (string)($row['id'] ?? ''),
-                'name' => (string)($row['tariffname'] ?? ''),
-            ];
-        }
-
-        return $ratecards;
-    } catch (Throwable $exception) {
-        return [];
-    }
-}
-
-function fetchRecentProviderImports(): array
-{
-    try {
-        return (new ProviderImportLogRepository(providerSetupPdo()))->recent(10);
-    } catch (Throwable $exception) {
-        return [];
-    }
+    return new ProviderSetupService(
+        new ProviderApiController(ProviderRegistryFactory::createDefault(), null, $pdoFactory),
+        $pdoFactory
+    );
 }
 
 function providerSetupPdo(): PDO
@@ -382,6 +277,7 @@ function h(string $value): string
                         <td>
                             <input id="base_url" name="base_url" type="text" size="70" value="<?php echo h($input['base_url']); ?>">
                             <br><span style="color:#666;">Sandbox inside Docker: http://localhost/api/sandbox</span>
+                            <br><span style="color:#666;">Production-compatible local API: http://localhost/api/vectavoip</span>
                         </td>
                     </tr>
                     <tr>
@@ -444,6 +340,7 @@ function h(string $value): string
                         <td>
                             <input id="rate_base_url" name="base_url" type="text" size="70" value="<?php echo h($input['base_url']); ?>">
                             <br><span style="color:#666;">Sandbox inside Docker: http://localhost/api/sandbox</span>
+                            <br><span style="color:#666;">Production-compatible local API: http://localhost/api/vectavoip</span>
                         </td>
                     </tr>
                     <tr>

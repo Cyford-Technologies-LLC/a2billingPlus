@@ -18,6 +18,11 @@ function Invoke-Step {
 Invoke-Step 'PHP syntax: core changed entrypoints' {
     docker compose exec -T app php -l install.php
     docker compose exec -T app php -l api/v1/providers.php
+    docker compose exec -T app php -l api/vectavoip/v1/bootstrap.php
+    docker compose exec -T app php -l api/vectavoip/v1/installations/register.php
+    docker compose exec -T app php -l api/vectavoip/v1/installations/status.php
+    docker compose exec -T app php -l api/vectavoip/v1/credentials/rotate.php
+    docker compose exec -T app php -l api/vectavoip/v1/rates/preview.php
     docker compose exec -T app php -l admin/Public/A2B_provider_setup.php
     docker compose exec -T app php -l bin/migrate-a2billing.php
 }
@@ -66,6 +71,36 @@ Invoke-Step 'Provider dry-run import smoke' {
         update_existing = '0'
     } | ConvertTo-Json -Compress
     Invoke-RestMethod -Uri http://localhost:8080/api/v1/providers.php -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
+}
+
+Invoke-Step 'VectaVoIP production-compatible registration smoke' {
+    $installKey = 'a2bp_verify_' + [guid]::NewGuid().ToString('N')
+    $body = @{
+        install_key = $installKey
+        company_name = 'Verify Co'
+        company_domain = 'verify.example'
+        contact_name = 'Verify Admin'
+        contact_email = 'verify@example.test'
+        contact_phone = '+15551234567'
+        details = 'Build verification registration'
+        app_name = 'A2BillingPlus'
+        app_version = '0.1.0-alpha'
+    } | ConvertTo-Json -Compress
+
+    $registration = Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/installations/register.php -Method Post -ContentType 'application/json' -Body $body
+    $headers = @{
+        Authorization = 'Bearer ' + $registration.api_key
+        'X-VectaVoIP-Secret' = $registration.api_secret
+    }
+
+    Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/installations/status.php -Headers $headers | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri 'http://localhost:8080/api/vectavoip/v1/rates/preview.php?rate_deck=retail&currency=USD' -Headers $headers | ConvertTo-Json -Depth 6
+    $rotation = Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/credentials/rotate.php -Method Post -Headers $headers
+    $rotatedHeaders = @{
+        Authorization = 'Bearer ' + $rotation.api_key
+        'X-VectaVoIP-Secret' = $rotation.api_secret
+    }
+    Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/installations/status.php -Headers $rotatedHeaders | ConvertTo-Json -Depth 5
 }
 
 Invoke-Step 'A2Billing migration dry-run smoke' {

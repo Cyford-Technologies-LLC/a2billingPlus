@@ -10,8 +10,8 @@ final class VectaVoIPRegistrationClientTest extends TestCase
 {
     public function testRegistersInstallAndReturnsCredentials(): void
     {
-        $client = new VectaVoIPRegistrationClient('https://api.VectaVoIP.com', function (string $url, array $payload): array {
-            $this->assertSame('https://api.VectaVoIP.com/v1/installations/register', $url);
+        $client = new VectaVoIPRegistrationClient('https://api.vectavoip.com', function (string $url, array $payload): array {
+            $this->assertSame('https://api.vectavoip.com/v1/installations/register', $url);
             $this->assertSame('install-key', $payload['install_key']);
             $this->assertSame('Jane Admin', $payload['contact_name']);
             $this->assertSame('jane@example.test', $payload['contact_email']);
@@ -49,7 +49,7 @@ final class VectaVoIPRegistrationClientTest extends TestCase
 
     public function testRequiresApiKeyInRegistrationResponse(): void
     {
-        $client = new VectaVoIPRegistrationClient('https://api.VectaVoIP.com', fn (): array => [
+        $client = new VectaVoIPRegistrationClient('https://api.vectavoip.com', fn (): array => [
             'status' => 200,
             'body' => '{"message":"ok"}',
         ]);
