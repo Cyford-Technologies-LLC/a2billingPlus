@@ -40,14 +40,25 @@ Result:
 
 ```text
 Asterisk 20.6.0~dfsg+~cs6.13.40431414-2build5
-PJSIP sandbox endpoint loaded: sandbox-endpoint
+PJSIP sandbox endpoint loaded: 1001
 Local sandbox dialplan answered extension 1000 and played hello-world.gsm
 ```
 
-The beta gate still requires a registered PJSIP client/trunk call path against
-Asterisk 20 or 22. The current check proves the correct Asterisk major version,
-PJSIP configuration load, and dialplan execution, but not a full external PJSIP
-registration/media path.
+PJSIP client path verified on 2026-05-03 with a temporary `baresip` client inside
+the Asterisk container:
+
+```text
+REGISTER sip:127.0.0.1 -> 200 OK for sip:1001@127.0.0.1
+INVITE sip:1000@127.0.0.1 -> 100 Trying -> 200 OK with SDP
+ACK sent by client
+BYE sent by client -> 200 OK
+Asterisk channel: PJSIP/1001-00000000 entered a2billingplus-sandbox,1000,1
+```
+
+The headless container has no real audio device, so the client closed the call
+after SIP setup when its local audio sink failed. The Asterisk 20 PJSIP
+registration, authenticated INVITE, dialplan entry, SDP answer, ACK, and BYE
+path passed.
 
 ## Required Runtime Checks
 

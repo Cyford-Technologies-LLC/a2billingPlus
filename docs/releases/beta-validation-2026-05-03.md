@@ -38,3 +38,47 @@ cc_call          1
 
 Result: migration apply is validated against a sanitized legacy-style snapshot
 for customer, VoIP, and date-windowed CDR scopes.
+
+## Asterisk 20 PJSIP Sandbox Call Path
+
+Corrected the Docker sandbox PJSIP endpoint so a normal SIP user can register as
+`1001`. The sandbox AOR now uses `remove_existing=yes` so repeated local client
+tests replace the previous temporary contact cleanly.
+
+Commands used:
+
+```powershell
+docker compose build asterisk
+docker compose up -d asterisk
+docker compose exec -T asterisk asterisk -rx 'pjsip show endpoints'
+docker compose exec -T asterisk asterisk -rx 'pjsip show aor 1001'
+```
+
+Temporary client command run inside the Asterisk container after installing
+`baresip`:
+
+```bash
+baresip -s -f /tmp/a2bp-baresip -e '/dial sip:1000@127.0.0.1' -v
+```
+
+Observed SIP path:
+
+```text
+REGISTER sip:127.0.0.1 -> 401 challenge -> REGISTER with digest -> 200 OK
+INVITE sip:1000@127.0.0.1 -> 401 challenge -> INVITE with digest
+INVITE result -> 100 Trying -> 200 OK with SDP
+Client ACK sent
+Client BYE sent -> 200 OK
+```
+
+Observed Asterisk path:
+
+```text
+Endpoint 1001 is now Reachable
+Executing [1000@a2billingplus-sandbox:1] Answer("PJSIP/1001-00000000", "") in new stack
+```
+
+Result: the Asterisk 20 sandbox now has a verified PJSIP registration and
+authenticated call path into the sandbox dialplan. Media device playback is not
+validated inside the headless container; the client closed the call after SIP
+setup because no local audio sink exists.
