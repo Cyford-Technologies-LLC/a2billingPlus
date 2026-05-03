@@ -308,3 +308,20 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /receipts.php:
+    get:
+      summary: List receipts with module-backed filters
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CustomerId'
+        - $ref: '#/components/parameters/CustomerStatus'
+      responses:
+        '200':
+          description: Receipt rows from cc_receipt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'

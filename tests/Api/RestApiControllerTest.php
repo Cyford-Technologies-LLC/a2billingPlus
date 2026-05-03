@@ -282,6 +282,37 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame('invalid_paid_status', $response->getPayload()['error']['code']);
     }
 
+    public function testListsReceiptsThroughReceiptModuleFilters(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('receipts', new JsonRequest('GET', [
+            'from' => '2026-05-03',
+            'to' => '2026-05-04',
+            'customer_id' => '1',
+            'status' => '0',
+        ], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertCount(1, $payload['data']['receipts']);
+        $this->assertSame('Receipt', $payload['data']['receipts'][0]['title']);
+        $this->assertSame(0, $payload['meta']['filters']['status']);
+    }
+
+    public function testRejectsInvalidReceiptStatusFilter(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('receipts', new JsonRequest('GET', ['status' => 'closed'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('invalid_status', $response->getPayload()['error']['code']);
+    }
+
     public function testListsAllInitialResources(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());
@@ -314,12 +345,14 @@ final class RestApiControllerTest extends TestCase
         $pdo->exec('CREATE TABLE cc_call (id INTEGER PRIMARY KEY, sessionid TEXT, uniqueid TEXT, starttime TEXT, stoptime TEXT, sessiontime INTEGER, calledstation TEXT, sessionbill TEXT, buycost TEXT, terminatecauseid INTEGER, id_card INTEGER)');
         $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY, provider_name TEXT, description TEXT)');
         $pdo->exec('CREATE TABLE cc_invoice (id INTEGER PRIMARY KEY, id_card INTEGER, title TEXT, reference TEXT, date TEXT, paid_status INTEGER, status INTEGER, description TEXT)');
+        $pdo->exec('CREATE TABLE cc_receipt (id INTEGER PRIMARY KEY, id_card INTEGER, title TEXT, date TEXT, status INTEGER, description TEXT)');
         $pdo->exec("INSERT INTO cc_card (id, username, useralias, firstname, lastname, credit, currency, status, activated, id_group, creationdate, email, uipass) VALUES (1, 'alice', 'alice-a', 'Alice', 'Able', '10.00', 'USD', 1, '1', 1, '2026-05-03', 'alice@example.test', 'secret')");
         $pdo->exec("INSERT INTO cc_ratecard (id, idtariffplan, dialprefix, destination, buyrate, rateinitial, initblock, billingblock, tag) VALUES (1, 7, '1', 'United States', '0.0100', '0.0200', 60, 60, 'VectaVoIP:retail')");
         $pdo->exec("INSERT INTO cc_logpayment (id, date, payment, card_id, description) VALUES (1, '2026-05-03', '10.00', 1, 'top up')");
         $pdo->exec("INSERT INTO cc_call (id, sessionid, uniqueid, starttime, stoptime, sessiontime, calledstation, sessionbill, buycost, terminatecauseid, id_card) VALUES (1, 's1', 'u1', '2026-05-03 10:00:00', '2026-05-03 10:01:00', 60, '18005551212', '0.01', '0.005', 1, 1)");
         $pdo->exec("INSERT INTO cc_provider (id, provider_name, description) VALUES (1, 'VectaVoIP', 'default provider')");
         $pdo->exec("INSERT INTO cc_invoice (id, id_card, title, reference, date, paid_status, status, description) VALUES (1, 1, 'Invoice', 'INV-1', '2026-05-03', 0, 0, 'Test invoice')");
+        $pdo->exec("INSERT INTO cc_receipt (id, id_card, title, date, status, description) VALUES (1, 1, 'Receipt', '2026-05-03', 0, 'Test receipt')");
 
         return $pdo;
     }

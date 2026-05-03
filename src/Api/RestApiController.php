@@ -16,6 +16,9 @@ use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
 use A2BillingPlus\Module\Invoice\InvoiceRepository;
 use A2BillingPlus\Module\Invoice\InvoiceSearchCriteria;
 use A2BillingPlus\Module\Invoice\InvoiceService;
+use A2BillingPlus\Module\Invoice\ReceiptRepository;
+use A2BillingPlus\Module\Invoice\ReceiptSearchCriteria;
+use A2BillingPlus\Module\Invoice\ReceiptService;
 use A2BillingPlus\Module\Payment\PaymentLedgerRepository;
 use A2BillingPlus\Module\Payment\PaymentLedgerService;
 use A2BillingPlus\Module\Payment\PaymentSearchCriteria;
@@ -26,7 +29,7 @@ use A2BillingPlus\Module\Security\AuditLogRepository;
 
 final class RestApiController
 {
-    public const RESOURCES = ['customers', 'balances', 'rates', 'payments', 'cdrs', 'providers', 'invoices'];
+    public const RESOURCES = ['customers', 'balances', 'rates', 'payments', 'cdrs', 'providers', 'invoices', 'receipts'];
 
     /**
      * @param callable(): \PDO $pdoFactory
@@ -80,6 +83,10 @@ final class RestApiController
 
         if ($resource === 'invoices') {
             return $this->handleInvoices($request, $limit, $offset);
+        }
+
+        if ($resource === 'receipts') {
+            return $this->handleReceipts($request, $limit, $offset);
         }
 
         try {
@@ -377,6 +384,49 @@ final class RestApiController
                 'customer_id' => $customerId,
                 'status' => $status,
                 'paid_status' => $paidStatus,
+            ],
+        ]);
+    }
+
+    private function handleReceipts(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $from = trim($request->getString('from'));
+        $to = trim($request->getString('to'));
+        foreach (['from' => $from, 'to' => $to] as $field => $value) {
+            if ($value !== '' && preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $value) !== 1) {
+                return ApiResponder::error('invalid_' . $field, ucfirst($field) . ' must be YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.', 422, ['field' => $field]);
+            }
+        }
+
+        $customerId = $this->positiveIntFilter($request, 'customer_id');
+        if ($customerId === false) {
+            return ApiResponder::error('invalid_customer_id', 'Customer id must be a positive integer.', 422, ['field' => 'customer_id']);
+        }
+
+        $status = $this->binaryIntFilter($request, 'status');
+        if ($status === false) {
+            return ApiResponder::error('invalid_status', 'Status must be 0 or 1.', 422, ['field' => 'status']);
+        }
+
+        try {
+            $service = new ReceiptService(new ReceiptRepository(($this->pdoFactory)()));
+            $result = $service->search(new ReceiptSearchCriteria($limit, $offset, $from, $to, $customerId, $status));
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('receipt_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'receipts' => $result['items'],
+        ], [
+            'resource' => 'receipts',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+                'customer_id' => $customerId,
+                'status' => $status,
             ],
         ]);
     }
