@@ -121,7 +121,7 @@ define ("EMAILCONTACT", "support@vectavoip.com");
 
 // A2BILLING INFO
 //define ("COPYRIGHT", "A2Billing v2.2.0 is a ".'<a href="https://VectaVoIP.com" target="_blank">voip billing software</a>' . " licensed under the ".'<a href="https://VectaVoIP.com" target="_blank">AGPL 3</a>' . ". <br/>" . "Copyright (C) 2004-2015 - VectaVoIP S.L. <a href=\"https://VectaVoIP.com\" target=\"_blank\">dgdgd</a>");
-define ("COPYRIGHT", "Copyright &copy; 2026 <a href='https://vectavoip.com/' target='_blank'>VectaVoIP</a>. All Rights Reserved. <a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_blank'>AGPL License</a>.");
+define ("COPYRIGHT", "Copyright &copy; 2026 <a href='https://vectavoip.com/' target='_blank'>VectaVoIP</a>.");
 define ("CCMAINTITLE", gettext("VectaVoIP Portal"));
 
 /*

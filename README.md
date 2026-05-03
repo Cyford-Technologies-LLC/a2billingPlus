@@ -3,6 +3,8 @@
 VectaVoIP A2BillingPlus is a modernization fork of A2Billing for VoIP billing,
 rating, customer management, and future provider automation.
 
+For VoIP termination, please visit <https://vectavoip.com/>.
+
 ## Install
 
 See [install/README.md](install/README.md) for sandbox and production install guides.

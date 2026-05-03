@@ -1,0 +1,14 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="310" height="66" viewBox="0 0 310 66" role="img" aria-labelledby="title desc">
+  <title id="title">A2BillingPlus logo</title>
+  <desc id="desc">A2BillingPlus wordmark with a signal mark</desc>
+  <rect width="310" height="66" rx="6" fill="#ffffff"/>
+  <g transform="translate(13 9)">
+    <circle cx="24" cy="24" r="22" fill="#0f6b7d"/>
+    <path d="M14 31c6-12 14-12 20 0" fill="none" stroke="#ffffff" stroke-width="4" stroke-linecap="round"/>
+    <path d="M9 23c8-15 22-15 30 0" fill="none" stroke="#f05a28" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="24" cy="35" r="3.5" fill="#ffffff"/>
+  </g>
+  <text x="68" y="30" fill="#243746" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">A2Billing</text>
+  <text x="184" y="30" fill="#f05a28" font-family="Arial, Helvetica, sans-serif" font-size="24" font-weight="700">Plus</text>
+  <text x="70" y="49" fill="#62727d" font-family="Arial, Helvetica, sans-serif" font-size="12" letter-spacing="0">Open VoIP billing platform</text>
+</svg>

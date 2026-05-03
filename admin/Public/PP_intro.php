@@ -49,14 +49,15 @@ $smarty->display('main.tpl');
 <table align="center" width="90%" bgcolor="white" cellpadding="15" cellspacing="15" style="border: solid 1px">
     <tr>
         <td width="340" align="center" style="font-family: Arial, Helvetica, sans-serif;">
+            <img src="templates/default/images/a2billingplus-logo.svg" alt="VectaVoIP Billing Platform" style="width:260px;height:auto;border:0;margin-bottom:10px;">
             <h2 style="margin: 0; color: #2b5d87;">VectaVoIP</h2>
             <p style="margin: 8px 0 0 0;">Billing Platform</p>
         </td>
-        <?php if (SHOW_DONATION) { ?>
-        <td align="left">
-        For platform information and support, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a><br><br>
+        <td align="left" style="font-family: Arial, Helvetica, sans-serif; line-height: 20px;">
+        This platform includes AGPL-licensed software components.<br>
+        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">GNU Affero General Public License v3</a><br><br>
+        For VoIP termination, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a>
         </td>
-        <?php } ?>
     </tr>
 
     <tr>

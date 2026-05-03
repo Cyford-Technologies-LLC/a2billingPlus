@@ -42,6 +42,20 @@
 	<center>
 	<table border="0" cellpadding="3" cellspacing="12">
 	<tr>
+		<td colspan="2" align="center">
+			<img src="templates/{$SKIN_NAME}/images/a2billingplus-logo.svg" alt="A2BillingPlus" style="width:260px;height:auto;border:0;">
+		</td>
+	</tr>
+	<tr>
+		<td colspan="2" align="center" style="font-family:Arial, Helvetica, Sans-Serif;color:#333333;font-size:12px;line-height:18px;">
+			<div style="font-size:18px;font-weight:bold;color:#0f6b7d;">VectaVoIP</div>
+			<div style="font-size:14px;font-weight:bold;color:#f05a28;">Billing Platform</div>
+			<div style="margin-top:8px;">This platform includes AGPL-licensed software components.</div>
+			<div><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">GNU Affero General Public License v3</a></div>
+			<div style="margin-top:8px;">For VoIP termination, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a></div>
+		</td>
+	</tr>
+	<tr>
 		<td class="login-title" colspan="2">
 			 {"AUTHENTICATION"|gettext}
 		</td>
