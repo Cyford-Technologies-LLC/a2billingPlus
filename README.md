@@ -7,6 +7,9 @@ rating, customer management, and future provider automation.
 
 See [install/README.md](install/README.md) for sandbox and production install guides.
 
+See [docs/module-architecture.md](docs/module-architecture.md) for the current
+module boundaries and extension pattern.
+
 Use the web installer at:
 
 ```text
