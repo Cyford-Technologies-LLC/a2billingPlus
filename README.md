@@ -12,6 +12,9 @@ module boundaries and extension pattern.
 
 See [docs/openapi.yaml](docs/openapi.yaml) for the current v1 REST API contract.
 
+See [docs/billing-rating-reporting.md](docs/billing-rating-reporting.md) for the
+new rating and reporting regression rules.
+
 Use the web installer at:
 
 ```text

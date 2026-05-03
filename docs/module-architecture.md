@@ -20,6 +20,8 @@ behavior moves into module services that are easier to test and reuse.
   inventory staging, and rate preview.
 - `Module\Rate`: mapping provider rows into A2Billing ratecard rows and handling
   duplicate/update behavior.
+- `Module\Billing`: deterministic call rating, ASR/ALOC reporting, timezone
+  grouped report rows, and provider cost reconciliation.
 - `Module\Migration`: migration dry-run/apply services for legacy A2Billing
   customer and VoIP data.
 

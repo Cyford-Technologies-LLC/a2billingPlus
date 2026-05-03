@@ -1,0 +1,60 @@
+[
+  {
+    "name": "initial block rounds short calls",
+    "destination": "18005551212",
+    "duration_seconds": 1,
+    "rate": {
+      "dialprefix": "1",
+      "rateinitial": "0.01000",
+      "buyrate": "0.00600",
+      "initblock": 60,
+      "billingblock": 60
+    },
+    "expected": {
+      "dialprefix": "1",
+      "billable_seconds": 60,
+      "customer_cost": "0.01000",
+      "provider_cost": "0.00600"
+    }
+  },
+  {
+    "name": "increment rounds after first block",
+    "destination": "18005551212",
+    "duration_seconds": 61,
+    "rate": {
+      "dialprefix": "1",
+      "rateinitial": "0.01000",
+      "buyrate": "0.00600",
+      "initblock": 60,
+      "billingblock": 30
+    },
+    "expected": {
+      "dialprefix": "1",
+      "billable_seconds": 90,
+      "customer_cost": "0.01500",
+      "provider_cost": "0.00900"
+    }
+  },
+  {
+    "name": "connection charge and minimum charge",
+    "destination": "442071234567",
+    "duration_seconds": 30,
+    "rate": {
+      "dialprefix": "44",
+      "rateinitial": "0.02000",
+      "buyrate": "0.01200",
+      "initblock": 30,
+      "billingblock": 6,
+      "connectcharge": "0.00500",
+      "mincharge": "0.02500",
+      "buyrateconnectcharge": "0.00200",
+      "buyratemincharge": "0.01000"
+    },
+    "expected": {
+      "dialprefix": "44",
+      "billable_seconds": 30,
+      "customer_cost": "0.02500",
+      "provider_cost": "0.01000"
+    }
+  }
+]
