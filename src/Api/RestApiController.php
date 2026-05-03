@@ -7,6 +7,9 @@ namespace A2BillingPlus\Api;
 use A2BillingPlus\Http\ApiResponder;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
+use A2BillingPlus\Module\Billing\CdrRepository;
+use A2BillingPlus\Module\Billing\CdrSearchCriteria;
+use A2BillingPlus\Module\Billing\CdrSearchService;
 use A2BillingPlus\Module\Customer\CustomerAccountRepository;
 use A2BillingPlus\Module\Customer\CustomerAccountService;
 use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
@@ -59,6 +62,10 @@ final class RestApiController
 
         if ($resource === 'rates') {
             return $this->handleRates($request, $limit, $offset);
+        }
+
+        if ($resource === 'cdrs') {
+            return $this->handleCdrs($request, $limit, $offset);
         }
 
         try {
@@ -219,6 +226,53 @@ final class RestApiController
                 'prefix' => $prefix,
                 'tariff_plan_id' => $tariffPlanId,
                 'tag' => $tag,
+            ],
+        ]);
+    }
+
+    private function handleCdrs(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $from = trim($request->getString('from'));
+        $to = trim($request->getString('to'));
+        foreach (['from' => $from, 'to' => $to] as $field => $value) {
+            if ($value !== '' && preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $value) !== 1) {
+                return ApiResponder::error('invalid_' . $field, ucfirst($field) . ' must be YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.', 422, ['field' => $field]);
+            }
+        }
+
+        $customerId = null;
+        $customerIdValue = $request->getString('customer_id');
+        if ($customerIdValue !== '') {
+            if (preg_match('/^[1-9][0-9]*$/', $customerIdValue) !== 1) {
+                return ApiResponder::error('invalid_customer_id', 'Customer id must be a positive integer.', 422, ['field' => 'customer_id']);
+            }
+            $customerId = (int)$customerIdValue;
+        }
+
+        $calledStation = trim($request->getString('calledstation'));
+        if (strlen($calledStation) > 64) {
+            return ApiResponder::error('invalid_calledstation', 'Called station filter must be 64 characters or fewer.', 422, ['field' => 'calledstation']);
+        }
+
+        try {
+            $service = new CdrSearchService(new CdrRepository(($this->pdoFactory)()));
+            $result = $service->search(new CdrSearchCriteria($limit, $offset, $from, $to, $customerId, $calledStation));
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('cdr_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'cdrs' => $result['items'],
+        ], [
+            'resource' => 'cdrs',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+                'customer_id' => $customerId,
+                'calledstation' => $calledStation,
             ],
         ]);
     }

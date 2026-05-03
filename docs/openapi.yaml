@@ -100,6 +100,31 @@ components:
       schema:
         type: string
         maxLength: 100
+    DateFrom:
+      name: from
+      in: query
+      description: Inclusive UTC date/time filter, YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.
+      schema:
+        type: string
+    DateTo:
+      name: to
+      in: query
+      description: Exclusive UTC date/time filter, YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.
+      schema:
+        type: string
+    CustomerId:
+      name: customer_id
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+    CalledStation:
+      name: calledstation
+      in: query
+      description: Match called destination digits.
+      schema:
+        type: string
+        maxLength: 64
   responses:
     Unauthorized:
       description: Missing bearer service key.
@@ -226,10 +251,14 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /cdrs.php:
     get:
-      summary: List call detail records
+      summary: List call detail records with module-backed filters
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CustomerId'
+        - $ref: '#/components/parameters/CalledStation'
       responses:
         '200':
           description: CDR rows from cc_call.
