@@ -104,6 +104,21 @@ references are not configured.
 `VECTAVOIP_WEBHOOK_SECRET_FILE` when the secret is managed by a deployment secret
 store.
 
+## Payments
+
+```text
+STRIPE_SECRET_KEY=
+STRIPE_WEBHOOK_SECRET=
+BRAINTREE_MERCHANT_ID=
+BRAINTREE_PUBLIC_KEY=
+BRAINTREE_PRIVATE_KEY=
+PAYMENT_CURRENCY=USD
+```
+
+Stripe is the launch target. Braintree stays optional and disabled unless a
+deployment specifically needs it. Legacy direct-card gateways must not be
+enabled in production because older flows accepted raw card and CVV values.
+
 ## Redis
 
 ```text

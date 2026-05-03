@@ -18,6 +18,9 @@ new rating and reporting regression rules.
 See [docs/telephony-asterisk.md](docs/telephony-asterisk.md) for the Asterisk,
 PJSIP, trunk, and DID launch baseline.
 
+See [docs/payments.md](docs/payments.md) for the modern payment module plan and
+legacy gateway status.
+
 Use the web installer at:
 
 ```text

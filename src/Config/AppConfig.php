@@ -39,6 +39,12 @@ final class AppConfig
             'VECTAVOIP_API_KEY',
             'VECTAVOIP_API_SECRET',
             'VECTAVOIP_INSTALLATION_ID',
+            'STRIPE_SECRET_KEY',
+            'STRIPE_WEBHOOK_SECRET',
+            'BRAINTREE_MERCHANT_ID',
+            'BRAINTREE_PUBLIC_KEY',
+            'BRAINTREE_PRIVATE_KEY',
+            'PAYMENT_CURRENCY',
         ] as $key) {
             $value = getenv($key);
             if (is_string($value) && $value !== '') {

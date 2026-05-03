@@ -24,6 +24,9 @@ behavior moves into module services that are easier to test and reuse.
   grouped report rows, and provider cost reconciliation.
 - `Module\Telephony`: launch-readiness checks for Asterisk versions, AMI/ARI
   credentials, PJSIP mode, and Asterisk Realtime.
+- `Module\Payment`: gateway inventory, Stripe/Braintree configuration
+  validation, Stripe webhook verification, raw-card-data guardrails, and payment
+  reconciliation.
 - `Module\Migration`: migration dry-run/apply services for legacy A2Billing
   customer and VoIP data.
 
@@ -37,7 +40,7 @@ behavior moves into module services that are easier to test and reuse.
   deeper AMI/ARI runtime probes.
 - `Module\Reporting`: CDR summaries, ASR, ALOC, revenue, cost, and reconciliation
   reports.
-- `Module\Payment`: Stripe, Braintree, webhook validation, and reconciliation.
+- `Module\Payment`: hosted checkout/session creation and balance posting.
 - `Module\AdminUi`: form/page adapters that let legacy admin pages call module
   services instead of owning workflow logic.
 
