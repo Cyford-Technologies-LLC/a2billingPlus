@@ -86,6 +86,29 @@ final class ProviderApiControllerTest extends TestCase
         }
     }
 
+    public function testReadsProviderCredentialsFromSecretFiles(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'a2bp-provider-key-');
+        $this->assertIsString($file);
+        file_put_contents($file, "registered-file-key\n");
+        putenv('VECTAVOIP_API_KEY');
+        putenv('VECTAVOIP_API_KEY_FILE=' . $file);
+
+        try {
+            $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
+            $response = $controller->handle(new JsonRequest('POST', [], [
+                'action' => 'provider_status',
+                'provider' => 'vectavoip',
+            ]));
+
+            $this->assertSame(200, $response->getStatusCode());
+            $this->assertTrue($response->getPayload()['registered']);
+        } finally {
+            putenv('VECTAVOIP_API_KEY_FILE');
+            @unlink($file);
+        }
+    }
+
     public function testRegistersProviderInstall(): void
     {
         $controller = new ProviderApiController(

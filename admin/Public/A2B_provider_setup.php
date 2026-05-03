@@ -30,16 +30,16 @@ $rateImport = [];
 $envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 
 $defaults = [
-    'base_url' => getenv('VECTAVOIP_API_BASE_URL') ?: 'https://api.vectavoip.com',
-    'api_key' => getenv('VECTAVOIP_API_KEY') ?: '',
-    'api_secret' => getenv('VECTAVOIP_API_SECRET') ?: '',
+    'base_url' => envString('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com'),
+    'api_key' => envString('VECTAVOIP_API_KEY'),
+    'api_secret' => envString('VECTAVOIP_API_SECRET'),
     'company_name' => 'VectaVoIP',
     'company_domain' => 'VectaVoIP.com',
     'contact_name' => '',
     'contact_email' => '',
     'contact_phone' => '',
     'details' => '',
-    'install_key' => getenv('VECTAVOIP_INSTALL_KEY') ?: '',
+    'install_key' => envString('VECTAVOIP_INSTALL_KEY'),
     'target_ratecard_id' => '',
     'rate_deck' => 'retail',
     'currency' => 'USD',
@@ -148,7 +148,19 @@ function providerSetupPdo(): PDO
 function envString(string $key, string $default = ''): string
 {
     $value = getenv($key);
-    return is_string($value) && $value !== '' ? $value : $default;
+    if (is_string($value) && $value !== '') {
+        return $value;
+    }
+
+    $file = getenv($key . '_FILE');
+    if (is_string($file) && $file !== '' && is_readable($file)) {
+        $contents = file_get_contents($file);
+        if (is_string($contents)) {
+            return trim($contents);
+        }
+    }
+
+    return $default;
 }
 
 function saveProviderCredentials(string $envPath, string $baseUrl, array $registration, array &$messages, array &$errors): void
@@ -166,6 +178,11 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
         'VECTAVOIP_API_SECRET' => (string)($registration['api_secret'] ?? ''),
     ];
 
+    writeSecretFileValues($values, ['VECTAVOIP_API_KEY', 'VECTAVOIP_API_SECRET'], $messages, $errors);
+    if ($errors) {
+        return;
+    }
+
     $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
     $contents = mergeEnvValues($contents, $values);
 
@@ -179,6 +196,37 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
     }
 
     $messages[] = 'Saved VectaVoIP provider credentials to .env.';
+}
+
+function writeSecretFileValues(array &$values, array $secretKeys, array &$messages, array &$errors): void
+{
+    $secretDir = envString('A2BP_SECRET_DIR');
+    if ($secretDir === '') {
+        return;
+    }
+
+    if (!is_dir($secretDir) || !is_writable($secretDir)) {
+        $errors[] = 'A2BP_SECRET_DIR is set but is not writable. Provider credentials were not saved.';
+        return;
+    }
+
+    foreach ($secretKeys as $key) {
+        $value = (string)($values[$key] ?? '');
+        if ($value === '') {
+            continue;
+        }
+
+        $path = rtrim($secretDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . strtolower($key);
+        if (@file_put_contents($path, $value . PHP_EOL) === false) {
+            $errors[] = 'Could not write provider secret file: ' . $path;
+            return;
+        }
+
+        unset($values[$key]);
+        $values[$key . '_FILE'] = $path;
+    }
+
+    $messages[] = 'Saved VectaVoIP API key/secret to A2BP_SECRET_DIR.';
 }
 
 function mergeEnvValues(string $contents, array $values): string

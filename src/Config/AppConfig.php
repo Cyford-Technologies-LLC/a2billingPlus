@@ -43,6 +43,14 @@ final class AppConfig
             if (is_string($value) && $value !== '') {
                 $values[$key] = $value;
             }
+
+            $file = getenv($key . '_FILE');
+            if (is_string($file) && $file !== '' && is_readable($file)) {
+                $contents = file_get_contents($file);
+                if (is_string($contents)) {
+                    $values[$key] = trim($contents);
+                }
+            }
         }
 
         return new self($values);

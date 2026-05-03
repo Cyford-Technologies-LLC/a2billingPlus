@@ -31,4 +31,22 @@ final class AppConfigTest extends TestCase
 
         $this->assertSame('sqlite::memory:', $config->databaseDsn());
     }
+
+    public function testReadsSecretFileEnvironmentValues(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'a2bp-secret-');
+        $this->assertIsString($file);
+        file_put_contents($file, "file-secret\n");
+        putenv('VECTAVOIP_API_SECRET');
+        putenv('VECTAVOIP_API_SECRET_FILE=' . $file);
+
+        try {
+            $config = AppConfig::fromEnvironment();
+
+            $this->assertSame('file-secret', $config->string('VECTAVOIP_API_SECRET'));
+        } finally {
+            putenv('VECTAVOIP_API_SECRET_FILE');
+            @unlink($file);
+        }
+    }
 }

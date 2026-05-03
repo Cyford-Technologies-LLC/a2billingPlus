@@ -32,6 +32,7 @@ A2BP_DB_NAME=mya2billing
 A2BP_DB_USER=a2billinguser
 A2BP_DB_PASSWORD=a2billing
 A2BP_DB_PORT=3307
+A2BP_SECRET_DIR=
 ```
 
 `MYSQL_*` values initialize the MariaDB container.
@@ -43,6 +44,10 @@ and internal database port `3306`. The host port is controlled by
 `A2BP_DB_PORT`.
 
 If you change database credentials after the first run, recreate the database volume or update MariaDB users manually. Docker only applies `MYSQL_*` initialization variables to a new empty volume.
+
+`A2BP_SECRET_DIR` is optional. When it points at a writable directory, provider
+setup stores sensitive provider credentials in files and writes `*_FILE`
+references to `.env` instead of storing API secrets directly in `.env`.
 
 ## Schema Migrations
 
@@ -58,11 +63,17 @@ VECTAVOIP_INSTALL_KEY=
 VECTAVOIP_INSTALLATION_ID=
 VECTAVOIP_API_KEY=
 VECTAVOIP_API_SECRET=
+VECTAVOIP_API_KEY_FILE=
+VECTAVOIP_API_SECRET_FILE=
 ```
 
 `install.php` writes these values when automatic VectaVoIP registration
 succeeds. The install key is generated locally, and the API key/secret are
 returned by the VectaVoIP registration server.
+
+When `VECTAVOIP_API_KEY_FILE` or `VECTAVOIP_API_SECRET_FILE` is set, runtime code
+reads credentials from those files. Direct environment values are used when file
+references are not configured.
 
 ## Redis
 

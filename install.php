@@ -487,6 +487,11 @@ function writeEnvFile(string $envPath, string $envExamplePath, array $input, arr
         'VECTAVOIP_API_SECRET' => $input['provider_api_secret'],
     ];
 
+    writeSecretFileValues($values, ['VECTAVOIP_API_KEY', 'VECTAVOIP_API_SECRET'], $messages, $errors);
+    if ($errors) {
+        return;
+    }
+
     $contents = mergeEnv($base, $values);
     if (@file_put_contents($envPath, $contents) === false) {
         $errors[] = 'Could not write .env. Check filesystem permissions.';
@@ -494,6 +499,37 @@ function writeEnvFile(string $envPath, string $envExamplePath, array $input, arr
     }
 
     $messages[] = 'Wrote .env.';
+}
+
+function writeSecretFileValues(array &$values, array $secretKeys, array &$messages, array &$errors): void
+{
+    $secretDir = envString('A2BP_SECRET_DIR');
+    if ($secretDir === '') {
+        return;
+    }
+
+    if (!is_dir($secretDir) || !is_writable($secretDir)) {
+        $errors[] = 'A2BP_SECRET_DIR is set but is not writable. Provider credentials were not saved.';
+        return;
+    }
+
+    foreach ($secretKeys as $key) {
+        $value = (string)($values[$key] ?? '');
+        if ($value === '') {
+            continue;
+        }
+
+        $path = rtrim($secretDir, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . strtolower($key);
+        if (@file_put_contents($path, $value . PHP_EOL) === false) {
+            $errors[] = 'Could not write provider secret file: ' . $path;
+            return;
+        }
+
+        unset($values[$key]);
+        $values[$key . '_FILE'] = $path;
+    }
+
+    $messages[] = 'Saved VectaVoIP API key/secret to A2BP_SECRET_DIR.';
 }
 
 function registerVectaVoIPInstall(array &$input, array &$messages, array &$errors): void
@@ -690,6 +726,24 @@ function tcpReachable(string $host, int $port): bool
 
     fclose($socket);
     return true;
+}
+
+function envString(string $key, string $default = ''): string
+{
+    $value = getenv($key);
+    if (is_string($value) && $value !== '') {
+        return $value;
+    }
+
+    $file = getenv($key . '_FILE');
+    if (is_string($file) && $file !== '' && is_readable($file)) {
+        $contents = file_get_contents($file);
+        if (is_string($contents)) {
+            return trim($contents);
+        }
+    }
+
+    return $default;
 }
 
 function dockerComposeAvailable(): bool

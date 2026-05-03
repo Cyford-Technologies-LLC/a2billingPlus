@@ -274,7 +274,19 @@ final class ProviderApiController
     private function envString(string $key, string $default = ''): string
     {
         $value = getenv($key);
-        return is_string($value) && $value !== '' ? $value : $default;
+        if (is_string($value) && $value !== '') {
+            return $value;
+        }
+
+        $file = getenv($key . '_FILE');
+        if (is_string($file) && $file !== '' && is_readable($file)) {
+            $contents = file_get_contents($file);
+            if (is_string($contents)) {
+                return trim($contents);
+            }
+        }
+
+        return $default;
     }
 
     private function registrationClient(string $apiBaseUrl): VectaVoIPRegistrationClient
