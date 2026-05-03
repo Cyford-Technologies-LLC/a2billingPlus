@@ -1020,6 +1020,153 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /dids.php:
+    get:
+      summary: List DIDs or load one DID with routing by id
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: customer_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: reserved
+          in: query
+          schema:
+            type: integer
+            enum: [0, 1]
+        - name: activated
+          in: query
+          schema:
+            type: integer
+            enum: [0, 1]
+      responses:
+        '200':
+          description: DID rows from cc_did, including destinations for detail responses.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Assign a DID to a customer
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignment]
+              properties:
+                assignment:
+                  type: object
+                  required: [id, customer_id]
+                  properties:
+                    id:
+                      type: integer
+                      minimum: 1
+                    customer_id:
+                      type: integer
+                      minimum: 1
+      responses:
+        '200':
+          description: DID assigned and cc_did_use updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '409':
+          description: DID is reserved for another customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Replace DID routing destinations
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [routing]
+              properties:
+                routing:
+                  type: object
+                  required: [id, customer_id, destinations]
+                  properties:
+                    id:
+                      type: integer
+                      minimum: 1
+                    customer_id:
+                      type: integer
+                      minimum: 1
+                    destinations:
+                      type: array
+                      minItems: 1
+                      maxItems: 10
+                      items:
+                        type: object
+                        required: [destination]
+                        properties:
+                          destination:
+                            type: string
+                            maxLength: 100
+                          priority:
+                            type: integer
+                            minimum: 1
+                          voip_call:
+                            type: integer
+                            enum: [0, 1]
+      responses:
+        '200':
+          description: DID routing destinations replaced.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      summary: Release a DID and remove routing destinations
+      parameters:
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: DID released and legacy cc_did_use release row written.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: DID was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /provider-records.php:
     get:
       summary: List provider database records
