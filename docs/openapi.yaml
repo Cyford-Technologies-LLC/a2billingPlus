@@ -1167,6 +1167,117 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /telephony-accounts.php:
+    get:
+      summary: List SIP/IAX realtime accounts or load one account
+      parameters:
+        - name: technology
+          in: query
+          schema:
+            type: string
+            enum: [sip, iax]
+            default: sip
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: customer_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: Safe realtime account fields with secrets omitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Create a SIP/IAX realtime account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account]
+              properties:
+                account:
+                  type: object
+                  required: [id_cc_card, username, secret]
+                  properties:
+                    id_cc_card:
+                      type: integer
+                      minimum: 1
+                    username:
+                      type: string
+                      maxLength: 80
+                    secret:
+                      type: string
+                      maxLength: 80
+                    context:
+                      type: string
+                      maxLength: 80
+                    callerid:
+                      type: string
+                      maxLength: 80
+      responses:
+        '201':
+          description: Realtime account created; secret is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Update a SIP/IAX realtime account
+      parameters:
+        - name: technology
+          in: query
+          schema:
+            type: string
+            enum: [sip, iax]
+            default: sip
+        - name: id
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [account]
+              properties:
+                account:
+                  type: object
+      responses:
+        '200':
+          description: Realtime account updated; secret is not returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Account was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /provider-records.php:
     get:
       summary: List provider database records
