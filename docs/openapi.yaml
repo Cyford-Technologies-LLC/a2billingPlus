@@ -1228,6 +1228,54 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /pjsip-provisioning.php:
+    post:
+      summary: Provision PJSIP-first customer device or trunk realtime records
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [action, provisioning]
+              properties:
+                action:
+                  type: string
+                  enum: [customer_device, trunk]
+                provisioning:
+                  type: object
+                  properties:
+                    customer_id:
+                      type: integer
+                      minimum: 1
+                    trunkcode:
+                      type: string
+                    host:
+                      type: string
+                    username:
+                      type: string
+                    secret:
+                      type: string
+                    context:
+                      type: string
+                    allow:
+                      type: string
+      responses:
+        '201':
+          description: PJSIP endpoint, auth, AOR, and A2BillingPlus mapping were provisioned. Secrets are not returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /telephony-accounts.php:
     get:
       summary: List SIP/IAX realtime accounts or load one account
