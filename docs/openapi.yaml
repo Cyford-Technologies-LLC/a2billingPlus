@@ -238,10 +238,13 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /payments.php:
     get:
-      summary: List payment logs
+      summary: List payment ledger rows with module-backed filters
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CustomerId'
       responses:
         '200':
           description: Payment rows from cc_logpayment.

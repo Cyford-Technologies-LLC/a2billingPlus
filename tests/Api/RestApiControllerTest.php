@@ -220,6 +220,36 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame('invalid_from', $response->getPayload()['error']['code']);
     }
 
+    public function testListsPaymentsThroughPaymentModuleFilters(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('payments', new JsonRequest('GET', [
+            'from' => '2026-05-03',
+            'to' => '2026-05-04',
+            'customer_id' => '1',
+        ], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertCount(1, $payload['data']['payments']);
+        $this->assertSame('10.00', $payload['data']['payments'][0]['payment']);
+        $this->assertSame(1, $payload['meta']['filters']['customer_id']);
+    }
+
+    public function testRejectsInvalidPaymentCustomerFilter(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('payments', new JsonRequest('GET', ['customer_id' => 'zero'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('invalid_customer_id', $response->getPayload()['error']['code']);
+    }
+
     public function testListsAllInitialResources(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());

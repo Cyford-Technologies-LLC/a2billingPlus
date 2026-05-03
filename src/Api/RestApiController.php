@@ -13,6 +13,9 @@ use A2BillingPlus\Module\Billing\CdrSearchService;
 use A2BillingPlus\Module\Customer\CustomerAccountRepository;
 use A2BillingPlus\Module\Customer\CustomerAccountService;
 use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
+use A2BillingPlus\Module\Payment\PaymentLedgerRepository;
+use A2BillingPlus\Module\Payment\PaymentLedgerService;
+use A2BillingPlus\Module\Payment\PaymentSearchCriteria;
 use A2BillingPlus\Module\Rate\RatecardRepository;
 use A2BillingPlus\Module\Rate\RatecardSearchCriteria;
 use A2BillingPlus\Module\Rate\RatecardSearchService;
@@ -66,6 +69,10 @@ final class RestApiController
 
         if ($resource === 'cdrs') {
             return $this->handleCdrs($request, $limit, $offset);
+        }
+
+        if ($resource === 'payments') {
+            return $this->handlePayments($request, $limit, $offset);
         }
 
         try {
@@ -273,6 +280,47 @@ final class RestApiController
                 'to' => $to,
                 'customer_id' => $customerId,
                 'calledstation' => $calledStation,
+            ],
+        ]);
+    }
+
+    private function handlePayments(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $from = trim($request->getString('from'));
+        $to = trim($request->getString('to'));
+        foreach (['from' => $from, 'to' => $to] as $field => $value) {
+            if ($value !== '' && preg_match('/^\d{4}-\d{2}-\d{2}( \d{2}:\d{2}:\d{2})?$/', $value) !== 1) {
+                return ApiResponder::error('invalid_' . $field, ucfirst($field) . ' must be YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.', 422, ['field' => $field]);
+            }
+        }
+
+        $customerId = null;
+        $customerIdValue = $request->getString('customer_id');
+        if ($customerIdValue !== '') {
+            if (preg_match('/^[1-9][0-9]*$/', $customerIdValue) !== 1) {
+                return ApiResponder::error('invalid_customer_id', 'Customer id must be a positive integer.', 422, ['field' => 'customer_id']);
+            }
+            $customerId = (int)$customerIdValue;
+        }
+
+        try {
+            $service = new PaymentLedgerService(new PaymentLedgerRepository(($this->pdoFactory)()));
+            $result = $service->search(new PaymentSearchCriteria($limit, $offset, $from, $to, $customerId));
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('payment_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'payments' => $result['items'],
+        ], [
+            'resource' => 'payments',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'from' => $from,
+                'to' => $to,
+                'customer_id' => $customerId,
             ],
         ]);
     }
