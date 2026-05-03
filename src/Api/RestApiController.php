@@ -1,0 +1,67 @@
+<?php
+
+declare(strict_types=1);
+
+namespace A2BillingPlus\Api;
+
+use A2BillingPlus\Http\ApiResponder;
+use A2BillingPlus\Http\JsonRequest;
+use A2BillingPlus\Http\JsonResponse;
+
+final class RestApiController
+{
+    public const RESOURCES = ['customers', 'balances', 'rates', 'payments', 'cdrs', 'providers', 'invoices'];
+
+    /**
+     * @param callable(): \PDO $pdoFactory
+     */
+    public function __construct(
+        private readonly ApiServiceKeyAuthenticator $authenticator,
+        private $pdoFactory
+    ) {
+    }
+
+    public function handle(string $resource, JsonRequest $request): JsonResponse
+    {
+        $authError = $this->authenticator->authenticate($request);
+        if ($authError !== null) {
+            return $authError;
+        }
+
+        if (!in_array($resource, self::RESOURCES, true)) {
+            return ApiResponder::error('resource_not_found', 'Unknown API resource.', 404);
+        }
+
+        if ($request->getMethod() !== 'GET') {
+            return ApiResponder::error('method_not_allowed', 'This API resource currently supports GET only.', 405);
+        }
+
+        $limit = $request->getInt('limit', 50);
+        $offset = $request->getInt('offset', 0);
+        if ($limit < 1 || $limit > 100) {
+            return ApiResponder::error('invalid_limit', 'Limit must be between 1 and 100.', 422, ['field' => 'limit']);
+        }
+
+        if ($offset < 0) {
+            return ApiResponder::error('invalid_offset', 'Offset must be zero or greater.', 422, ['field' => 'offset']);
+        }
+
+        try {
+            $repository = new ResourceListRepository(($this->pdoFactory)());
+            $result = $repository->list($resource, $limit, $offset);
+        } catch (\InvalidArgumentException $exception) {
+            return ApiResponder::error('resource_not_found', $exception->getMessage(), 404);
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('resource_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            $resource => $result['items'],
+        ], [
+            'resource' => $resource,
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+        ]);
+    }
+}

@@ -10,6 +10,8 @@ See [install/README.md](install/README.md) for sandbox and production install gu
 See [docs/module-architecture.md](docs/module-architecture.md) for the current
 module boundaries and extension pattern.
 
+See [docs/openapi.yaml](docs/openapi.yaml) for the current v1 REST API contract.
+
 Use the web installer at:
 
 ```text

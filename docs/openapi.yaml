@@ -1,0 +1,185 @@
+openapi: 3.0.3
+info:
+  title: A2BillingPlus REST API
+  version: 0.1.0-alpha
+  description: Versioned API for external integrations with A2BillingPlus.
+servers:
+  - url: /api/v1
+security:
+  - ServiceKey: []
+components:
+  securitySchemes:
+    ServiceKey:
+      type: http
+      scheme: bearer
+      bearerFormat: service-key
+  schemas:
+    ApiSuccess:
+      type: object
+      required: [api_version, success, data]
+      properties:
+        api_version:
+          type: string
+          example: v1
+        success:
+          type: boolean
+          example: true
+        data:
+          type: object
+        meta:
+          type: object
+    ApiError:
+      type: object
+      required: [api_version, success, error]
+      properties:
+        api_version:
+          type: string
+          example: v1
+        success:
+          type: boolean
+          example: false
+        error:
+          type: object
+          required: [code, message]
+          properties:
+            code:
+              type: string
+              example: invalid_service_key
+            message:
+              type: string
+            details:
+              type: object
+  parameters:
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 50
+    Offset:
+      name: offset
+      in: query
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+  responses:
+    Unauthorized:
+      description: Missing bearer service key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    Forbidden:
+      description: Invalid bearer service key.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+    ValidationError:
+      description: Request validation failed.
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiError'
+paths:
+  /customers.php:
+    get:
+      summary: List customer accounts
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Customer rows from cc_card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /balances.php:
+    get:
+      summary: List customer balances
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Balance rows from cc_card.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+  /rates.php:
+    get:
+      summary: List rate rows
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Rate rows from cc_ratecard.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+  /payments.php:
+    get:
+      summary: List payment logs
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Payment rows from cc_logpayment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+  /cdrs.php:
+    get:
+      summary: List call detail records
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: CDR rows from cc_call.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+  /provider-records.php:
+    get:
+      summary: List provider database records
+      description: The existing /providers.php path remains the VectaVoIP provider action endpoint.
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Provider rows from cc_provider.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+  /invoices.php:
+    get:
+      summary: List invoices
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Invoice rows from cc_invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'

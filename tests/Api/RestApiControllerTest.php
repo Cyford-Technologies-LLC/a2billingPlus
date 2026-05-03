@@ -1,0 +1,112 @@
+<?php
+
+declare(strict_types=1);
+
+use A2BillingPlus\Api\ApiServiceKeyAuthenticator;
+use A2BillingPlus\Api\RestApiController;
+use A2BillingPlus\Config\AppConfig;
+use A2BillingPlus\Http\JsonRequest;
+use PHPUnit\Framework\TestCase;
+
+final class RestApiControllerTest extends TestCase
+{
+    public function testRejectsMissingAuthorizationHeader(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET'));
+
+        $this->assertSame(401, $response->getStatusCode());
+        $this->assertSame('missing_authorization', $response->getPayload()['error']['code']);
+    }
+
+    public function testRejectsInvalidServiceKey(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET', [], [], [
+            'Authorization' => 'Bearer wrong-key',
+        ]));
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('invalid_service_key', $response->getPayload()['error']['code']);
+    }
+
+    public function testRejectsUnconfiguredServiceKey(): void
+    {
+        $controller = $this->controller('', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET', [], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(503, $response->getStatusCode());
+        $this->assertSame('api_auth_not_configured', $response->getPayload()['error']['code']);
+    }
+
+    public function testRejectsInvalidLimit(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET', ['limit' => '101'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('invalid_limit', $response->getPayload()['error']['code']);
+    }
+
+    public function testListsCustomersWithStandardEnvelope(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('GET', ['limit' => '10'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('v1', $payload['api_version']);
+        $this->assertTrue($payload['success']);
+        $this->assertSame('alice', $payload['data']['customers'][0]['username']);
+        $this->assertSame('customers', $payload['meta']['resource']);
+    }
+
+    public function testListsAllInitialResources(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+
+        foreach (RestApiController::RESOURCES as $resource) {
+            $response = $controller->handle($resource, new JsonRequest('GET', [], [], [
+                'Authorization' => 'Bearer secret-key',
+            ]));
+
+            $this->assertSame(200, $response->getStatusCode(), $resource);
+            $this->assertArrayHasKey($resource, $response->getPayload()['data'], $resource);
+        }
+    }
+
+    private function controller(string $serviceKey, PDO $pdo): RestApiController
+    {
+        return new RestApiController(
+            new ApiServiceKeyAuthenticator(new AppConfig(['A2BP_API_SERVICE_KEY' => $serviceKey])),
+            fn (): PDO => $pdo
+        );
+    }
+
+    private function pdo(): PDO
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_card (id INTEGER PRIMARY KEY, username TEXT, credit TEXT, currency TEXT, status INTEGER, email TEXT)');
+        $pdo->exec('CREATE TABLE cc_ratecard (id INTEGER PRIMARY KEY, dialprefix TEXT, destination TEXT, buyrate TEXT, rateinitial TEXT)');
+        $pdo->exec('CREATE TABLE cc_logpayment (id INTEGER PRIMARY KEY, date TEXT, payment TEXT, card_id INTEGER, description TEXT)');
+        $pdo->exec('CREATE TABLE cc_call (id INTEGER PRIMARY KEY, sessionid TEXT, starttime TEXT, sessiontime INTEGER, calledstation TEXT, sessionbill TEXT)');
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY, provider_name TEXT, description TEXT)');
+        $pdo->exec('CREATE TABLE cc_invoice (id INTEGER PRIMARY KEY, id_card INTEGER, title TEXT, reference TEXT, paid_status INTEGER)');
+        $pdo->exec("INSERT INTO cc_card (id, username, credit, currency, status, email) VALUES (1, 'alice', '10.00', 'USD', 1, 'alice@example.test')");
+        $pdo->exec("INSERT INTO cc_ratecard (id, dialprefix, destination, buyrate, rateinitial) VALUES (1, '1', 'United States', '0.0100', '0.0200')");
+        $pdo->exec("INSERT INTO cc_logpayment (id, date, payment, card_id, description) VALUES (1, '2026-05-03', '10.00', 1, 'top up')");
+        $pdo->exec("INSERT INTO cc_call (id, sessionid, starttime, sessiontime, calledstation, sessionbill) VALUES (1, 's1', '2026-05-03 10:00:00', 60, '18005551212', '0.01')");
+        $pdo->exec("INSERT INTO cc_provider (id, provider_name, description) VALUES (1, 'VectaVoIP', 'default provider')");
+        $pdo->exec("INSERT INTO cc_invoice (id, id_card, title, reference, paid_status) VALUES (1, 1, 'Invoice', 'INV-1', 0)");
+
+        return $pdo;
+    }
+}

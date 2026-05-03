@@ -8,6 +8,9 @@ behavior moves into module services that are easier to test and reuse.
 
 - `Config`: shared runtime configuration access, environment reads, and common
   derived values such as database DSNs.
+- `Api`: versioned REST controllers, service-key authentication, and read-only
+  integration endpoints for customers, balances, rates, payments, CDRs,
+  provider records, and invoices.
 - `Http`: framework-free JSON request/response helpers for local API endpoints.
 - `Module\Provider`: provider registry, provider connectors, provider setup
   workflow, provider API credentials, rate preview/import contracts, and import

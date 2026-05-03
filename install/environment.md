@@ -49,6 +49,29 @@ If you change database credentials after the first run, recreate the database vo
 setup stores sensitive provider credentials in files and writes `*_FILE`
 references to `.env` instead of storing API secrets directly in `.env`.
 
+## REST API
+
+```text
+A2BP_API_SERVICE_KEY=
+A2BP_API_SERVICE_KEY_FILE=
+```
+
+The `/api/v1/*` REST endpoints use `Authorization: Bearer <service-key>`.
+Set `A2BP_API_SERVICE_KEY` directly for local testing, or set
+`A2BP_API_SERVICE_KEY_FILE` when the key is managed by a deployment secret store.
+Responses use the v1 envelope:
+
+```json
+{
+  "api_version": "v1",
+  "success": true,
+  "data": {}
+}
+```
+
+Errors use `success: false` and an `error.code` value that clients can match
+without parsing human-readable text.
+
 ## Schema Migrations
 
 The web installer applies SQL files from `install/migrations` after the base

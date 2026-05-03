@@ -49,4 +49,22 @@ final class AppConfigTest extends TestCase
             @unlink($file);
         }
     }
+
+    public function testReadsApiServiceKeyFromSecretFile(): void
+    {
+        $file = tempnam(sys_get_temp_dir(), 'a2bp-api-key-');
+        $this->assertIsString($file);
+        file_put_contents($file, "service-key\n");
+        putenv('A2BP_API_SERVICE_KEY');
+        putenv('A2BP_API_SERVICE_KEY_FILE=' . $file);
+
+        try {
+            $config = AppConfig::fromEnvironment();
+
+            $this->assertSame('service-key', $config->string('A2BP_API_SERVICE_KEY'));
+        } finally {
+            putenv('A2BP_API_SERVICE_KEY_FILE');
+            @unlink($file);
+        }
+    }
 }
