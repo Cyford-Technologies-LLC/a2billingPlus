@@ -113,7 +113,16 @@ Apply the migration:
 docker compose exec app php bin/migrate-a2billing.php --apply
 ```
 
-The first migration foundation copies/upserts `cc_card` customer rows using
-common columns between the source and target schemas. It preserves source `id`
-where possible and updates an existing target row when the same `id` or
-`username` already exists.
+Choose a scope when needed:
+
+```powershell
+docker compose exec app php bin/migrate-a2billing.php --scope=customers
+docker compose exec app php bin/migrate-a2billing.php --scope=voip
+docker compose exec app php bin/migrate-a2billing.php --scope=all
+```
+
+The migration foundation copies/upserts `cc_card`, `cc_sip_buddies`, and
+`cc_iax_buddies` rows using common columns between the source and target
+schemas. It preserves source `id` where possible and updates an existing target
+row when the same `id` or natural key already exists. For customers the natural
+key is `username`; for SIP/IAX settings it is `name`.

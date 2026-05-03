@@ -14,7 +14,7 @@ Start here:
 Migration CLI:
 
 ```powershell
-docker compose exec app php bin/migrate-a2billing.php --limit=100
+docker compose exec app php bin/migrate-a2billing.php --scope=all --limit=100
 ```
 
 ## Current Container Layout

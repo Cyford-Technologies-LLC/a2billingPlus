@@ -14,23 +14,48 @@ final class CustomerMigrationService
 
     public function migrateCustomers(bool $dryRun = true, int $limit = 0): MigrationSummary
     {
-        $columns = $this->commonColumns('cc_card');
-        if (!in_array('id', $columns, true) || !in_array('username', $columns, true)) {
-            return new MigrationSummary(false, 0, 0, 0, 0, 'cc_card must have id and username columns in both databases.');
+        return $this->migrateTable('cc_card', 'username', $dryRun, $limit, 'Customer migration');
+    }
+
+    public function migrateVoipSettings(bool $dryRun = true, int $limit = 0): MigrationSummary
+    {
+        $sip = $this->migrateTable('cc_sip_buddies', 'name', $dryRun, $limit, 'SIP migration');
+        $iax = $this->migrateTable('cc_iax_buddies', 'name', $dryRun, $limit, 'IAX migration');
+
+        return new MigrationSummary(
+            $sip->isSuccessful() && $iax->isSuccessful(),
+            $sip->getScannedRows() + $iax->getScannedRows(),
+            $sip->getInsertedRows() + $iax->getInsertedRows(),
+            $sip->getUpdatedRows() + $iax->getUpdatedRows(),
+            $sip->getSkippedRows() + $iax->getSkippedRows(),
+            $dryRun ? 'VoIP settings migration dry run completed.' : 'VoIP settings migration completed.'
+        );
+    }
+
+    private function migrateTable(
+        string $tableName,
+        string $uniqueColumn,
+        bool $dryRun,
+        int $limit,
+        string $label
+    ): MigrationSummary {
+        $columns = $this->commonColumns($tableName);
+        if (!in_array('id', $columns, true) || !in_array($uniqueColumn, $columns, true)) {
+            return new MigrationSummary(false, 0, 0, 0, 0, $tableName . ' must have id and ' . $uniqueColumn . ' columns in both databases.');
         }
 
-        $rows = $this->sourceRows($columns, $limit);
+        $rows = $this->sourceRows($tableName, $columns, $limit);
         $insertedRows = 0;
         $updatedRows = 0;
         $skippedRows = 0;
 
         foreach ($rows as $row) {
-            if (!$this->isImportable($row)) {
+            if (!$this->isImportable($row, $uniqueColumn)) {
                 $skippedRows++;
                 continue;
             }
 
-            $targetId = $this->targetId((string)$row['id'], (string)$row['username']);
+            $targetId = $this->targetId($tableName, (string)$row['id'], $uniqueColumn, (string)$row[$uniqueColumn]);
             if ($dryRun) {
                 if ($targetId === null) {
                     $insertedRows++;
@@ -41,10 +66,10 @@ final class CustomerMigrationService
             }
 
             if ($targetId === null) {
-                $this->insertRow('cc_card', $columns, $row);
+                $this->insertRow($tableName, $columns, $row);
                 $insertedRows++;
             } else {
-                $this->updateRow('cc_card', $columns, $row, $targetId);
+                $this->updateRow($tableName, $columns, $row, $targetId);
                 $updatedRows++;
             }
         }
@@ -55,7 +80,7 @@ final class CustomerMigrationService
             $insertedRows,
             $updatedRows,
             $skippedRows,
-            $dryRun ? 'Customer migration dry run completed.' : 'Customer migration completed.'
+            $dryRun ? $label . ' dry run completed.' : $label . ' completed.'
         );
     }
 
@@ -99,9 +124,10 @@ final class CustomerMigrationService
      * @param list<string> $columns
      * @return array<int, array<string, mixed>>
      */
-    private function sourceRows(array $columns, int $limit): array
+    private function sourceRows(string $tableName, array $columns, int $limit): array
     {
-        $sql = 'SELECT ' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns)) . ' FROM cc_card ORDER BY id ASC';
+        $sql = 'SELECT ' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns))
+            . ' FROM ' . $this->quoteIdentifier($tableName) . ' ORDER BY id ASC';
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit;
         }
@@ -113,15 +139,18 @@ final class CustomerMigrationService
     /**
      * @param array<string, mixed> $row
      */
-    private function isImportable(array $row): bool
+    private function isImportable(array $row, string $uniqueColumn): bool
     {
-        return trim((string)($row['id'] ?? '')) !== '' && trim((string)($row['username'] ?? '')) !== '';
+        return trim((string)($row['id'] ?? '')) !== '' && trim((string)($row[$uniqueColumn] ?? '')) !== '';
     }
 
-    private function targetId(string $sourceId, string $username): ?string
+    private function targetId(string $tableName, string $sourceId, string $uniqueColumn, string $uniqueValue): ?string
     {
-        $statement = $this->target->prepare('SELECT id FROM cc_card WHERE id = ? OR username = ? LIMIT 1');
-        $statement->execute([$sourceId, $username]);
+        $statement = $this->target->prepare(
+            'SELECT id FROM ' . $this->quoteIdentifier($tableName)
+            . ' WHERE id = ? OR ' . $this->quoteIdentifier($uniqueColumn) . ' = ? LIMIT 1'
+        );
+        $statement->execute([$sourceId, $uniqueValue]);
         $id = $statement->fetchColumn();
 
         return $id === false ? null : (string)$id;

@@ -42,6 +42,25 @@ final class CustomerMigrationServiceTest extends TestCase
         $this->assertSame('1.25', $target->query('SELECT credit FROM cc_card WHERE id = 1')->fetchColumn());
     }
 
+    public function testMigratesSipAndIaxSettings(): void
+    {
+        $source = $this->pdoWithCardTable();
+        $target = $this->pdoWithCardTable();
+        $this->createVoipTables($source);
+        $this->createVoipTables($target);
+
+        $source->exec("INSERT INTO cc_sip_buddies (id, id_cc_card, name, accountcode, secret) VALUES (1, 10, '1001', '1001', 'sip-secret')");
+        $source->exec("INSERT INTO cc_iax_buddies (id, id_cc_card, name, accountcode, secret) VALUES (2, 10, '1001-iax', '1001', 'iax-secret')");
+
+        $summary = (new CustomerMigrationService($source, $target))->migrateVoipSettings(false);
+
+        $this->assertTrue($summary->isSuccessful());
+        $this->assertSame(2, $summary->getScannedRows());
+        $this->assertSame(2, $summary->getInsertedRows());
+        $this->assertSame('sip-secret', $target->query('SELECT secret FROM cc_sip_buddies WHERE name = "1001"')->fetchColumn());
+        $this->assertSame('iax-secret', $target->query('SELECT secret FROM cc_iax_buddies WHERE name = "1001-iax"')->fetchColumn());
+    }
+
     private function pdoWithCardTable(): PDO
     {
         $pdo = new PDO('sqlite::memory:');
@@ -56,5 +75,20 @@ final class CustomerMigrationServiceTest extends TestCase
         );
 
         return $pdo;
+    }
+
+    private function createVoipTables(PDO $pdo): void
+    {
+        foreach (['cc_sip_buddies', 'cc_iax_buddies'] as $tableName) {
+            $pdo->exec(
+                'CREATE TABLE ' . $tableName . ' (
+                    id INTEGER PRIMARY KEY,
+                    id_cc_card INTEGER NOT NULL,
+                    name TEXT NOT NULL,
+                    accountcode TEXT NOT NULL,
+                    secret TEXT NOT NULL
+                )'
+            );
+        }
     }
 }
