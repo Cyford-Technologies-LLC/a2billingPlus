@@ -808,6 +808,47 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /reports.php:
+    get:
+      summary: Run billing and call quality reports
+      parameters:
+        - name: report
+          in: query
+          schema:
+            type: string
+            enum: [call_quality, daily_call_quality, reconciliation]
+            default: call_quality
+        - name: from
+          in: query
+          required: true
+          description: Inclusive UTC date/time filter, YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: true
+          description: Exclusive UTC date/time filter, YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.
+          schema:
+            type: string
+        - name: timezone
+          in: query
+          description: Time zone used by daily_call_quality.
+          schema:
+            type: string
+            default: UTC
+      responses:
+        '200':
+          description: Report rows or summary metrics.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /provider-records.php:
     get:
       summary: List provider database records
