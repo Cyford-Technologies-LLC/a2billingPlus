@@ -7,6 +7,9 @@ namespace A2BillingPlus\Api;
 use A2BillingPlus\Http\ApiResponder;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
+use A2BillingPlus\Module\Customer\CustomerAccountRepository;
+use A2BillingPlus\Module\Customer\CustomerAccountService;
+use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
 
 final class RestApiController
 {
@@ -46,6 +49,10 @@ final class RestApiController
             return ApiResponder::error('invalid_offset', 'Offset must be zero or greater.', 422, ['field' => 'offset']);
         }
 
+        if ($resource === 'customers') {
+            return $this->handleCustomers($request, $limit, $offset);
+        }
+
         try {
             $repository = new ResourceListRepository(($this->pdoFactory)());
             $result = $repository->list($resource, $limit, $offset);
@@ -62,6 +69,43 @@ final class RestApiController
             'limit' => $limit,
             'offset' => $offset,
             'columns' => $result['columns'],
+        ]);
+    }
+
+    private function handleCustomers(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $statusValue = $request->getString('status');
+        $status = null;
+        if ($statusValue !== '') {
+            if (!in_array($statusValue, ['0', '1'], true)) {
+                return ApiResponder::error('invalid_status', 'Status must be 0 or 1.', 422, ['field' => 'status']);
+            }
+            $status = (int)$statusValue;
+        }
+
+        $search = trim($request->getString('search'));
+        if (strlen($search) > 100) {
+            return ApiResponder::error('invalid_search', 'Search must be 100 characters or fewer.', 422, ['field' => 'search']);
+        }
+
+        try {
+            $service = new CustomerAccountService(new CustomerAccountRepository(($this->pdoFactory)()));
+            $result = $service->search(new CustomerSearchCriteria($limit, $offset, $search, $status));
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('customer_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'customers' => $result['items'],
+        ], [
+            'resource' => 'customers',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'search' => $search,
+                'status' => $status,
+            ],
         ]);
     }
 }

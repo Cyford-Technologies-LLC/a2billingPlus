@@ -65,6 +65,20 @@ components:
         type: integer
         minimum: 0
         default: 0
+    CustomerSearch:
+      name: search
+      in: query
+      description: Match username, user alias, first name, last name, or email.
+      schema:
+        type: string
+        maxLength: 100
+    CustomerStatus:
+      name: status
+      in: query
+      description: Filter by customer status, where 1 is active and 0 is blocked or inactive.
+      schema:
+        type: integer
+        enum: [0, 1]
   responses:
     Unauthorized:
       description: Missing bearer service key.
@@ -91,6 +105,8 @@ paths:
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/CustomerSearch'
+        - $ref: '#/components/parameters/CustomerStatus'
       responses:
         '200':
           description: Customer rows from cc_card.

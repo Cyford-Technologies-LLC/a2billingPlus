@@ -279,7 +279,7 @@ function h(string $value): string
     </div>
 </div>
 
-<table width="95%" class="toppage_customaction">
+<table width="95%" class="provider_setup_page">
     <tr>
         <td class="form_head">VectaVoIP Provider Setup</td>
     </tr>
