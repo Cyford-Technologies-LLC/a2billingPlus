@@ -32,6 +32,31 @@ final class AppConfigTest extends TestCase
         $this->assertSame('sqlite::memory:', $config->databaseDsn());
     }
 
+    public function testMapsCyfordStripeTestAliases(): void
+    {
+        $config = new AppConfig([
+            'MODE' => 'test',
+            'STRIPE_TEST_SECRET_KEY' => 'sk_test_alias',
+            'STRIPE_TEST_WEBHOOK_SECRET' => 'whsec_test_alias',
+        ]);
+
+        $this->assertSame('sk_test_alias', $config->string('STRIPE_SECRET_KEY'));
+        $this->assertSame('whsec_test_alias', $config->string('STRIPE_WEBHOOK_SECRET'));
+    }
+
+    public function testMapsCyfordStripeLiveAliases(): void
+    {
+        $config = new AppConfig([
+            'MODE' => 'live',
+            'STRIPE_TEST_SECRET_KEY' => 'sk_test_alias',
+            'STRIPE_LIVE_SECRET_KEY' => 'sk_live_alias',
+            'STRIPE_LIVE_WEBHOOK_SECRET' => 'whsec_live_alias',
+        ]);
+
+        $this->assertSame('sk_live_alias', $config->string('STRIPE_SECRET_KEY'));
+        $this->assertSame('whsec_live_alias', $config->string('STRIPE_WEBHOOK_SECRET'));
+    }
+
     public function testReadsSecretFileEnvironmentValues(): void
     {
         $file = tempnam(sys_get_temp_dir(), 'a2bp-secret-');

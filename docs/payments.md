@@ -30,6 +30,18 @@ For local sandbox work, put real Stripe test secrets in `.env.stripe` instead of
 `.env.stripe` for the PHP app containers. Use `.env.stripe.example` as the
 template and keep `.env.stripe` uncommitted.
 
+A2BillingPlus also accepts Cyford-style mode-specific names:
+
+```text
+MODE=test
+STRIPE_TEST_SECRET_KEY=sk_test_value
+STRIPE_TEST_WEBHOOK_SECRET=whsec_value
+```
+
+For `MODE=live`, use `STRIPE_LIVE_SECRET_KEY` and
+`STRIPE_LIVE_WEBHOOK_SECRET`. Do not use a Stripe API secret key as the webhook
+secret; Stripe webhook secrets are separate values that start with `whsec_`.
+
 Braintree is optional and should stay disabled unless needed:
 
 ```text

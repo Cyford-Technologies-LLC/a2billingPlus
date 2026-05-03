@@ -12,8 +12,17 @@ function Get-RequiredEnv {
     param([string]$Name)
 
     $value = [Environment]::GetEnvironmentVariable($Name)
+    if ([string]::IsNullOrWhiteSpace($value) -and $Name -eq 'STRIPE_WEBHOOK_SECRET') {
+        $mode = [Environment]::GetEnvironmentVariable('MODE')
+        if ([string]::IsNullOrWhiteSpace($mode)) {
+            $mode = 'test'
+        }
+        $aliasName = if ($mode.ToLowerInvariant() -eq 'live') { 'STRIPE_LIVE_WEBHOOK_SECRET' } else { 'STRIPE_TEST_WEBHOOK_SECRET' }
+        $value = [Environment]::GetEnvironmentVariable($aliasName)
+    }
+
     if ([string]::IsNullOrWhiteSpace($value)) {
-        throw "$Name is required. Put the same value in .env as STRIPE_WEBHOOK_SECRET, restart the app container, and export it in this shell."
+        throw "$Name is required. Set STRIPE_WEBHOOK_SECRET or STRIPE_TEST_WEBHOOK_SECRET, restart the app container, and export the same value in this shell."
     }
 
     return $value

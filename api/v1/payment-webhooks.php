@@ -23,7 +23,7 @@ if ($provider !== 'stripe') {
 }
 
 $service = new PaymentWebhookService(
-    new StripeWebhookVerifier(envString('STRIPE_WEBHOOK_SECRET')),
+    new StripeWebhookVerifier(stripeWebhookSecret()),
     new PaymentWebhookRepository(webhookPdo())
 );
 
@@ -81,6 +81,17 @@ function envString(string $key, string $default = ''): string
     }
 
     return $default;
+}
+
+function stripeWebhookSecret(): string
+{
+    $secret = envString('STRIPE_WEBHOOK_SECRET');
+    if ($secret !== '') {
+        return $secret;
+    }
+
+    $mode = strtolower(envString('MODE', 'test'));
+    return envString($mode === 'live' ? 'STRIPE_LIVE_WEBHOOK_SECRET' : 'STRIPE_TEST_WEBHOOK_SECRET');
 }
 
 function sendJson(array $payload, int $statusCode): never

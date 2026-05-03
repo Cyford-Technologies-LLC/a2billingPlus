@@ -9,8 +9,11 @@ final class AppConfig
     /**
      * @param array<string, string> $values
      */
-    public function __construct(private readonly array $values = [])
+    private readonly array $values;
+
+    public function __construct(array $values = [])
     {
+        $this->values = $this->withAliases($values);
     }
 
     public static function fromEnvironment(): self
@@ -35,12 +38,17 @@ final class AppConfig
             'A2BP_DB_USER',
             'A2BP_DB_PASSWORD',
             'A2BP_API_SERVICE_KEY',
+            'MODE',
             'VECTAVOIP_API_BASE_URL',
             'VECTAVOIP_API_KEY',
             'VECTAVOIP_API_SECRET',
             'VECTAVOIP_INSTALLATION_ID',
             'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET',
+            'STRIPE_TEST_SECRET_KEY',
+            'STRIPE_LIVE_SECRET_KEY',
+            'STRIPE_TEST_WEBHOOK_SECRET',
+            'STRIPE_LIVE_WEBHOOK_SECRET',
             'BRAINTREE_MERCHANT_ID',
             'BRAINTREE_PUBLIC_KEY',
             'BRAINTREE_PRIVATE_KEY',
@@ -81,5 +89,25 @@ final class AppConfig
             $this->string('A2BP_DB_HOST', 'db'),
             $this->string('A2BP_DB_NAME', 'mya2billing')
         );
+    }
+
+    /**
+     * @param array<string, string> $values
+     * @return array<string, string>
+     */
+    private function withAliases(array $values): array
+    {
+        $mode = strtolower(trim((string)($values['MODE'] ?? 'test')));
+        $stripePrefix = $mode === 'live' ? 'STRIPE_LIVE' : 'STRIPE_TEST';
+
+        if (($values['STRIPE_SECRET_KEY'] ?? '') === '' && ($values[$stripePrefix . '_SECRET_KEY'] ?? '') !== '') {
+            $values['STRIPE_SECRET_KEY'] = $values[$stripePrefix . '_SECRET_KEY'];
+        }
+
+        if (($values['STRIPE_WEBHOOK_SECRET'] ?? '') === '' && ($values[$stripePrefix . '_WEBHOOK_SECRET'] ?? '') !== '') {
+            $values['STRIPE_WEBHOOK_SECRET'] = $values[$stripePrefix . '_WEBHOOK_SECRET'];
+        }
+
+        return $values;
     }
 }
