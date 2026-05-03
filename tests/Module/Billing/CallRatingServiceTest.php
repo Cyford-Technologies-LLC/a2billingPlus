@@ -44,6 +44,36 @@ final class CallRatingServiceTest extends TestCase
         $this->assertSame('0.00300', $result->getCustomerCost());
     }
 
+    public function testUsesOnlyRatesForRequestedTariffPlan(): void
+    {
+        $pdo = $this->pdo();
+        $this->insertRate($pdo, ['idtariffplan' => 1, 'dialprefix' => '1', 'rateinitial' => '0.01000']);
+        $this->insertRate($pdo, ['idtariffplan' => 2, 'dialprefix' => '1800', 'rateinitial' => '0.00300']);
+
+        $result = (new CallRatingService($pdo))->rate(new CallRatingRequest('18005551212', 60, 1));
+
+        $this->assertTrue($result->isRated());
+        $this->assertSame('1', $result->getDialPrefix());
+        $this->assertSame('0.01000', $result->getCustomerCost());
+    }
+
+    public function testZeroDurationCallHasNoRatedCost(): void
+    {
+        $pdo = $this->pdo();
+        $this->insertRate($pdo, [
+            'dialprefix' => '1',
+            'rateinitial' => '0.01000',
+            'connectcharge' => '0.00500',
+            'mincharge' => '0.02500',
+        ]);
+
+        $result = (new CallRatingService($pdo))->rate(new CallRatingRequest('18005551212', 0));
+
+        $this->assertTrue($result->isRated());
+        $this->assertSame(0, $result->getBillableSeconds());
+        $this->assertSame('0.00000', $result->getCustomerCost());
+    }
+
     public function testRejectsUnratedDestination(): void
     {
         $result = (new CallRatingService($this->pdo()))->rate(new CallRatingRequest('999', 60));
@@ -62,11 +92,12 @@ final class CallRatingServiceTest extends TestCase
                 idtariffplan, dialprefix, rateinitial, buyrate, initblock, billingblock,
                 connectcharge, mincharge, buyrateconnectcharge, buyratemincharge
             ) VALUES (
-                1, :dialprefix, :rateinitial, :buyrate, :initblock, :billingblock,
+                :idtariffplan, :dialprefix, :rateinitial, :buyrate, :initblock, :billingblock,
                 :connectcharge, :mincharge, :buyrateconnectcharge, :buyratemincharge
             )'
         );
         $statement->execute([
+            'idtariffplan' => (int)($rate['idtariffplan'] ?? 1),
             'dialprefix' => (string)$rate['dialprefix'],
             'rateinitial' => (string)($rate['rateinitial'] ?? '0.00000'),
             'buyrate' => (string)($rate['buyrate'] ?? '0.00000'),
