@@ -81,3 +81,17 @@ For PHP 8.4:
 docker compose --profile php84 build app84
 docker compose --profile php84 up -d app84
 ```
+
+## Build Verification
+
+Run the project verification script before pushing or releasing a level:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bin/verify-build.ps1
+```
+
+Use `-SkipPhp84` when the optional PHP 8.4 container is not running:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bin/verify-build.ps1 -SkipPhp84
+```

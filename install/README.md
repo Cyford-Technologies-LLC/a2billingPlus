@@ -17,6 +17,12 @@ Migration CLI:
 docker compose exec app php bin/migrate-a2billing.php --scope=all --limit=100
 ```
 
+Build verification:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bin/verify-build.ps1
+```
+
 ## Current Container Layout
 
 The default Docker stack provides:
