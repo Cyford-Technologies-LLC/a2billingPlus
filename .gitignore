@@ -11,6 +11,8 @@
 *.iml
 /vendor/
 .env
+.env.local
+.env.stripe
 .phpunit.result.cache
 
 # Local migration outputs can contain customer data.

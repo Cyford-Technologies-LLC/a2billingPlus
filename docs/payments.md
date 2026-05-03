@@ -25,6 +25,11 @@ STRIPE_WEBHOOK_SECRET=whsec_value
 PAYMENT_CURRENCY=USD
 ```
 
+For local sandbox work, put real Stripe test secrets in `.env.stripe` instead of
+`.env`. Docker Compose loads `.env`, then optional `.env.local`, then optional
+`.env.stripe` for the PHP app containers. Use `.env.stripe.example` as the
+template and keep `.env.stripe` uncommitted.
+
 Braintree is optional and should stay disabled unless needed:
 
 ```text

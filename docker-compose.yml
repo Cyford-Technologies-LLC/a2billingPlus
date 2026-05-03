@@ -6,7 +6,11 @@ services:
       args:
         PHP_VERSION: "8.2"
     env_file:
-      - .env
+      - path: .env
+      - path: .env.local
+        required: false
+      - path: .env.stripe
+        required: false
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html
       A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
@@ -37,7 +41,11 @@ services:
       args:
         PHP_VERSION: "8.4"
     env_file:
-      - .env
+      - path: .env
+      - path: .env.local
+        required: false
+      - path: .env.stripe
+        required: false
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html
       A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
@@ -70,7 +78,11 @@ services:
       args:
         PHP_VERSION: "8.2"
     env_file:
-      - .env
+      - path: .env
+      - path: .env.local
+        required: false
+      - path: .env.stripe
+        required: false
     command: ["php", "-v"]
     depends_on:
       db:
@@ -86,7 +98,9 @@ services:
   db:
     image: mariadb:11
     env_file:
-      - .env
+      - path: .env
+      - path: .env.local
+        required: false
     command:
       - --character-set-server=utf8mb4
       - --collation-server=utf8mb4_unicode_ci
@@ -118,7 +132,9 @@ services:
       context: .
       dockerfile: docker/asterisk/Dockerfile
     env_file:
-      - .env
+      - path: .env
+      - path: .env.local
+        required: false
     ports:
       - "${A2BP_ASTERISK_AMI_PORT:-5038}:5038"
       - "${A2BP_ASTERISK_ARI_PORT:-8088}:8088"
