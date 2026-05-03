@@ -651,6 +651,67 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /rate-imports.php:
+    post:
+      summary: Dry-run or apply ratecard imports
+      description: Applies supplied provider/manual rate rows through the module importer. Duplicate prefix/tag rows are skipped unless `update_existing` is enabled.
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tariff_plan_id, tag, rows]
+              properties:
+                tariff_plan_id:
+                  type: integer
+                  minimum: 1
+                tag:
+                  type: string
+                  maxLength: 100
+                dry_run:
+                  type: string
+                  enum: ['0', '1']
+                  default: '1'
+                update_existing:
+                  type: string
+                  enum: ['0', '1']
+                  default: '0'
+                rows:
+                  type: array
+                  items:
+                    type: object
+                    required: [prefix, rate]
+                    properties:
+                      destination:
+                        type: string
+                      prefix:
+                        type: string
+                      rate:
+                        type: string
+                      buyrate:
+                        type: string
+                      increment:
+                        type: integer
+                        minimum: 1
+      responses:
+        '200':
+          description: Rate import was accepted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /payments.php:
     get:
       summary: List payment ledger rows or load one payment by id
