@@ -84,6 +84,23 @@ Before trusting a backup process:
 4. Run `bin/verify-build.ps1`.
 5. Confirm provider status and rate preview still work.
 
+### Docker Sandbox Verification
+
+Last verified: 2026-05-03.
+
+The sandbox restore check dumped `mya2billing`, restored it into a temporary
+`a2bp_restore_check` database, compared table and seed row counts, then dropped
+the temporary database.
+
+Observed result:
+
+```text
+a2bp_restore_check  100 tables
+mya2billing         100 tables
+cc_card             1 source row, 1 restored row
+cc_ratecard         0 source rows, 0 restored rows
+```
+
 ## Retention
 
 Minimum production baseline:
