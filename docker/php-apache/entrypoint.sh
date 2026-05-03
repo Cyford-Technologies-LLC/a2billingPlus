@@ -17,10 +17,16 @@ if [ -f a2billing.conf ]; then
     /etc/a2billing.conf
 fi
 
-if [ -f composer.json ] && [ ! -d vendor ]; then
-  echo "Installing Composer dependencies for container runtime..."
-  composer install --no-interaction --prefer-dist --ignore-platform-req=php || \
-    composer install --no-interaction --prefer-dist --ignore-platform-reqs
+if [ -f composer.json ] && [ ! -f vendor/autoload.php ]; then
+  mkdir -p /tmp/a2billingplus
+  (
+    flock 200
+    if [ ! -f vendor/autoload.php ]; then
+      echo "Installing Composer dependencies for container runtime..."
+      composer install --no-interaction --prefer-dist --ignore-platform-req=php || \
+        composer install --no-interaction --prefer-dist --ignore-platform-reqs
+    fi
+  ) 200>/tmp/a2billingplus/composer-install.lock
 fi
 
 exec "$@"
