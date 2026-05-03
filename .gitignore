@@ -15,6 +15,10 @@
 .env.stripe
 .phpunit.result.cache
 
+# Provider API runtime env overlays are created on deployment hosts.
+/deploy/vectavoip-api/.env.production
+/deploy/vectavoip-api/.env.production.local
+
 # Local migration outputs can contain customer data.
 /development/
 
