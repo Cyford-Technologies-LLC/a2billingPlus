@@ -47,7 +47,20 @@ class Connection
             $DBHandle = NewADOConnection('mysqli');
         }
 
-        if (!$DBHandle || !$DBHandle->Connect(HOST, USER, PASS, DBNAME))
+        $host = HOST;
+        $port = PORT;
+        if (DB_TYPE == "mysql" && strpos($host, ':') !== false) {
+            list($hostOnly, $hostPort) = explode(':', $host, 2);
+            if (is_numeric($hostPort)) {
+                $host = $hostOnly;
+                $port = $hostPort;
+            }
+        }
+        if (DB_TYPE == "mysql" && is_numeric($port)) {
+            $DBHandle->port = (int) $port;
+        }
+
+        if (!$DBHandle || !$DBHandle->Connect($host, USER, PASS, DBNAME))
             die("Connection failed");
 
         if (DB_TYPE == "mysql") {
