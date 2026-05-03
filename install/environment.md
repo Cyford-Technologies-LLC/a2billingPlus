@@ -65,6 +65,8 @@ VECTAVOIP_API_KEY=
 VECTAVOIP_API_SECRET=
 VECTAVOIP_API_KEY_FILE=
 VECTAVOIP_API_SECRET_FILE=
+VECTAVOIP_WEBHOOK_SECRET=
+VECTAVOIP_WEBHOOK_SECRET_FILE=
 ```
 
 `install.php` writes these values when automatic VectaVoIP registration
@@ -74,6 +76,10 @@ returned by the VectaVoIP registration server.
 When `VECTAVOIP_API_KEY_FILE` or `VECTAVOIP_API_SECRET_FILE` is set, runtime code
 reads credentials from those files. Direct environment values are used when file
 references are not configured.
+
+`VECTAVOIP_WEBHOOK_SECRET` signs provider webhooks. Use
+`VECTAVOIP_WEBHOOK_SECRET_FILE` when the secret is managed by a deployment secret
+store.
 
 ## Redis
 

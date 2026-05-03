@@ -197,3 +197,38 @@ Migration file:
 ```text
 install/migrations/20260503_provider_import_log.sql
 ```
+
+## Signed Provider Webhooks
+
+The local A2BillingPlus provider webhook receiver is:
+
+```text
+POST /api/v1/provider-webhooks.php?provider=vectavoip
+```
+
+Required headers:
+
+```text
+X-VectaVoIP-Timestamp: <unix_timestamp>
+X-VectaVoIP-Signature: <hex_hmac_sha256>
+```
+
+The signature is:
+
+```text
+hex_hmac_sha256(timestamp + "." + raw_json_body, VECTAVOIP_WEBHOOK_SECRET)
+```
+
+Supported event types currently recorded:
+
+- `rate_deck.updated`
+- `account.updated`
+
+Webhook events are stored in `cc_provider_webhook_event` and deduplicated by
+`provider + event_id`.
+
+Migration file:
+
+```text
+install/migrations/20260503_provider_webhook_event.sql
+```

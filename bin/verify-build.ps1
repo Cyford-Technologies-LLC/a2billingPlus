@@ -18,6 +18,7 @@ function Invoke-Step {
 Invoke-Step 'PHP syntax: core changed entrypoints' {
     docker compose exec -T app php -l install.php
     docker compose exec -T app php -l api/v1/providers.php
+    docker compose exec -T app php -l api/v1/provider-webhooks.php
     docker compose exec -T app php -l api/vectavoip/v1/bootstrap.php
     docker compose exec -T app php -l api/vectavoip/v1/installations/register.php
     docker compose exec -T app php -l api/vectavoip/v1/installations/status.php
