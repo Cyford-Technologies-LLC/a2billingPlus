@@ -5,6 +5,14 @@ declare(strict_types=1);
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Http\JsonRequest;
+use A2BillingPlus\Module\Provider\ProviderConnectionResult;
+use A2BillingPlus\Module\Provider\ProviderConnectorInterface;
+use A2BillingPlus\Module\Provider\ProviderCredentials;
+use A2BillingPlus\Module\Provider\ProviderRegistry;
+use A2BillingPlus\Module\Provider\RateImporterInterface;
+use A2BillingPlus\Module\Provider\RateImportPreview;
+use A2BillingPlus\Module\Provider\RateImportRequest;
+use A2BillingPlus\Module\Provider\RateImportResult;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use PHPUnit\Framework\TestCase;
 
@@ -119,6 +127,45 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame('key_123', $response->getPayload()['api_key']);
     }
 
+    public function testDryRunsPreviewRateImport(): void
+    {
+        $pdo = $this->ratecardPdo();
+        $controller = new ProviderApiController($this->previewProviderRegistry(), null, fn (): PDO => $pdo);
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'import_preview_rates',
+            'provider' => 'vectavoip',
+            'target_ratecard_id' => '5',
+            'rate_deck' => 'retail',
+            'dry_run' => '1',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame(2, $response->getPayload()['imported_rows']);
+        $this->assertSame(0, (int)$pdo->query('SELECT COUNT(*) FROM cc_ratecard')->fetchColumn());
+    }
+
+    public function testImportsPreviewRatesIntoRatecard(): void
+    {
+        $pdo = $this->ratecardPdo();
+        $controller = new ProviderApiController($this->previewProviderRegistry(), null, fn (): PDO => $pdo);
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'import_preview_rates',
+            'provider' => 'vectavoip',
+            'target_ratecard_id' => '5',
+            'rate_deck' => 'retail',
+            'dry_run' => '0',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame(2, $response->getPayload()['imported_rows']);
+        $this->assertSame(2, (int)$pdo->query('SELECT COUNT(*) FROM cc_ratecard')->fetchColumn());
+        $this->assertSame('VectaVoIP:retail', $pdo->query('SELECT tag FROM cc_ratecard LIMIT 1')->fetchColumn());
+    }
+
     public function testRejectsUnknownProvider(): void
     {
         $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
@@ -128,5 +175,83 @@ final class ProviderApiControllerTest extends TestCase
         ]));
 
         $this->assertSame(404, $response->getStatusCode());
+    }
+
+    private function previewProviderRegistry(): ProviderRegistry
+    {
+        $importer = new class implements RateImporterInterface {
+            public function preview(RateImportRequest $request): RateImportPreview
+            {
+                return new RateImportPreview(2, [
+                    ['destination' => 'United States', 'prefix' => '1', 'rate' => '0.0100', 'increment' => 60],
+                    ['destination' => 'United Kingdom', 'prefix' => '44', 'rate' => '0.0180', 'increment' => 60],
+                ], 'preview ok');
+            }
+
+            public function import(RateImportRequest $request): RateImportResult
+            {
+                return new RateImportResult(false, 0, 0, 'not used');
+            }
+        };
+
+        $connector = new class($importer) implements ProviderConnectorInterface {
+            public function __construct(private readonly RateImporterInterface $importer)
+            {
+            }
+
+            public function getProviderCode(): string
+            {
+                return 'vectavoip';
+            }
+
+            public function getDisplayName(): string
+            {
+                return 'VectaVoIP';
+            }
+
+            public function getSupportEmail(): string
+            {
+                return 'info@VectaVoIP.com';
+            }
+
+            public function getApiBaseUrl(): string
+            {
+                return 'https://api.VectaVoIP.com';
+            }
+
+            public function testConnection(ProviderCredentials $credentials): ProviderConnectionResult
+            {
+                return new ProviderConnectionResult(true, 'ok');
+            }
+
+            public function getRateImporter(ProviderCredentials $credentials): RateImporterInterface
+            {
+                return $this->importer;
+            }
+        };
+
+        return new ProviderRegistry([$connector]);
+    }
+
+    private function ratecardPdo(): PDO
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec(
+            'CREATE TABLE cc_ratecard (
+                idtariffplan INTEGER,
+                dialprefix TEXT,
+                destination INTEGER,
+                buyrate TEXT,
+                buyrateinitblock INTEGER,
+                buyrateincrement INTEGER,
+                rateinitial TEXT,
+                initblock INTEGER,
+                billingblock INTEGER,
+                tag TEXT
+            )'
+        );
+
+        return $pdo;
     }
 }

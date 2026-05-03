@@ -135,3 +135,23 @@ The sandbox provider endpoint behind this action is:
 ```text
 GET /api/sandbox/v1/rates/preview?rate_deck=retail&currency=USD
 ```
+
+Dry-run import of the previewed rows into an A2BillingPlus ratecard:
+
+```json
+{
+  "action": "import_preview_rates",
+  "provider": "vectavoip",
+  "base_url": "http://localhost/api/sandbox",
+  "api_key": "sandbox_key",
+  "target_ratecard_id": "5",
+  "rate_deck": "retail",
+  "currency": "USD",
+  "dry_run": "1"
+}
+```
+
+Set `"dry_run": "0"` to write the rows into `cc_ratecard`. The first import
+mapping writes provider `prefix`, `rate`, `buyrate`, `increment`, and
+`destination` into the existing A2BillingPlus ratecard fields and tags rows as
+`VectaVoIP:<rate_deck>`.

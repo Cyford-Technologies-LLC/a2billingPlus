@@ -12,15 +12,18 @@ use A2BillingPlus\Module\Provider\RateImportRequest;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
+use A2BillingPlus\Module\Rate\RatecardImportService;
 
 final class ProviderApiController
 {
     /**
      * @param null|callable(string): VectaVoIPRegistrationClient $registrationClientFactory
+     * @param null|callable(): \PDO $pdoFactory
      */
     public function __construct(
         private readonly ProviderRegistry $registry,
-        private $registrationClientFactory = null
+        private $registrationClientFactory = null,
+        private $pdoFactory = null
     ) {
     }
 
@@ -39,6 +42,7 @@ final class ProviderApiController
             'register_install' => $this->registerInstall($request),
             'test_connection' => $this->testConnection($request),
             'preview_rates' => $this->previewRates($request),
+            'import_preview_rates' => $this->importPreviewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
         };
     }
@@ -110,6 +114,62 @@ final class ProviderApiController
             'api_base_url' => $this->envString('VECTAVOIP_API_BASE_URL', $connector->getApiBaseUrl()),
             'support_email' => $connector->getSupportEmail(),
         ]);
+    }
+
+    private function importPreviewRates(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+
+        $targetRatecardId = (int)$request->getString('target_ratecard_id');
+        $dryRun = $request->getString('dry_run', '1') !== '0';
+        $rateDeck = $request->getString('rate_deck', 'default');
+
+        $importer = $connector->getRateImporter($this->credentialsFromRequest($request));
+        $preview = $importer->preview(new RateImportRequest(
+            $request->getString('currency', 'USD'),
+            $rateDeck,
+            $this->stringMap($request->getArray('filters')),
+            true
+        ));
+
+        if ($preview->getTotalRows() === 0 || $preview->getSampleRows() === []) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $preview->getMessage() !== '' ? $preview->getMessage() : 'No provider rates were available to import.',
+                'imported_rows' => 0,
+                'skipped_rows' => 0,
+                'dry_run' => $dryRun,
+            ], 422);
+        }
+
+        try {
+            $service = new RatecardImportService($this->pdo());
+            $summary = $service->importRows(
+                $preview->getSampleRows(),
+                $targetRatecardId,
+                'VectaVoIP:' . $rateDeck,
+                $dryRun
+            );
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Rate import failed: ' . $exception->getMessage(),
+                'imported_rows' => 0,
+                'skipped_rows' => 0,
+                'dry_run' => $dryRun,
+            ], 500);
+        }
+
+        return new JsonResponse([
+            'success' => $summary->isSuccessful(),
+            'message' => $summary->getMessage(),
+            'imported_rows' => $summary->getImportedRows(),
+            'skipped_rows' => $summary->getSkippedRows(),
+            'dry_run' => $dryRun,
+        ], $summary->isSuccessful() ? 200 : 422);
     }
 
     private function registerInstall(JsonRequest $request): JsonResponse
@@ -196,6 +256,29 @@ final class ProviderApiController
         }
 
         return new VectaVoIPRegistrationClient($apiBaseUrl);
+    }
+
+    private function pdo(): \PDO
+    {
+        if (is_callable($this->pdoFactory)) {
+            return ($this->pdoFactory)();
+        }
+
+        $dsn = $this->envString('A2BP_DB_DSN');
+        if ($dsn === '') {
+            $dsn = sprintf(
+                'mysql:host=%s;dbname=%s;charset=utf8mb4',
+                $this->envString('A2BP_DB_HOST', 'db'),
+                $this->envString('A2BP_DB_NAME', 'mya2billing')
+            );
+        }
+
+        $pdo = new \PDO($dsn, $this->envString('A2BP_DB_USER', 'a2billinguser'), $this->envString('A2BP_DB_PASSWORD', 'a2billing'), [
+            \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+            \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+        ]);
+
+        return $pdo;
     }
 
     private function generateInstallKey(): string
