@@ -23,7 +23,7 @@ where public API exists, and the seeded portal crawl loads.
 | --- | --- |
 | Payment UI | Requires real Stripe sandbox hosted payment and webhook verification before UI replacement. |
 | Trunk, SIP/PJSIP, and DID UI | Requires documented Asterisk 20 or 22 PJSIP sandbox call path before UI replacement. |
-| Unsafe configuration editors | Safe settings API exists, but broad legacy config editors are not removed, isolated, or production-disabled yet. Redesign should target the safe allowlisted settings surface only. |
+| Broad legacy configuration editors | Production-disabled unless `A2BP_FEATURE_LEGACY_CONFIG_EDITORS` is explicitly enabled. Redesign should target the safe allowlisted settings surface only. |
 
 ## Redesign Rule
 

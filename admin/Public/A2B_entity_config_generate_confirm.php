@@ -32,11 +32,14 @@
 **/
 
 include '../lib/admin.defines.php';
+include __DIR__ . '/../../common/lib/a2bp_legacy_admin_guard.php';
 include '../lib/admin.module.access.php';
 include '../lib/config_functions.php';
 include '../lib/Form/Class.FormHandler.inc.php';
 include './form_data/FG_var_config.inc';
 include '../lib/admin.smarty.php';
+
+a2bp_assert_legacy_admin_config_editor_allowed();
 
 if (! has_rights (ACX_ACXSETTING)) {
     Header ("HTTP/1.0 401 Unauthorized");
