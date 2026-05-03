@@ -36,9 +36,18 @@ include './lib/customer.module.access.php';
 include './lib/Form/Class.FormHandler.inc.php';
 include './lib/customer.smarty.php';
 
+use A2BillingPlus\Module\Signup\SignupServiceIntent;
+
 if (!$A2B->config["signup"]['enable_signup']) {
     echo ("No Signup page!");
     exit;
+}
+
+getpost_ifset(array('service'));
+
+$signupServiceIntent = SignupServiceIntent::fromRaw($service ?? ($_SESSION[SignupServiceIntent::SESSION_KEY] ?? null));
+if ($signupServiceIntent->hasService()) {
+    $_SESSION[SignupServiceIntent::SESSION_KEY] = $signupServiceIntent->service();
 }
 
 $HD_Form = new FormHandler();
@@ -65,6 +74,11 @@ $smarty->display('signup_header.tpl');
 ?>
     <INPUT type="hidden" name="<?php echo $HD_Form->FG_FORM_UNIQID_FIELD ?>" value="<?php echo $HD_Form->FG_FORM_UNIQID; ?>" />
     <INPUT type="hidden" name="<?php echo $HD_Form->FG_CSRF_FIELD ?>" value="<?php echo $HD_Form->FG_CSRF_TOKEN; ?>" />
+<?php
+    }
+    if ($signupServiceIntent->hasService()) {
+?>
+    <INPUT type="hidden" name="service" value="<?php echo htmlspecialchars($signupServiceIntent->service(), ENT_QUOTES, 'UTF-8'); ?>" />
 <?php
     }
 ?>

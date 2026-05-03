@@ -35,6 +35,8 @@ include './lib/customer.defines.php';
 include './lib/customer.module.access.php';
 include './lib/Form/Class.FormHandler.inc.php';
 
+use A2BillingPlus\Module\Signup\SignupServiceIntent;
+
 if (!isset ($form_action))
     $form_action = "ask-add";
 
@@ -51,6 +53,11 @@ if (false) {
 include './form_data/FG_var_signup.inc';
 include './lib/customer.smarty.php';
 
+$signupServiceIntent = SignupServiceIntent::fromRaw($service ?? ($_SESSION[SignupServiceIntent::SESSION_KEY] ?? null));
+if ($signupServiceIntent->hasService()) {
+    $_SESSION[SignupServiceIntent::SESSION_KEY] = $signupServiceIntent->service();
+}
+
 if (!$A2B->config["signup"]['enable_signup']) {
     echo ("No Signup page!");
     exit;
@@ -65,13 +72,22 @@ if (!is_numeric($subscriber_signup)) {
     $result_check_subscriber = $table_check_subscriber->Get_list(DbConnect(), $clause_check_subscriber);
     $check_subscriber = $result_check_subscriber[0][0];
     if ($check_subscriber > 0) {
-        Header("Location: signup_service.php");
+        $location = "signup_service.php";
+        if ($signupServiceIntent->hasService()) {
+            $location .= "?" . $signupServiceIntent->queryString();
+        }
+        Header("Location: " . $location);
         die();
     }
 }
 
 $HD_Form->setDBHandler(DbConnect());
 $HD_Form->init();
+
+if ($signupServiceIntent->hasService()) {
+    $HD_Form->FG_ADITION_HIDDEN_PARAM = trim($HD_Form->FG_ADITION_HIDDEN_PARAM . ',service', ',');
+    $HD_Form->FG_ADITION_HIDDEN_PARAM_VALUE = trim($HD_Form->FG_ADITION_HIDDEN_PARAM_VALUE . ',' . $signupServiceIntent->service(), ',');
+}
 
 if ($id != "" || !is_null($id)) {
     $HD_Form->FG_EDITION_CLAUSE = str_replace("%id", "$id", $HD_Form->FG_EDITION_CLAUSE);
@@ -80,6 +96,22 @@ if ($id != "" || !is_null($id)) {
 $list = $HD_Form->perform_action($form_action);
 
 if ($form_action == "add") {
+    if ($signupServiceIntent->hasService() && is_numeric($HD_Form->RESULT_QUERY)) {
+        $cardId = (int) $HD_Form->RESULT_QUERY;
+        $existingTrafficTarget = '';
+        $result = $HD_Form->DBHandle->Execute("SELECT traffic_target FROM cc_card WHERE id=" . $cardId);
+        if ($result && !$result->EOF) {
+            $row = $result->fetchRow();
+            $existingTrafficTarget = $row['traffic_target'] ?? $row[0] ?? '';
+        }
+
+        $trafficTarget = $signupServiceIntent->mergeTrafficTarget($existingTrafficTarget);
+        $HD_Form->DBHandle->Execute(
+            "UPDATE cc_card SET traffic_target = " . $HD_Form->DBHandle->qstr($trafficTarget) . " WHERE id=" . $cardId
+        );
+        unset($_SESSION[SignupServiceIntent::SESSION_KEY]);
+    }
+
     unset ($_SESSION["cardnumber_signup"]);
     $_SESSION["language_code"] = $_POST["language"];
     $_SESSION["cardnumber_signup"] = $maxi;
