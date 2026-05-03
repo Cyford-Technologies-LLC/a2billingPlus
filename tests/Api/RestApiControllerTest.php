@@ -326,6 +326,36 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame('Updated Group', $response->getPayload()['data']['tariff_group']['tariffgroupname']);
     }
 
+    public function testListsPackagesThroughApi(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('packages', new JsonRequest('GET', ['search' => 'Starter'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertCount(1, $payload['data']['packages']);
+        $this->assertSame('Starter Package', $payload['data']['packages'][0]['label']);
+        $this->assertSame('Starter', $payload['meta']['filters']['search']);
+    }
+
+    public function testLoadsPackageDetailWithAssignedRatesThroughApi(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('packages', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('Starter Package', $payload['data']['package']['label']);
+        $this->assertCount(1, $payload['data']['rates']);
+        $this->assertSame('1', $payload['data']['rates'][0]['dialprefix']);
+    }
+
     public function testRejectsInvalidRatePrefixFilter(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());
@@ -589,6 +619,8 @@ final class RestApiControllerTest extends TestCase
         $pdo->exec('CREATE TABLE cc_ratecard (id INTEGER PRIMARY KEY, idtariffplan INTEGER, dialprefix TEXT, destination TEXT, buyrate TEXT, rateinitial TEXT, initblock INTEGER, billingblock INTEGER, tag TEXT)');
         $pdo->exec('CREATE TABLE cc_tariffplan (id INTEGER PRIMARY KEY AUTOINCREMENT, iduser INTEGER, tariffname TEXT, creationdate TEXT, description TEXT, id_trunk INTEGER, idowner INTEGER, dnidprefix TEXT, calleridprefix TEXT)');
         $pdo->exec('CREATE TABLE cc_tariffgroup (id INTEGER PRIMARY KEY AUTOINCREMENT, iduser INTEGER, idtariffplan INTEGER, tariffgroupname TEXT, lcrtype INTEGER, creationdate TEXT, removeinterprefix INTEGER, id_cc_package_offer INTEGER)');
+        $pdo->exec('CREATE TABLE cc_package_offer (id INTEGER PRIMARY KEY, creationdate TEXT, label TEXT, packagetype INTEGER, billingtype INTEGER, startday INTEGER, freetimetocall INTEGER)');
+        $pdo->exec('CREATE TABLE cc_package_rate (package_id INTEGER, rate_id INTEGER, PRIMARY KEY (package_id, rate_id))');
         $pdo->exec('CREATE TABLE cc_logpayment (id INTEGER PRIMARY KEY, date TEXT, payment TEXT, card_id INTEGER, description TEXT)');
         $pdo->exec('CREATE TABLE cc_call (id INTEGER PRIMARY KEY, sessionid TEXT, uniqueid TEXT, starttime TEXT, stoptime TEXT, sessiontime INTEGER, calledstation TEXT, sessionbill TEXT, buycost TEXT, terminatecauseid INTEGER, id_card INTEGER)');
         $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY, provider_name TEXT, description TEXT)');
@@ -599,6 +631,8 @@ final class RestApiControllerTest extends TestCase
         $pdo->exec("INSERT INTO cc_ratecard (id, idtariffplan, dialprefix, destination, buyrate, rateinitial, initblock, billingblock, tag) VALUES (1, 7, '1', 'United States', '0.0100', '0.0200', 60, 60, 'VectaVoIP:retail')");
         $pdo->exec("INSERT INTO cc_tariffplan (id, iduser, tariffname, creationdate, description, id_trunk, idowner, dnidprefix, calleridprefix) VALUES (1, 0, 'Retail', '2026-05-03', 'Retail plan', 0, 0, 'all', 'all')");
         $pdo->exec("INSERT INTO cc_tariffgroup (id, iduser, idtariffplan, tariffgroupname, lcrtype, creationdate, removeinterprefix, id_cc_package_offer) VALUES (1, 0, 1, 'Default Group', 0, '2026-05-03', 0, -1)");
+        $pdo->exec("INSERT INTO cc_package_offer (id, creationdate, label, packagetype, billingtype, startday, freetimetocall) VALUES (1, '2026-05-03', 'Starter Package', 0, 0, 1, 600)");
+        $pdo->exec('INSERT INTO cc_package_rate (package_id, rate_id) VALUES (1, 1)');
         $pdo->exec("INSERT INTO cc_logpayment (id, date, payment, card_id, description) VALUES (1, '2026-05-03', '10.00', 1, 'top up')");
         $pdo->exec("INSERT INTO cc_call (id, sessionid, uniqueid, starttime, stoptime, sessiontime, calledstation, sessionbill, buycost, terminatecauseid, id_card) VALUES (1, 's1', 'u1', '2026-05-03 10:00:00', '2026-05-03 10:01:00', 60, '18005551212', '0.01', '0.005', 1, 1)");
         $pdo->exec("INSERT INTO cc_provider (id, provider_name, description) VALUES (1, 'VectaVoIP', 'default provider')");

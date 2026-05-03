@@ -803,6 +803,37 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /packages.php:
+    get:
+      summary: List packages or load one package with assigned rates
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Package rows from cc_package_offer or one package with cc_package_rate assignments.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Package was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /rate-imports.php:
     post:
       summary: Dry-run or apply ratecard imports

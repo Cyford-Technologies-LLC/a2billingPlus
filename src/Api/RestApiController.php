@@ -23,6 +23,8 @@ use A2BillingPlus\Module\Invoice\ReceiptService;
 use A2BillingPlus\Module\Payment\PaymentLedgerRepository;
 use A2BillingPlus\Module\Payment\PaymentLedgerService;
 use A2BillingPlus\Module\Payment\PaymentSearchCriteria;
+use A2BillingPlus\Module\Rate\PackageRepository;
+use A2BillingPlus\Module\Rate\PackageService;
 use A2BillingPlus\Module\Rate\RatecardRepository;
 use A2BillingPlus\Module\Rate\RatecardSearchCriteria;
 use A2BillingPlus\Module\Rate\RatecardSearchService;
@@ -32,7 +34,7 @@ use A2BillingPlus\Module\Security\AuditLogRepository;
 
 final class RestApiController
 {
-    public const RESOURCES = ['customers', 'balances', 'rates', 'tariff-plans', 'tariff-groups', 'payments', 'cdrs', 'providers', 'invoices', 'receipts'];
+    public const RESOURCES = ['customers', 'balances', 'rates', 'tariff-plans', 'tariff-groups', 'packages', 'payments', 'cdrs', 'providers', 'invoices', 'receipts'];
 
     /**
      * @param callable(): \PDO $pdoFactory
@@ -81,6 +83,10 @@ final class RestApiController
 
         if (in_array($resource, ['tariff-plans', 'tariff-groups'], true)) {
             return $this->handleTariffs($resource, $request, $limit, $offset);
+        }
+
+        if ($resource === 'packages') {
+            return $this->handlePackages($request, $limit, $offset);
         }
 
         if ($resource === 'cdrs') {
@@ -425,6 +431,58 @@ final class RestApiController
             'offset' => $offset,
             'columns' => $result['columns'],
             'filters' => ['search' => $search],
+        ]);
+    }
+
+    private function handlePackages(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_package_id', 'Package id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
+        $search = trim($request->getString('search'));
+        if (strlen($search) > 100) {
+            return ApiResponder::error('invalid_search', 'Search filter must be 100 characters or fewer.', 422, ['field' => 'search']);
+        }
+
+        try {
+            $service = new PackageService(new PackageRepository(($this->pdoFactory)()));
+            if ($id !== null) {
+                $package = $service->detail($id);
+                if ($package === null) {
+                    return ApiResponder::error('package_not_found', 'Package was not found.', 404, ['id' => $id]);
+                }
+
+                $rates = $service->rates($id, $limit, $offset);
+
+                return ApiResponder::ok([
+                    'package' => $package,
+                    'rates' => $rates['items'],
+                ], [
+                    'resource' => 'packages',
+                    'id' => $id,
+                    'limit' => $limit,
+                    'offset' => $offset,
+                    'rate_columns' => $rates['columns'],
+                ]);
+            }
+
+            $result = $service->list($limit, $offset, $search);
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('package_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'packages' => $result['items'],
+        ], [
+            'resource' => 'packages',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'search' => $search,
+            ],
         ]);
     }
 
