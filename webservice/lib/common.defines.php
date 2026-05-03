@@ -78,7 +78,7 @@ define ("BUDDY_IAX_FILE", isset($A2B->config['webui']['buddy_iax_file'])?$A2B->c
 define ("ACT_VOICEMAIL", false);
 
 // SHOW DONATION
-define ("SHOW_DONATION", true);
+define ("SHOW_DONATION", false);
 
 // AGI
 define ("ASTERISK_VERSION", isset($A2B->config['agi-conf1']['asterisk_version'])?$A2B->config['agi-conf1']['asterisk_version']:'1_4');
@@ -116,13 +116,13 @@ $_START_TIME = time();
 mt_start();
 
 // A2BILLING COPYRIGHT & CONTACT
-define ("TEXTCONTACT", gettext("This software has been created by Areski Belaid under AGPL licence. For futher information, feel free to contact me:"));
-define ("EMAILCONTACT", "sales@star2billing.com");
+define ("TEXTCONTACT", gettext("VectaVoIP billing platform support:"));
+define ("EMAILCONTACT", "support@vectavoip.com");
 
 // A2BILLING INFO
 //define ("COPYRIGHT", "A2Billing v2.2.0 is a ".'<a href="https://VectaVoIP.com" target="_blank">voip billing software</a>' . " licensed under the ".'<a href="https://VectaVoIP.com" target="_blank">AGPL 3</a>' . ". <br/>" . "Copyright (C) 2004-2015 - VectaVoIP S.L. <a href=\"https://VectaVoIP.com\" target=\"_blank\">dgdgd</a>");
-define ("COPYRIGHT", "Copyright © 2026 <a href='https://VectaVoIP.com/' target='_blank'>VectaVoIP</a>. All Rights Reserved.");
-define ("CCMAINTITLE", gettext("A2Billing Portal"));
+define ("COPYRIGHT", "Copyright &copy; 2026 <a href='https://vectavoip.com/' target='_blank'>VectaVoIP</a>. All Rights Reserved. <a href='https://www.gnu.org/licenses/agpl-3.0.html' target='_blank'>AGPL License</a>.");
+define ("CCMAINTITLE", gettext("VectaVoIP Portal"));
 
 /*
  *		CONNECT / DISCONNECT DATABASE

@@ -64,16 +64,13 @@ if (is_array($messages)&& sizeof($messages)>0) {
 <center>
 <table align="center" width="90%" bgcolor="white" cellpadding="25" cellspacing="25" style="border: solid 1px">
     <tr>
-        <td width="340">
-            <img src="images/logo/a2billing.png">
-            <br><br>
-            <center><b><i>A2Billing is licensed under <a href="http://www.fsf.org/licensing/licenses/agpl-3.0.html" target="_blank">AGPL 3</a>.</i></b></center>
-            <br><br>
+        <td width="340" style="font-family: Arial, Helvetica, sans-serif; text-align:center;">
+            <h2 style="margin: 0; color: #2b5d87;">VectaVoIP</h2>
+            <p style="margin: 8px 0 18px 0;">Agent Billing Platform</p>
+            <b><i>This platform includes AGPL-licensed software components.</i></b>
         </td>
         <td align="left">
-        For information and documentation on A2Billing, <br> please visit <a href="http://www.a2billing.org" target="_blank">http://www.a2billing.org</a><br><br>
-
-        For Commercial Installations, Hosted Systems, Customisation and Commercial support, please visit <a href="http://www.star2billing.com" target="_blank">http://www.star2billing.com</a><br><br>
+        For platform information and support, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a><br><br>
         <br/><br/><br/><br/>
 
         </td>

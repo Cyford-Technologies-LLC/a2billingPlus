@@ -270,7 +270,7 @@ Browse here the pending and completed callbacks. You will see that different par
 
     $CC_help_list_global_config = create_help(gettext("Here is a list of all configuration groups. You can pick one and see its members"));
 
-    $CC_help_list_configuration = create_help(gettext("Here you can see and edit the different A2Billing settings."));
+    $CC_help_list_configuration = create_help(gettext("Here you can see and edit the different VectaVoIP platform settings."));
 
     $CC_help_payment_log = create_help(gettext("Payment log with status, payment methods , owner and creation date."));
 
@@ -316,17 +316,4 @@ $PAYMENT_METHOD = '
     </tr>
 </table>';
 
-$CALL_LABS = '
-<div align="center">
-<table width="70%" align="center">
-    <tr>
-        <TD width="%75" valign="top" align="center" class="tableBodyRight" background="' . Images_Path . '/background_cells.gif" >
-                Global VoIP termination (A-Z)  to over 400 worldwide destinations!<br>
-                Visit Call-Labs at <a href="http://www.call-labs.com/" target="_blank">http://www.call-labs.com/</a><br/>
-        </TD>
-        <TD width="%25" valign="middle" align="center" class="tableBodyRight" background="' . Images_Path . '/background_cells.gif" >
-                <a href="http://www.call-labs.com/" target="_blank"><img src="' . Images_Path . '/call-labs.com.png" alt="call-labs"/></a>
-        </TD>
-    </tr>
-</table>
-</div>';
+$CALL_LABS = '';
