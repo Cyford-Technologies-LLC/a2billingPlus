@@ -213,7 +213,7 @@ if ($posted) {
     }
 }
 
-$checks = collectChecks($envPath, $configPath, $schemaPath, $lockPath);
+$checks = collectChecks($envPath, $configPath, $schemaPath, $lockPath, $input);
 $productionChecklist = productionHardeningChecklist();
 
 function validateInstallPrerequisites(
@@ -655,19 +655,41 @@ function runComposeSetup(string $projectRoot, array $input, array &$messages, ar
     $messages[] = trim($output) !== '' ? trim($output) : composeCommand($input);
 }
 
-function collectChecks(string $envPath, string $configPath, string $schemaPath, string $lockPath): array
+function collectChecks(string $envPath, string $configPath, string $schemaPath, string $lockPath, array $input): array
 {
     return [
         'PHP ' . PHP_VERSION => version_compare(PHP_VERSION, '8.2.0', '>='),
         'pdo_mysql extension' => extension_loaded('pdo_mysql'),
         'mysqli extension' => extension_loaded('mysqli'),
         'gettext extension' => extension_loaded('gettext'),
+        'Apache/PHP health endpoint present' => is_file(__DIR__ . DIRECTORY_SEPARATOR . 'health.php'),
         '.env writable or creatable' => is_writable(dirname($envPath)) && (!is_file($envPath) || is_writable($envPath)),
         'a2billing.conf writable' => is_file($configPath) && is_writable($configPath),
         'MariaDB schema file present' => is_file($schemaPath),
         'install.lock absent' => !is_file($lockPath),
         'Docker Compose available to installer' => dockerComposeAvailable(),
+        'Database TCP reachable' => tcpReachable($input['db_host'], (int)$input['db_port']),
+        'Redis TCP reachable' => tcpReachable(envString('A2BP_REDIS_HOST', 'redis'), (int)envString('A2BP_REDIS_INTERNAL_PORT', '6379')),
+        'Optional Asterisk AMI reachable when enabled' => $input['compose_asterisk'] !== '1'
+            || tcpReachable(envString('A2BP_ASTERISK_AMI_HOST', 'asterisk'), (int)envString('A2BP_ASTERISK_AMI_INTERNAL_PORT', '5038')),
     ];
+}
+
+function tcpReachable(string $host, int $port): bool
+{
+    if ($host === '' || $port <= 0) {
+        return false;
+    }
+
+    $errno = 0;
+    $error = '';
+    $socket = @fsockopen($host, $port, $errno, $error, 0.35);
+    if (!is_resource($socket)) {
+        return false;
+    }
+
+    fclose($socket);
+    return true;
 }
 
 function dockerComposeAvailable(): bool
