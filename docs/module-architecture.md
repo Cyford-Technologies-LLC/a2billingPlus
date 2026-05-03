@@ -27,6 +27,8 @@ behavior moves into module services that are easier to test and reuse.
 - `Module\Payment`: gateway inventory, Stripe/Braintree configuration
   validation, Stripe webhook verification, raw-card-data guardrails, and payment
   reconciliation.
+- `Module\Security`: credential policy, simple rate-limit policy, and audit-log
+  repository for balance-impacting actions.
 - `Module\Migration`: migration dry-run/apply services for legacy A2Billing
   customer and VoIP data.
 

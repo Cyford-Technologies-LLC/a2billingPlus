@@ -30,6 +30,9 @@ scopes, CDR windows, dry-run reports, and rollback guidance.
 See [docs/release-readiness.md](docs/release-readiness.md) for alpha, beta, and
 production-ready acceptance criteria.
 
+See [docs/security-hardening.md](docs/security-hardening.md) for the security and
+toll-fraud hardening sweep.
+
 Use the web installer at:
 
 ```text
