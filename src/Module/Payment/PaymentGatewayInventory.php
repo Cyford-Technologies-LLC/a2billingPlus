@@ -64,7 +64,29 @@ final class PaymentGatewayInventory
     {
         return array_values(array_map(
             static fn (array $gateway): string => $gateway['code'],
-            array_filter($this->gateways(), static fn (array $gateway): bool => $gateway['status'] !== 'modern')
+            array_filter($this->gateways(), static fn (array $gateway): bool => in_array($gateway['status'], ['deprecated', 'unsafe_disabled'], true))
+        ));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function betaGatewayCodes(): array
+    {
+        return array_values(array_map(
+            static fn (array $gateway): string => $gateway['code'],
+            array_filter($this->gateways(), static fn (array $gateway): bool => $gateway['status'] === 'modern')
+        ));
+    }
+
+    /**
+     * @return list<string>
+     */
+    public function deferredGatewayCodes(): array
+    {
+        return array_values(array_map(
+            static fn (array $gateway): string => $gateway['code'],
+            array_filter($this->gateways(), static fn (array $gateway): bool => $gateway['status'] === 'optional')
         ));
     }
 }

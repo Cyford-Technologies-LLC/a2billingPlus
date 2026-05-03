@@ -34,6 +34,11 @@ BRAINTREE_PRIVATE_KEY=
 PAYMENT_CURRENCY=USD
 ```
 
+PayPal is not a beta payment gateway. The old A2Billing PayPal form-post flow is
+classified as deprecated and must stay disabled until a new hosted PayPal module
+exists with tokenized order creation, signed webhook verification, replay
+protection, and ledger reconciliation tests.
+
 ## Webhook Verification
 
 `StripeWebhookVerifier` verifies the raw request body against the

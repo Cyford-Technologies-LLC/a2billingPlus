@@ -18,6 +18,9 @@ final class PaymentModuleTest extends TestCase
 
         $this->assertContains('iridium', $inventory->disabledLegacyGatewayCodes());
         $this->assertContains('plugnpay', $inventory->disabledLegacyGatewayCodes());
+        $this->assertContains('paypal', $inventory->disabledLegacyGatewayCodes());
+        $this->assertSame(['stripe'], $inventory->betaGatewayCodes());
+        $this->assertSame(['braintree'], $inventory->deferredGatewayCodes());
     }
 
     public function testValidatesStripeConfig(): void
