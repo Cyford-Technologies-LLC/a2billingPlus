@@ -79,6 +79,27 @@ components:
       schema:
         type: integer
         enum: [0, 1]
+    RatePrefix:
+      name: prefix
+      in: query
+      description: Match rate rows whose dial prefix starts with this value.
+      schema:
+        type: string
+        pattern: '^[0-9*#+]+$'
+    TariffPlanId:
+      name: tariff_plan_id
+      in: query
+      description: Filter rates by tariff plan id.
+      schema:
+        type: integer
+        minimum: 1
+    RateTag:
+      name: tag
+      in: query
+      description: Filter rates by provider/import tag.
+      schema:
+        type: string
+        maxLength: 100
   responses:
     Unauthorized:
       description: Missing bearer service key.
@@ -176,10 +197,13 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /rates.php:
     get:
-      summary: List rate rows
+      summary: List rate rows with module-backed filters
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - $ref: '#/components/parameters/RatePrefix'
+        - $ref: '#/components/parameters/TariffPlanId'
+        - $ref: '#/components/parameters/RateTag'
       responses:
         '200':
           description: Rate rows from cc_ratecard.

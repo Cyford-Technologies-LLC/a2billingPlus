@@ -10,6 +10,9 @@ use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Customer\CustomerAccountRepository;
 use A2BillingPlus\Module\Customer\CustomerAccountService;
 use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
+use A2BillingPlus\Module\Rate\RatecardRepository;
+use A2BillingPlus\Module\Rate\RatecardSearchCriteria;
+use A2BillingPlus\Module\Rate\RatecardSearchService;
 use A2BillingPlus\Module\Security\AuditLogRepository;
 
 final class RestApiController
@@ -52,6 +55,10 @@ final class RestApiController
 
         if ($resource === 'customers') {
             return $this->handleCustomers($request, $limit, $offset);
+        }
+
+        if ($resource === 'rates') {
+            return $this->handleRates($request, $limit, $offset);
         }
 
         try {
@@ -171,5 +178,48 @@ final class RestApiController
             new CustomerAccountRepository($pdo),
             new AuditLogRepository($pdo)
         );
+    }
+
+    private function handleRates(JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $prefix = trim($request->getString('prefix'));
+        if ($prefix !== '' && preg_match('/^[0-9*#+]+$/', $prefix) !== 1) {
+            return ApiResponder::error('invalid_prefix', 'Prefix may only contain digits, *, #, or +.', 422, ['field' => 'prefix']);
+        }
+
+        $tariffPlanId = null;
+        $tariffPlanValue = $request->getString('tariff_plan_id');
+        if ($tariffPlanValue !== '') {
+            if (preg_match('/^[1-9][0-9]*$/', $tariffPlanValue) !== 1) {
+                return ApiResponder::error('invalid_tariff_plan_id', 'Tariff plan id must be a positive integer.', 422, ['field' => 'tariff_plan_id']);
+            }
+            $tariffPlanId = (int)$tariffPlanValue;
+        }
+
+        $tag = trim($request->getString('tag'));
+        if (strlen($tag) > 100) {
+            return ApiResponder::error('invalid_tag', 'Tag must be 100 characters or fewer.', 422, ['field' => 'tag']);
+        }
+
+        try {
+            $service = new RatecardSearchService(new RatecardRepository(($this->pdoFactory)()));
+            $result = $service->search(new RatecardSearchCriteria($limit, $offset, $prefix, $tariffPlanId, $tag));
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('rate_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([
+            'rates' => $result['items'],
+        ], [
+            'resource' => 'rates',
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => [
+                'prefix' => $prefix,
+                'tariff_plan_id' => $tariffPlanId,
+                'tag' => $tag,
+            ],
+        ]);
     }
 }

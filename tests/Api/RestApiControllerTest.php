@@ -158,6 +158,37 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame('invalid_status', $response->getPayload()['error']['code']);
     }
 
+    public function testListsRatesThroughRateModuleFilters(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('rates', new JsonRequest('GET', [
+            'prefix' => '1',
+            'tariff_plan_id' => '7',
+            'tag' => 'VectaVoIP:retail',
+        ], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertCount(1, $payload['data']['rates']);
+        $this->assertSame('1', $payload['data']['rates'][0]['dialprefix']);
+        $this->assertSame('1', $payload['meta']['filters']['prefix']);
+        $this->assertSame(7, $payload['meta']['filters']['tariff_plan_id']);
+    }
+
+    public function testRejectsInvalidRatePrefixFilter(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('rates', new JsonRequest('GET', ['prefix' => 'abc'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('invalid_prefix', $response->getPayload()['error']['code']);
+    }
+
     public function testListsAllInitialResources(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());
@@ -185,13 +216,13 @@ final class RestApiControllerTest extends TestCase
         $pdo = new PDO('sqlite::memory:');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->exec('CREATE TABLE cc_card (id INTEGER PRIMARY KEY, username TEXT, useralias TEXT, firstname TEXT, lastname TEXT, credit TEXT, currency TEXT, status INTEGER, activated TEXT, id_group INTEGER, creationdate TEXT, email TEXT, uipass TEXT)');
-        $pdo->exec('CREATE TABLE cc_ratecard (id INTEGER PRIMARY KEY, dialprefix TEXT, destination TEXT, buyrate TEXT, rateinitial TEXT)');
+        $pdo->exec('CREATE TABLE cc_ratecard (id INTEGER PRIMARY KEY, idtariffplan INTEGER, dialprefix TEXT, destination TEXT, buyrate TEXT, rateinitial TEXT, initblock INTEGER, billingblock INTEGER, tag TEXT)');
         $pdo->exec('CREATE TABLE cc_logpayment (id INTEGER PRIMARY KEY, date TEXT, payment TEXT, card_id INTEGER, description TEXT)');
         $pdo->exec('CREATE TABLE cc_call (id INTEGER PRIMARY KEY, sessionid TEXT, starttime TEXT, sessiontime INTEGER, calledstation TEXT, sessionbill TEXT)');
         $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY, provider_name TEXT, description TEXT)');
         $pdo->exec('CREATE TABLE cc_invoice (id INTEGER PRIMARY KEY, id_card INTEGER, title TEXT, reference TEXT, paid_status INTEGER)');
         $pdo->exec("INSERT INTO cc_card (id, username, useralias, firstname, lastname, credit, currency, status, activated, id_group, creationdate, email, uipass) VALUES (1, 'alice', 'alice-a', 'Alice', 'Able', '10.00', 'USD', 1, '1', 1, '2026-05-03', 'alice@example.test', 'secret')");
-        $pdo->exec("INSERT INTO cc_ratecard (id, dialprefix, destination, buyrate, rateinitial) VALUES (1, '1', 'United States', '0.0100', '0.0200')");
+        $pdo->exec("INSERT INTO cc_ratecard (id, idtariffplan, dialprefix, destination, buyrate, rateinitial, initblock, billingblock, tag) VALUES (1, 7, '1', 'United States', '0.0100', '0.0200', 60, 60, 'VectaVoIP:retail')");
         $pdo->exec("INSERT INTO cc_logpayment (id, date, payment, card_id, description) VALUES (1, '2026-05-03', '10.00', 1, 'top up')");
         $pdo->exec("INSERT INTO cc_call (id, sessionid, starttime, sessiontime, calledstation, sessionbill) VALUES (1, 's1', '2026-05-03 10:00:00', 60, '18005551212', '0.01')");
         $pdo->exec("INSERT INTO cc_provider (id, provider_name, description) VALUES (1, 'VectaVoIP', 'default provider')");
