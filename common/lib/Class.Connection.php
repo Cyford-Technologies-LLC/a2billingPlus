@@ -60,8 +60,11 @@ class Connection
             $DBHandle->port = (int) $port;
         }
 
-        if (!$DBHandle || !$DBHandle->Connect($host, USER, PASS, DBNAME))
-            die("Connection failed");
+        if (!$DBHandle || !$DBHandle->Connect($host, USER, PASS, DBNAME)) {
+            $message = "Connection failed: driver=" . DB_TYPE . " host=" . $host . " port=" . $port . " db=" . DBNAME . " user=" . USER . " error=" . (is_object($DBHandle) ? $DBHandle->ErrorMsg() : "unavailable");
+            error_log($message);
+            die(getenv('A2BP_DB_DEBUG') === '1' ? $message : "Connection failed");
+        }
 
         if (DB_TYPE == "mysql") {
             $DBHandle->Execute('SET AUTOCOMMIT=1');

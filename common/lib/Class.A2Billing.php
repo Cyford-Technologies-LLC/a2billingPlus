@@ -3611,7 +3611,7 @@ class A2Billing
 
         $this->DBHandle = $this->newDatabaseConnection();
         if (!$this->DBHandle || !$this->connectDatabaseHandle($this->DBHandle)) {
-            die("Connection failed");
+            $this->failDatabaseConnection($this->DBHandle, 'Connection failed');
         }
         if ($this->config['database']['dbtype'] == "mysql") {
             $this->DBHandle->Execute('SET AUTOCOMMIT = 1');
@@ -3633,6 +3633,7 @@ class A2Billing
             while ((!$res) && ($count < 5)) {
                 $this->DBHandle = $this->newDatabaseConnection();
                 if (!$this->DBHandle || !$this->connectDatabaseHandle($this->DBHandle)) {
+                    $this->logDatabaseConnectionFailure($this->DBHandle, "[DB CONNECTION LOST]- RECONNECT FAILED ,ATTEMPT $count");
                     $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[DB CONNECTION LOST]- RECONNECT FAILED ,ATTEMPT $count sleep for $sleep ");
                     $count += 1; $sleep = $sleep * 2;
                     sleep($sleep);
@@ -3694,6 +3695,52 @@ class A2Billing
             $this->config['database']['user'],
             $this->config['database']['password'],
             $this->config['database']['dbname']
+        );
+    }
+
+    private function failDatabaseConnection($DBHandle, $message)
+    {
+        $debugMessage = $this->databaseConnectionDebugMessage($DBHandle, $message);
+        error_log($debugMessage);
+
+        if (getenv('A2BP_DB_DEBUG') === '1') {
+            die($debugMessage);
+        }
+
+        die($message);
+    }
+
+    private function logDatabaseConnectionFailure($DBHandle, $message)
+    {
+        error_log($this->databaseConnectionDebugMessage($DBHandle, $message));
+    }
+
+    private function databaseConnectionDebugMessage($DBHandle, $message)
+    {
+        $host = $this->config['database']['hostname'];
+        $port = $this->config['database']['port'];
+        if ($this->config['database']['dbtype'] == "mysql" && strpos($host, ':') !== false) {
+            list($hostOnly, $hostPort) = explode(':', $host, 2);
+            if (is_numeric($hostPort)) {
+                $host = $hostOnly;
+                $port = $hostPort;
+            }
+        }
+
+        $driverError = '';
+        if (is_object($DBHandle) && method_exists($DBHandle, 'ErrorMsg')) {
+            $driverError = $DBHandle->ErrorMsg();
+        }
+
+        return sprintf(
+            '%s: driver=%s host=%s port=%s db=%s user=%s error=%s',
+            $message,
+            $this->config['database']['dbtype'],
+            $host,
+            $port,
+            $this->config['database']['dbname'],
+            $this->config['database']['user'],
+            $driverError !== '' ? $driverError : 'unavailable'
         );
     }
 
