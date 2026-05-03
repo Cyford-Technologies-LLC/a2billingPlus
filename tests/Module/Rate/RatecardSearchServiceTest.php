@@ -30,6 +30,28 @@ final class RatecardSearchServiceTest extends TestCase
         $this->assertSame('44', $result['items'][0]['dialprefix']);
     }
 
+    public function testLoadsRatecardDetailById(): void
+    {
+        $service = new RatecardSearchService(new RatecardRepository($this->pdo()));
+
+        $rate = $service->detail(3);
+
+        $this->assertIsArray($rate);
+        $this->assertSame('United States', $rate['destination']);
+        $this->assertSame('1', $rate['dialprefix']);
+    }
+
+    public function testDestinationLookupReturnsDistinctDestinationRows(): void
+    {
+        $service = new RatecardSearchService(new RatecardRepository($this->pdo()));
+
+        $result = $service->destinations('United', 10, 0);
+
+        $this->assertCount(2, $result['items']);
+        $this->assertSame('United Kingdom', $result['items'][0]['destination']);
+        $this->assertSame('United States', $result['items'][1]['destination']);
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

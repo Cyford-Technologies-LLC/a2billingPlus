@@ -17,4 +17,20 @@ final class RatecardSearchService
     {
         return $this->repository->search($criteria);
     }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function detail(int $id): ?array
+    {
+        return $this->repository->find($id);
+    }
+
+    /**
+     * @return array{items:list<array<string, mixed>>,columns:list<string>}
+     */
+    public function destinations(string $search, int $limit, int $offset): array
+    {
+        return $this->repository->destinations($search, $limit, $offset);
+    }
 }

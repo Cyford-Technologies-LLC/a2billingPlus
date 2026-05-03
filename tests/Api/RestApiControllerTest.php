@@ -245,6 +245,45 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame(7, $payload['meta']['filters']['tariff_plan_id']);
     }
 
+    public function testLoadsRateDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('rates', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('United States', $payload['data']['rate']['destination']);
+        $this->assertSame(1, $payload['meta']['id']);
+    }
+
+    public function testLooksUpRateDestinations(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('rates', new JsonRequest('GET', ['destination' => 'United'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertCount(1, $payload['data']['destinations']);
+        $this->assertSame('destinations', $payload['meta']['mode']);
+    }
+
+    public function testReturnsNotFoundForMissingRateDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('rates', new JsonRequest('GET', ['id' => '999'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('rate_not_found', $response->getPayload()['error']['code']);
+    }
+
     public function testRejectsInvalidRatePrefixFilter(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());

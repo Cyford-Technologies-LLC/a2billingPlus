@@ -441,20 +441,44 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /rates.php:
     get:
-      summary: List rate rows with module-backed filters
+      summary: List rate rows, load one rate by id, or lookup destinations
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          description: When present, return one ratecard row.
+          schema:
+            type: integer
+            minimum: 1
         - $ref: '#/components/parameters/RatePrefix'
+        - name: destination
+          in: query
+          description: Match destination names for destination lookup mode.
+          schema:
+            type: string
+            maxLength: 100
         - $ref: '#/components/parameters/TariffPlanId'
         - $ref: '#/components/parameters/RateTag'
       responses:
         '200':
-          description: Rate rows from cc_ratecard.
+          description: Rate rows, one rate row, or destination rows from cc_ratecard.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Rate was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /payments.php:
     get:
       summary: List payment ledger rows or load one payment by id

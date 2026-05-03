@@ -280,6 +280,16 @@ final class RestApiController
 
     private function handleRates(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_rate_id', 'Rate id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
+        $destination = trim($request->getString('destination'));
+        if (strlen($destination) > 100) {
+            return ApiResponder::error('invalid_destination', 'Destination filter must be 100 characters or fewer.', 422, ['field' => 'destination']);
+        }
+
         $prefix = trim($request->getString('prefix'));
         if ($prefix !== '' && preg_match('/^[0-9*#+]+$/', $prefix) !== 1) {
             return ApiResponder::error('invalid_prefix', 'Prefix may only contain digits, *, #, or +.', 422, ['field' => 'prefix']);
@@ -301,6 +311,37 @@ final class RestApiController
 
         try {
             $service = new RatecardSearchService(new RatecardRepository(($this->pdoFactory)()));
+            if ($id !== null) {
+                $rate = $service->detail($id);
+                if ($rate === null) {
+                    return ApiResponder::error('rate_not_found', 'Rate was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([
+                    'rate' => $rate,
+                ], [
+                    'resource' => 'rates',
+                    'id' => $id,
+                ]);
+            }
+
+            if ($destination !== '') {
+                $result = $service->destinations($destination, $limit, $offset);
+
+                return ApiResponder::ok([
+                    'destinations' => $result['items'],
+                ], [
+                    'resource' => 'rates',
+                    'mode' => 'destinations',
+                    'limit' => $limit,
+                    'offset' => $offset,
+                    'columns' => $result['columns'],
+                    'filters' => [
+                        'destination' => $destination,
+                    ],
+                ]);
+            }
+
             $result = $service->search(new RatecardSearchCriteria($limit, $offset, $prefix, $tariffPlanId, $tag));
         } catch (\Throwable $exception) {
             return ApiResponder::error('rate_query_failed', $exception->getMessage(), 500);
