@@ -458,6 +458,11 @@ final class RestApiController
 
     private function handleCdrs(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_cdr_id', 'CDR id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
         $from = trim($request->getString('from'));
         $to = trim($request->getString('to'));
         foreach (['from' => $from, 'to' => $to] as $field => $value) {
@@ -480,17 +485,34 @@ final class RestApiController
             return ApiResponder::error('invalid_calledstation', 'Called station filter must be 64 characters or fewer.', 422, ['field' => 'calledstation']);
         }
 
+        $export = $request->getString('export', '0') === '1';
         try {
             $service = new CdrSearchService(new CdrRepository(($this->pdoFactory)()));
-            $result = $service->search(new CdrSearchCriteria($limit, $offset, $from, $to, $customerId, $calledStation));
+            if ($id !== null) {
+                $cdr = $service->detail($id);
+                if ($cdr === null) {
+                    return ApiResponder::error('cdr_not_found', 'CDR was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([
+                    'cdr' => $cdr,
+                ], [
+                    'resource' => 'cdrs',
+                    'id' => $id,
+                ]);
+            }
+
+            $criteria = new CdrSearchCriteria($limit, $offset, $from, $to, $customerId, $calledStation);
+            $result = $export ? $service->export($criteria, $request->getString('redact', '1') !== '0') : $service->search($criteria);
         } catch (\Throwable $exception) {
             return ApiResponder::error('cdr_query_failed', $exception->getMessage(), 500);
         }
 
         return ApiResponder::ok([
-            'cdrs' => $result['items'],
+            $export ? 'export' : 'cdrs' => $result['items'],
         ], [
             'resource' => 'cdrs',
+            'mode' => $export ? 'export' : 'search',
             'limit' => $limit,
             'offset' => $offset,
             'columns' => $result['columns'],

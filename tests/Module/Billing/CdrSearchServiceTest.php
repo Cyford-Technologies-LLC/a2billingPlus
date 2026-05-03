@@ -30,6 +30,28 @@ final class CdrSearchServiceTest extends TestCase
         $this->assertSame('s2', $result['items'][0]['sessionid']);
     }
 
+    public function testLoadsCdrDetailById(): void
+    {
+        $service = new CdrSearchService(new CdrRepository($this->pdo()));
+
+        $cdr = $service->detail(1);
+
+        $this->assertIsArray($cdr);
+        $this->assertSame('s1', $cdr['sessionid']);
+        $this->assertSame('18005551212', $cdr['calledstation']);
+    }
+
+    public function testExportsWithCalledStationRedactedByDefault(): void
+    {
+        $service = new CdrSearchService(new CdrRepository($this->pdo()));
+
+        $result = $service->export(new CdrSearchCriteria(10, 0, '2026-05-01 00:00:00', '2026-05-02 00:00:00', 1));
+
+        $this->assertCount(2, $result['items']);
+        $this->assertSame('*******1212', $result['items'][0]['calledstation']);
+        $this->assertSame('*******1212', $result['items'][1]['calledstation']);
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

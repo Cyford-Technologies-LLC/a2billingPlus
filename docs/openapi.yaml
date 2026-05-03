@@ -765,21 +765,49 @@ paths:
           $ref: '#/components/responses/ValidationError'
   /cdrs.php:
     get:
-      summary: List call detail records with module-backed filters
+      summary: List, export, or load call detail records
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          description: When present, return one CDR row.
+          schema:
+            type: integer
+            minimum: 1
         - $ref: '#/components/parameters/DateFrom'
         - $ref: '#/components/parameters/DateTo'
         - $ref: '#/components/parameters/CustomerId'
         - $ref: '#/components/parameters/CalledStation'
+        - name: export
+          in: query
+          description: Set to 1 to return export rows for the requested date window.
+          schema:
+            type: string
+            enum: ['0', '1']
+            default: '0'
+        - name: redact
+          in: query
+          description: Set to 0 only for trusted admin exports that may include full called station values.
+          schema:
+            type: string
+            enum: ['0', '1']
+            default: '1'
       responses:
         '200':
-          description: CDR rows from cc_call.
+          description: CDR rows, one CDR row, or redacted export rows from cc_call.
           content:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: CDR was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /provider-records.php:
     get:
       summary: List provider database records

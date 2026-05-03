@@ -357,6 +357,49 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame(1, $payload['meta']['filters']['customer_id']);
     }
 
+    public function testLoadsCdrDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('cdrs', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('s1', $payload['data']['cdr']['sessionid']);
+        $this->assertSame(1, $payload['meta']['id']);
+    }
+
+    public function testExportsCdrsWithRedactedCalledStation(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('cdrs', new JsonRequest('GET', [
+            'export' => '1',
+            'from' => '2026-05-03',
+            'to' => '2026-05-04',
+        ], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('export', $payload['meta']['mode']);
+        $this->assertSame('*******1212', $payload['data']['export'][0]['calledstation']);
+    }
+
+    public function testReturnsNotFoundForMissingCdrDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('cdrs', new JsonRequest('GET', ['id' => '999'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('cdr_not_found', $response->getPayload()['error']['code']);
+    }
+
     public function testRejectsInvalidCdrDateFilter(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());
