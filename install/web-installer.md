@@ -15,6 +15,7 @@ The installer can:
 - Ask whether to use the bundled MariaDB container or an existing database.
 - Test MariaDB connectivity.
 - Initialize the MariaDB schema when the target database is empty.
+- Apply SQL migrations from `install/migrations`.
 - Write `.env`.
 - Update `a2billing.conf`.
 - Start Docker Compose when the installer process has Docker CLI access.
@@ -94,7 +95,18 @@ Database password
 ```
 
 The database user must have enough permissions to create tables if schema
-initialization is selected.
+initialization or migrations are selected.
+
+## Migrations
+
+After the base schema is present, the installer applies SQL files from:
+
+```text
+install/migrations
+```
+
+Applied migrations are tracked in `cc_schema_migrations`, so rerunning the
+installer does not reapply the same migration.
 
 ## After Install
 

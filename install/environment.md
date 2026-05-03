@@ -44,6 +44,12 @@ and internal database port `3306`. The host port is controlled by
 
 If you change database credentials after the first run, recreate the database volume or update MariaDB users manually. Docker only applies `MYSQL_*` initialization variables to a new empty volume.
 
+## Schema Migrations
+
+The web installer applies SQL files from `install/migrations` after the base
+A2BillingPlus schema exists. Applied migration filenames are recorded in
+`cc_schema_migrations`.
+
 ## VectaVoIP Provider Registration
 
 ```text

@@ -23,6 +23,7 @@ $envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 $envExamplePath = $projectRoot . DIRECTORY_SEPARATOR . '.env.example';
 $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'a2billing.conf';
 $schemaPath = $projectRoot . DIRECTORY_SEPARATOR . 'DataBase' . DIRECTORY_SEPARATOR . 'mariadb' . DIRECTORY_SEPARATOR . '11' . DIRECTORY_SEPARATOR . 'mariadb-11.sql';
+$migrationsPath = $projectRoot . DIRECTORY_SEPARATOR . 'install' . DIRECTORY_SEPARATOR . 'migrations';
 $lockPath = $projectRoot . DIRECTORY_SEPARATOR . 'install.lock';
 $defaultProviderApiBaseUrl = class_exists(VectaVoIPConnector::class) ? VectaVoIPConnector::API_BASE_URL : 'https://api.VectaVoIP.com';
 
@@ -176,6 +177,7 @@ if ($posted) {
             $schemaReady = tableExists($pdo, 'cc_card');
             if ($schemaReady) {
                 $messages[] = 'Database schema check succeeded: cc_card exists.';
+                applyMigrations($pdo, $migrationsPath, $messages, $errors);
                 if ($input['setup_admin'] === '1') {
                     setupFirstAdmin($pdo, $input, $messages, $errors);
                 }
@@ -259,6 +261,80 @@ function initializeSchema(PDO $pdo, string $schemaPath, array &$messages, array 
     } catch (Throwable $exception) {
         $errors[] = 'Schema initialization failed: ' . $exception->getMessage();
     }
+}
+
+function applyMigrations(PDO $pdo, string $migrationsPath, array &$messages, array &$errors): void
+{
+    if (!is_dir($migrationsPath)) {
+        $messages[] = 'No install migrations directory found.';
+        return;
+    }
+
+    ensureMigrationsTable($pdo);
+
+    $migrationFiles = glob($migrationsPath . DIRECTORY_SEPARATOR . '*.sql');
+    if (!is_array($migrationFiles) || $migrationFiles === []) {
+        $messages[] = 'No install migrations found.';
+        return;
+    }
+
+    sort($migrationFiles);
+
+    foreach ($migrationFiles as $migrationFile) {
+        $migrationName = basename($migrationFile);
+        if (migrationApplied($pdo, $migrationName)) {
+            continue;
+        }
+
+        $sql = file_get_contents($migrationFile);
+        if ($sql === false || trim($sql) === '') {
+            $errors[] = 'Migration is empty or unreadable: ' . $migrationName;
+            return;
+        }
+
+        try {
+            $pdo->exec($sql);
+            recordMigration($pdo, $migrationName);
+            $messages[] = 'Applied migration: ' . $migrationName;
+        } catch (Throwable $exception) {
+            $errors[] = 'Migration failed [' . $migrationName . ']: ' . $exception->getMessage();
+            return;
+        }
+    }
+}
+
+function ensureMigrationsTable(PDO $pdo): void
+{
+    if ($pdo->getAttribute(PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+        $pdo->exec(
+            'CREATE TABLE IF NOT EXISTS cc_schema_migrations (
+                migration TEXT NOT NULL PRIMARY KEY,
+                applied_at TEXT NOT NULL
+            )'
+        );
+        return;
+    }
+
+    $pdo->exec(
+        'CREATE TABLE IF NOT EXISTS cc_schema_migrations (
+            migration VARCHAR(191) NOT NULL,
+            applied_at DATETIME NOT NULL,
+            PRIMARY KEY (migration)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+    );
+}
+
+function migrationApplied(PDO $pdo, string $migrationName): bool
+{
+    $statement = $pdo->prepare('SELECT COUNT(*) FROM cc_schema_migrations WHERE migration = ?');
+    $statement->execute([$migrationName]);
+    return (int)$statement->fetchColumn() > 0;
+}
+
+function recordMigration(PDO $pdo, string $migrationName): void
+{
+    $statement = $pdo->prepare('INSERT INTO cc_schema_migrations (migration, applied_at) VALUES (?, ?)');
+    $statement->execute([$migrationName, gmdate('Y-m-d H:i:s')]);
 }
 
 function setupFirstAdmin(PDO $pdo, array $input, array &$messages, array &$errors): void
