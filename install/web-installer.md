@@ -44,7 +44,7 @@ For sandbox testing without the production VectaVoIP API, set the API base URL
 to:
 
 ```text
-http://localhost:8080/api/sandbox
+http://localhost/api/sandbox
 ```
 
 ## Option 1: New MariaDB Container

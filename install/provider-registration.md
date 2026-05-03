@@ -53,7 +53,13 @@ VECTAVOIP_API_SECRET=
 ## Sandbox Endpoint
 
 For local testing before `api.VectaVoIP.com` is live, set the installer API base
-URL to:
+URL to this value when the installer runs inside the Docker app container:
+
+```text
+http://localhost/api/sandbox
+```
+
+From the host machine or browser, the same sandbox endpoint is reachable at:
 
 ```text
 http://localhost:8080/api/sandbox
@@ -68,3 +74,42 @@ POST http://localhost:8080/api/sandbox/v1/installations/register
 It returns deterministic sandbox credentials based on the install key, company
 name, and contact email. Do not use sandbox credentials for production provider
 access.
+
+## Local Provider API Actions
+
+The local A2BillingPlus provider API can also register an install. This is the
+backend path intended for future admin UI screens.
+
+Provider status:
+
+```text
+POST /api/v1/providers.php
+```
+
+```json
+{
+  "action": "provider_status",
+  "provider": "vectavoip"
+}
+```
+
+Register install:
+
+```json
+{
+  "action": "register_install",
+  "provider": "vectavoip",
+  "base_url": "http://localhost/api/sandbox",
+  "install_key": "a2bp_optional_existing_key",
+  "company_name": "Customer Company",
+  "company_domain": "example.com",
+  "contact_name": "Jane Admin",
+  "contact_email": "jane@example.com",
+  "contact_phone": "+15551234567",
+  "details": "Sandbox install",
+  "app_name": "A2BillingPlus",
+  "app_version": "0.1.0-alpha"
+}
+```
+
+If `install_key` is omitted, the API generates one.

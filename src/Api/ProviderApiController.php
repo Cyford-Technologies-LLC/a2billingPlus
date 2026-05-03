@@ -10,11 +10,18 @@ use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
 use A2BillingPlus\Module\Provider\RateImportRequest;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
 
 final class ProviderApiController
 {
-    public function __construct(private readonly ProviderRegistry $registry)
-    {
+    /**
+     * @param null|callable(string): VectaVoIPRegistrationClient $registrationClientFactory
+     */
+    public function __construct(
+        private readonly ProviderRegistry $registry,
+        private $registrationClientFactory = null
+    ) {
     }
 
     public function handle(JsonRequest $request): JsonResponse
@@ -28,6 +35,8 @@ final class ProviderApiController
         }
 
         return match ($request->getString('action')) {
+            'provider_status' => $this->providerStatus($request),
+            'register_install' => $this->registerInstall($request),
             'test_connection' => $this->testConnection($request),
             'preview_rates' => $this->previewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
@@ -87,6 +96,68 @@ final class ProviderApiController
         ]);
     }
 
+    private function providerStatus(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+
+        return new JsonResponse([
+            'provider' => $connector->getProviderCode(),
+            'registered' => $this->envString('VECTAVOIP_API_KEY') !== '',
+            'installation_id' => $this->envString('VECTAVOIP_INSTALLATION_ID'),
+            'api_base_url' => $this->envString('VECTAVOIP_API_BASE_URL', $connector->getApiBaseUrl()),
+            'support_email' => $connector->getSupportEmail(),
+        ]);
+    }
+
+    private function registerInstall(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+
+        if ($connector->getProviderCode() !== 'vectavoip') {
+            return new JsonResponse(['error' => 'Provider registration is not implemented for this provider.'], 422);
+        }
+
+        $installKey = $request->getString('install_key', $this->generateInstallKey());
+        $apiBaseUrl = $request->getString('base_url', $connector->getApiBaseUrl());
+        $client = $this->registrationClient($apiBaseUrl);
+
+        $result = $client->register(new VectaVoIPRegistrationRequest(
+            $installKey,
+            $request->getString('company_name'),
+            $request->getString('company_domain'),
+            $request->getString('contact_name'),
+            $request->getString('contact_email'),
+            $request->getString('contact_phone'),
+            $request->getString('details'),
+            $request->getString('app_name', 'A2BillingPlus'),
+            $request->getString('app_version', '0.1.0-alpha')
+        ));
+
+        if (!$result->isSuccessful()) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $result->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => $result->getMessage(),
+            'provider' => $connector->getProviderCode(),
+            'install_key' => $installKey,
+            'installation_id' => $result->getInstallationId(),
+            'api_key' => $result->getApiKey(),
+            'api_secret' => $result->getApiSecret(),
+            'metadata' => $result->getMetadata(),
+        ], 201);
+    }
+
     /**
      * @return \A2BillingPlus\Module\Provider\ProviderConnectorInterface|JsonResponse
      */
@@ -116,6 +187,24 @@ final class ProviderApiController
     {
         $value = getenv($key);
         return is_string($value) && $value !== '' ? $value : $default;
+    }
+
+    private function registrationClient(string $apiBaseUrl): VectaVoIPRegistrationClient
+    {
+        if (is_callable($this->registrationClientFactory)) {
+            return ($this->registrationClientFactory)($apiBaseUrl);
+        }
+
+        return new VectaVoIPRegistrationClient($apiBaseUrl);
+    }
+
+    private function generateInstallKey(): string
+    {
+        try {
+            return 'a2bp_' . bin2hex(random_bytes(32));
+        } catch (\Throwable $exception) {
+            return 'a2bp_' . hash('sha256', uniqid('', true) . microtime(true));
+        }
     }
 
     /**
