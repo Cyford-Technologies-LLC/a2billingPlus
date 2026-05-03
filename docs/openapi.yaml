@@ -1590,7 +1590,7 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /invoices.php:
     get:
-      summary: List invoices or load one invoice with download metadata
+      summary: List invoices or load one invoice with download metadata and tax summary
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'

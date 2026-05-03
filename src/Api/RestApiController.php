@@ -16,6 +16,7 @@ use A2BillingPlus\Module\Customer\CustomerSearchCriteria;
 use A2BillingPlus\Module\Invoice\InvoiceRepository;
 use A2BillingPlus\Module\Invoice\InvoiceSearchCriteria;
 use A2BillingPlus\Module\Invoice\InvoiceService;
+use A2BillingPlus\Module\Invoice\InvoiceTaxSummaryRepository;
 use A2BillingPlus\Module\Invoice\ReceiptRepository;
 use A2BillingPlus\Module\Invoice\ReceiptSearchCriteria;
 use A2BillingPlus\Module\Invoice\ReceiptService;
@@ -616,7 +617,8 @@ final class RestApiController
         }
 
         try {
-            $service = new InvoiceService(new InvoiceRepository(($this->pdoFactory)()));
+            $pdo = ($this->pdoFactory)();
+            $service = new InvoiceService(new InvoiceRepository($pdo), new InvoiceTaxSummaryRepository($pdo));
             if ($id !== null) {
                 $invoice = $service->detail($id);
                 if ($invoice === null) {
@@ -626,6 +628,7 @@ final class RestApiController
                 return ApiResponder::ok([
                     'invoice' => $invoice,
                     'download' => $service->downloadMetadata($invoice),
+                    'tax_summary' => $service->taxSummary($id),
                 ], [
                     'resource' => 'invoices',
                     'id' => $id,

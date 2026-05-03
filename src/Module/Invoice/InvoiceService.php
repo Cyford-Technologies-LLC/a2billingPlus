@@ -6,8 +6,10 @@ namespace A2BillingPlus\Module\Invoice;
 
 final class InvoiceService
 {
-    public function __construct(private readonly InvoiceRepository $repository)
-    {
+    public function __construct(
+        private readonly InvoiceRepository $repository,
+        private readonly ?InvoiceTaxSummaryRepository $taxSummaryRepository = null
+    ) {
     }
 
     /**
@@ -54,6 +56,19 @@ final class InvoiceService
             'content_type' => 'application/pdf',
             'available' => false,
             'message' => 'Invoice PDF generation is not module-backed yet.',
+        ];
+    }
+
+    /**
+     * @return array{subtotal:string,tax_total:string,total:string,rates:list<array{vat_rate:string,subtotal:string,tax_total:string,total:string}>}
+     */
+    public function taxSummary(int $invoiceId): array
+    {
+        return $this->taxSummaryRepository?->summarizeInvoice($invoiceId) ?? [
+            'subtotal' => '0.00000',
+            'tax_total' => '0.00000',
+            'total' => '0.00000',
+            'rates' => [],
         ];
     }
 }
