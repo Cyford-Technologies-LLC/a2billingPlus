@@ -100,3 +100,20 @@ A2BP_SOURCE_PASSWORD=a2billing
 ```
 
 For migration from an existing A2Billing database, these should point at the old source database while `A2BP_DB_*` points at the A2BillingPlus target.
+
+Run a customer migration dry-run:
+
+```powershell
+docker compose exec app php bin/migrate-a2billing.php --limit=100
+```
+
+Apply the migration:
+
+```powershell
+docker compose exec app php bin/migrate-a2billing.php --apply
+```
+
+The first migration foundation copies/upserts `cc_card` customer rows using
+common columns between the source and target schemas. It preserves source `id`
+where possible and updates an existing target row when the same `id` or
+`username` already exists.

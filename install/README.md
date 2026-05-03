@@ -11,6 +11,12 @@ Start here:
 - [Environment Reference](environment.md): required and optional `.env` variables.
 - [Troubleshooting](troubleshooting.md): common install and runtime problems.
 
+Migration CLI:
+
+```powershell
+docker compose exec app php bin/migrate-a2billing.php --limit=100
+```
+
 ## Current Container Layout
 
 The default Docker stack provides:
