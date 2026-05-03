@@ -479,6 +479,178 @@ paths:
                 $ref: '#/components/schemas/ApiError'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /tariff-plans.php:
+    get:
+      summary: List tariff plans or load one tariff plan by id
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Tariff plan rows from cc_tariffplan.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+    post:
+      summary: Create a tariff plan
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tariff]
+              properties:
+                tariff:
+                  type: object
+                  required: [tariffname]
+                  properties:
+                    tariffname:
+                      type: string
+                      maxLength: 50
+                    description:
+                      type: string
+                    id_trunk:
+                      type: integer
+      responses:
+        '201':
+          description: Tariff plan created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Update a tariff plan
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, tariff]
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                tariff:
+                  type: object
+      responses:
+        '200':
+          description: Tariff plan updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Tariff plan was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /tariff-groups.php:
+    get:
+      summary: List tariff groups or load one tariff group by id
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: search
+          in: query
+          schema:
+            type: string
+            maxLength: 100
+      responses:
+        '200':
+          description: Tariff group rows from cc_tariffgroup.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+    post:
+      summary: Create a tariff group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [tariff]
+              properties:
+                tariff:
+                  type: object
+                  required: [tariffgroupname, idtariffplan]
+                  properties:
+                    tariffgroupname:
+                      type: string
+                      maxLength: 50
+                    idtariffplan:
+                      type: integer
+                      minimum: 1
+                    lcrtype:
+                      type: integer
+      responses:
+        '201':
+          description: Tariff group created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Update a tariff group
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, tariff]
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                tariff:
+                  type: object
+      responses:
+        '200':
+          description: Tariff group updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: Tariff group was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /payments.php:
     get:
       summary: List payment ledger rows or load one payment by id

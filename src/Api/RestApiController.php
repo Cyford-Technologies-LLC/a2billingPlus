@@ -25,11 +25,13 @@ use A2BillingPlus\Module\Payment\PaymentSearchCriteria;
 use A2BillingPlus\Module\Rate\RatecardRepository;
 use A2BillingPlus\Module\Rate\RatecardSearchCriteria;
 use A2BillingPlus\Module\Rate\RatecardSearchService;
+use A2BillingPlus\Module\Rate\TariffRepository;
+use A2BillingPlus\Module\Rate\TariffService;
 use A2BillingPlus\Module\Security\AuditLogRepository;
 
 final class RestApiController
 {
-    public const RESOURCES = ['customers', 'balances', 'rates', 'payments', 'cdrs', 'providers', 'invoices', 'receipts'];
+    public const RESOURCES = ['customers', 'balances', 'rates', 'tariff-plans', 'tariff-groups', 'payments', 'cdrs', 'providers', 'invoices', 'receipts'];
 
     /**
      * @param callable(): \PDO $pdoFactory
@@ -51,7 +53,10 @@ final class RestApiController
             return ApiResponder::error('resource_not_found', 'Unknown API resource.', 404);
         }
 
-        if ($request->getMethod() !== 'GET' && !($resource === 'customers' && in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true))) {
+        if ($request->getMethod() !== 'GET'
+            && !($resource === 'customers' && in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true))
+            && !(in_array($resource, ['tariff-plans', 'tariff-groups'], true) && in_array($request->getMethod(), ['POST', 'PUT'], true))
+        ) {
             return ApiResponder::error('method_not_allowed', 'This API resource currently supports GET only.', 405);
         }
 
@@ -71,6 +76,10 @@ final class RestApiController
 
         if ($resource === 'rates') {
             return $this->handleRates($request, $limit, $offset);
+        }
+
+        if (in_array($resource, ['tariff-plans', 'tariff-groups'], true)) {
+            return $this->handleTariffs($resource, $request, $limit, $offset);
         }
 
         if ($resource === 'cdrs') {
@@ -360,6 +369,91 @@ final class RestApiController
                 'tag' => $tag,
             ],
         ]);
+    }
+
+    private function handleTariffs(string $resource, JsonRequest $request, int $limit, int $offset): JsonResponse
+    {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_tariff_id', 'Tariff id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
+        $pdo = ($this->pdoFactory)();
+        $service = new TariffService(
+            new TariffRepository($pdo),
+            new AuditLogRepository($pdo)
+        );
+
+        if ($request->getMethod() === 'POST') {
+            return $this->tariffMutationResponse($resource, $service->create($resource, $request->getArray('tariff'), $request->getHeader('X-A2BP-Actor') ?: 'service-key'), 'create');
+        }
+
+        if ($request->getMethod() === 'PUT') {
+            if ($id === null) {
+                return ApiResponder::error('invalid_tariff_id', 'Tariff id is required.', 422, ['field' => 'id']);
+            }
+
+            return $this->tariffMutationResponse($resource, $service->update($resource, $id, $request->getArray('tariff'), $request->getHeader('X-A2BP-Actor') ?: 'service-key'), 'update', $id);
+        }
+
+        try {
+            if ($id !== null) {
+                $item = $service->detail($resource, $id);
+                if ($item === null) {
+                    return ApiResponder::error('tariff_not_found', 'Tariff resource was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([$this->singularTariffKey($resource) => $item], [
+                    'resource' => $resource,
+                    'id' => $id,
+                ]);
+            }
+
+            $search = trim($request->getString('search'));
+            if (strlen($search) > 100) {
+                return ApiResponder::error('invalid_search', 'Search must be 100 characters or fewer.', 422, ['field' => 'search']);
+            }
+            $result = $service->list($resource, $limit, $offset, $search);
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('tariff_query_failed', $exception->getMessage(), 500);
+        }
+
+        return ApiResponder::ok([$resource => $result['items']], [
+            'resource' => $resource,
+            'limit' => $limit,
+            'offset' => $offset,
+            'columns' => $result['columns'],
+            'filters' => ['search' => $search],
+        ]);
+    }
+
+    /**
+     * @param array{status:int,body:array<string,mixed>} $result
+     */
+    private function tariffMutationResponse(string $resource, array $result, string $action, ?int $id = null): JsonResponse
+    {
+        if (($result['body']['success'] ?? false) !== true) {
+            return ApiResponder::error(
+                (string)$result['body']['code'],
+                (string)$result['body']['message'],
+                $result['status'],
+                ['field' => $result['body']['field']]
+            );
+        }
+
+        $meta = ['resource' => $resource, 'action' => $action];
+        if ($id !== null) {
+            $meta['id'] = $id;
+        }
+
+        return ApiResponder::ok([
+            $this->singularTariffKey($resource) => $result['body']['item'],
+        ], $meta, $result['status']);
+    }
+
+    private function singularTariffKey(string $resource): string
+    {
+        return $resource === 'tariff-plans' ? 'tariff_plan' : 'tariff_group';
     }
 
     private function handleCdrs(JsonRequest $request, int $limit, int $offset): JsonResponse
