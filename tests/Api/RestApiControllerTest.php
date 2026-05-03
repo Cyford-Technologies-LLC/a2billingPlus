@@ -144,6 +144,73 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame('admin:root', $pdo->query('SELECT actor FROM cc_a2bp_audit_log')->fetchColumn());
     }
 
+    public function testCreatesCustomerThroughApi(): void
+    {
+        $pdo = $this->pdo();
+        $controller = $this->controller('secret-key', $pdo);
+        $response = $controller->handle('customers', new JsonRequest('POST', [], [
+            'customer' => [
+                'username' => 'dana',
+                'useralias' => 'dana-d',
+                'firstname' => 'Dana',
+                'lastname' => 'Dialer',
+                'email' => 'dana@example.test',
+                'currency' => 'USD',
+                'id_group' => 2,
+            ],
+        ], [
+            'Authorization' => 'Bearer secret-key',
+            'X-A2BP-Actor' => 'admin:root',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertSame('dana', $payload['data']['customer']['username']);
+        $this->assertSame('create', $payload['meta']['action']);
+        $this->assertSame('customer.create', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
+    public function testUpdatesCustomerThroughApi(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('PUT', [], [
+            'id' => '1',
+            'customer' => [
+                'email' => 'alice.updated@example.test',
+                'id_group' => 3,
+            ],
+        ], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('alice.updated@example.test', $payload['data']['customer']['email']);
+        $this->assertSame(3, (int)$payload['data']['customer']['id_group']);
+        $this->assertSame('update', $payload['meta']['action']);
+    }
+
+    public function testRejectsDuplicateCustomerCreateThroughApi(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('customers', new JsonRequest('POST', [], [
+            'customer' => [
+                'username' => 'alice',
+                'useralias' => 'alice-new',
+                'firstname' => 'Alice',
+                'lastname' => 'Duplicate',
+                'email' => 'alice-new@example.test',
+            ],
+        ], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(422, $response->getStatusCode());
+        $this->assertSame('customer_validation_failed', $response->getPayload()['error']['code']);
+    }
+
     public function testRejectsInvalidCustomerStatusUpdate(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());

@@ -214,6 +214,130 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Create a customer account
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          description: Optional audit actor identifier.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer]
+              properties:
+                customer:
+                  type: object
+                  required: [username, useralias, firstname, lastname, email]
+                  properties:
+                    username:
+                      type: string
+                      maxLength: 50
+                    useralias:
+                      type: string
+                      maxLength: 50
+                    firstname:
+                      type: string
+                      maxLength: 50
+                    lastname:
+                      type: string
+                      maxLength: 50
+                    email:
+                      type: string
+                      format: email
+                      maxLength: 70
+                    currency:
+                      type: string
+                      pattern: '^[A-Za-z]{3}$'
+                      default: USD
+                    status:
+                      type: integer
+                      enum: [0, 1]
+                      default: 1
+                    id_group:
+                      type: integer
+                      minimum: 1
+                      default: 1
+      responses:
+        '201':
+          description: Customer account created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Update customer contact, status, currency, or group assignment
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          description: Optional audit actor identifier.
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [id, customer]
+              properties:
+                id:
+                  type: integer
+                  minimum: 1
+                customer:
+                  type: object
+                  properties:
+                    useralias:
+                      type: string
+                      maxLength: 50
+                    firstname:
+                      type: string
+                      maxLength: 50
+                    lastname:
+                      type: string
+                      maxLength: 50
+                    email:
+                      type: string
+                      format: email
+                      maxLength: 70
+                    currency:
+                      type: string
+                      pattern: '^[A-Za-z]{3}$'
+                    status:
+                      type: integer
+                      enum: [0, 1]
+                    id_group:
+                      type: integer
+                      minimum: 1
+      responses:
+        '200':
+          description: Customer account updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Customer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /balances.php:
     get:
       summary: List customer balances

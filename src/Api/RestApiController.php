@@ -51,7 +51,7 @@ final class RestApiController
             return ApiResponder::error('resource_not_found', 'Unknown API resource.', 404);
         }
 
-        if ($request->getMethod() !== 'GET' && !($resource === 'customers' && $request->getMethod() === 'PATCH')) {
+        if ($request->getMethod() !== 'GET' && !($resource === 'customers' && in_array($request->getMethod(), ['POST', 'PUT', 'PATCH'], true))) {
             return ApiResponder::error('method_not_allowed', 'This API resource currently supports GET only.', 405);
         }
 
@@ -111,6 +111,14 @@ final class RestApiController
     private function handleCustomers(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
         $id = $request->getInt('id');
+        if ($request->getMethod() === 'POST') {
+            return $this->handleCustomerCreate($request);
+        }
+
+        if ($request->getMethod() === 'PUT') {
+            return $this->handleCustomerUpdate($request, $id);
+        }
+
         if ($request->getMethod() === 'PATCH') {
             return $this->handleCustomerStatusUpdate($request, $id);
         }
@@ -195,6 +203,68 @@ final class RestApiController
             'resource' => 'customers',
             'id' => $id,
             'action' => 'status_update',
+        ]);
+    }
+
+    private function handleCustomerCreate(JsonRequest $request): JsonResponse
+    {
+        try {
+            $result = $this->customerService()->create(
+                $request->getArray('customer'),
+                $request->getHeader('X-A2BP-Actor') ?: 'service-key'
+            );
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('customer_create_failed', $exception->getMessage(), 500);
+        }
+
+        if (($result['body']['success'] ?? false) !== true) {
+            return ApiResponder::error(
+                (string)$result['body']['code'],
+                (string)$result['body']['message'],
+                $result['status'],
+                ['field' => $result['body']['field']]
+            );
+        }
+
+        return ApiResponder::ok([
+            'customer' => $result['body']['customer'],
+        ], [
+            'resource' => 'customers',
+            'action' => 'create',
+        ], 201);
+    }
+
+    private function handleCustomerUpdate(JsonRequest $request, int $id): JsonResponse
+    {
+        if ($id <= 0) {
+            return ApiResponder::error('invalid_customer_id', 'Customer id is required.', 422, ['field' => 'id']);
+        }
+
+        try {
+            $result = $this->customerService()->update(
+                $id,
+                $request->getArray('customer'),
+                $request->getHeader('X-A2BP-Actor') ?: 'service-key'
+            );
+        } catch (\Throwable $exception) {
+            return ApiResponder::error('customer_update_failed', $exception->getMessage(), 500);
+        }
+
+        if (($result['body']['success'] ?? false) !== true) {
+            return ApiResponder::error(
+                (string)$result['body']['code'],
+                (string)$result['body']['message'],
+                $result['status'],
+                ['field' => $result['body']['field']]
+            );
+        }
+
+        return ApiResponder::ok([
+            'customer' => $result['body']['customer'],
+        ], [
+            'resource' => 'customers',
+            'id' => $id,
+            'action' => 'update',
         ]);
     }
 

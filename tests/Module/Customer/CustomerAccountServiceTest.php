@@ -59,6 +59,67 @@ final class CustomerAccountServiceTest extends TestCase
         $this->assertSame('admin:root', $pdo->query('SELECT actor FROM cc_a2bp_audit_log')->fetchColumn());
     }
 
+    public function testCreatesCustomerWithValidationAndAuditLog(): void
+    {
+        $pdo = $this->pdo();
+        $service = new CustomerAccountService(
+            new CustomerAccountRepository($pdo),
+            new AuditLogRepository($pdo)
+        );
+
+        $result = $service->create([
+            'username' => 'dana',
+            'useralias' => 'dana-d',
+            'firstname' => 'Dana',
+            'lastname' => 'Dialer',
+            'email' => 'dana@example.test',
+            'currency' => 'usd',
+            'id_group' => 2,
+        ], 'admin:root');
+
+        $this->assertSame(201, $result['status']);
+        $this->assertSame('dana', $result['body']['customer']['username']);
+        $this->assertSame('USD', $result['body']['customer']['currency']);
+        $this->assertArrayNotHasKey('uipass', $result['body']['customer']);
+        $this->assertSame('customer.create', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
+    public function testRejectsDuplicateCustomerIdentityFields(): void
+    {
+        $service = new CustomerAccountService(new CustomerAccountRepository($this->pdo()));
+
+        $result = $service->create([
+            'username' => 'alice',
+            'useralias' => 'new-alias',
+            'firstname' => 'Alice',
+            'lastname' => 'Again',
+            'email' => 'alice-again@example.test',
+        ], 'admin:root');
+
+        $this->assertSame(422, $result['status']);
+        $this->assertSame('username', $result['body']['field']);
+    }
+
+    public function testUpdatesCustomerContactAndGroup(): void
+    {
+        $pdo = $this->pdo();
+        $service = new CustomerAccountService(
+            new CustomerAccountRepository($pdo),
+            new AuditLogRepository($pdo)
+        );
+
+        $result = $service->update(3, [
+            'email' => 'alice.updated@example.test',
+            'id_group' => 4,
+            'status' => 0,
+        ], 'admin:root');
+
+        $this->assertSame(200, $result['status']);
+        $this->assertSame('alice.updated@example.test', $result['body']['customer']['email']);
+        $this->assertSame(4, (int)$result['body']['customer']['id_group']);
+        $this->assertSame('customer.update', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');
