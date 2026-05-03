@@ -13,6 +13,14 @@ components:
       type: http
       scheme: bearer
       bearerFormat: service-key
+    CustomerIdHeader:
+      type: apiKey
+      in: header
+      name: X-A2BP-Customer-Id
+    CustomerSignatureHeader:
+      type: apiKey
+      in: header
+      name: X-A2BP-Customer-Signature
   schemas:
     ApiSuccess:
       type: object
@@ -351,6 +359,86 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /customer-profile.php:
+    get:
+      summary: Load the signed customer profile, balance, and account status
+      security:
+        - CustomerIdHeader: []
+          CustomerSignatureHeader: []
+      responses:
+        '200':
+          description: Signed customer's profile, balance, and status.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Customer was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+    put:
+      summary: Update signed customer contact fields
+      security:
+        - CustomerIdHeader: []
+          CustomerSignatureHeader: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [customer]
+              properties:
+                customer:
+                  type: object
+                  properties:
+                    firstname:
+                      type: string
+                      maxLength: 50
+                    lastname:
+                      type: string
+                      maxLength: 50
+                    email:
+                      type: string
+                      format: email
+                      maxLength: 70
+                    address:
+                      type: string
+                      maxLength: 100
+                    city:
+                      type: string
+                      maxLength: 40
+                    state:
+                      type: string
+                      maxLength: 40
+                    country:
+                      type: string
+                      maxLength: 40
+                    zipcode:
+                      type: string
+                      maxLength: 20
+                    phone:
+                      type: string
+                      maxLength: 20
+      responses:
+        '200':
+          description: Signed customer's contact fields updated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /rates.php:
     get:
       summary: List rate rows with module-backed filters
