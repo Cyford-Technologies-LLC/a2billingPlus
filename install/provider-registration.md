@@ -232,3 +232,22 @@ Migration file:
 ```text
 install/migrations/20260503_provider_webhook_event.sql
 ```
+
+## Provider Provisioning
+
+A2BillingPlus includes a VectaVoIP provisioning service for local database setup.
+The service can:
+
+- Ensure a `cc_provider` row for VectaVoIP.
+- Ensure a default `cc_trunk` row using `SIP` and `sip.vectavoip.com`.
+- Ensure a default `cc_tariffplan` named `VectaVoIP Retail`.
+- Sync provider DID inventory into `cc_vectavoip_did_inventory`.
+
+The DID inventory table is provider-owned staging data. Customer assignment and
+routing should be added as a separate explicit workflow.
+
+Migration file:
+
+```text
+install/migrations/20260503_vectavoip_did_inventory.sql
+```

@@ -1,0 +1,251 @@
+<?php
+
+declare(strict_types=1);
+
+namespace A2BillingPlus\Module\Provider\VectaVoIP;
+
+final class VectaVoIPProvisioningService
+{
+    public function __construct(private readonly \PDO $pdo)
+    {
+        $this->ensureDidInventoryTable();
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function provisionDefaults(): array
+    {
+        $providerId = $this->ensureProvider();
+        $trunkId = $this->ensureTrunk($providerId);
+        $ratecardId = $this->ensureRatecard($trunkId);
+
+        return [
+            'success' => true,
+            'provider_id' => $providerId,
+            'trunk_id' => $trunkId,
+            'ratecard_id' => $ratecardId,
+            'message' => 'VectaVoIP provider defaults are provisioned.',
+        ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $dids
+     * @return array{success:bool, upserted:int, message:string}
+     */
+    public function syncDidInventory(array $dids): array
+    {
+        $upserted = 0;
+        foreach ($dids as $did) {
+            $number = $this->stringValue($did, 'did');
+            if ($number === '') {
+                continue;
+            }
+
+            $this->upsertDid([
+                'did' => $number,
+                'country' => $this->stringValue($did, 'country'),
+                'region' => $this->stringValue($did, 'region'),
+                'monthly_rate' => $this->decimalValue($did, 'monthly_rate'),
+                'setup_rate' => $this->decimalValue($did, 'setup_rate'),
+                'currency' => $this->stringValue($did, 'currency', 'USD'),
+                'status' => $this->stringValue($did, 'status', 'available'),
+                'provider_reference' => $this->stringValue($did, 'provider_reference'),
+            ]);
+            $upserted++;
+        }
+
+        return [
+            'success' => true,
+            'upserted' => $upserted,
+            'message' => 'VectaVoIP DID inventory synchronized.',
+        ];
+    }
+
+    private function ensureProvider(): int
+    {
+        $statement = $this->pdo->prepare('SELECT id FROM cc_provider WHERE provider_name = ? LIMIT 1');
+        $statement->execute(['VectaVoIP']);
+        $id = $statement->fetchColumn();
+        if ($id !== false) {
+            return (int)$id;
+        }
+
+        $insert = $this->pdo->prepare('INSERT INTO cc_provider (provider_name, description) VALUES (?, ?)');
+        $insert->execute(['VectaVoIP', 'VectaVoIP automatically provisioned provider.']);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    private function ensureTrunk(int $providerId): int
+    {
+        $statement = $this->pdo->prepare('SELECT id_trunk FROM cc_trunk WHERE trunkcode = ? LIMIT 1');
+        $statement->execute(['VECTAVOIP']);
+        $id = $statement->fetchColumn();
+        if ($id !== false) {
+            return (int)$id;
+        }
+
+        $insert = $this->pdo->prepare(
+            'INSERT INTO cc_trunk
+                (trunkcode, trunkprefix, providertech, providerip, removeprefix, failover_trunk, addparameter,
+                 id_provider, inuse, maxuse, status, if_max_use)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $insert->execute([
+            'VECTAVOIP',
+            '',
+            'SIP',
+            'sip.vectavoip.com',
+            '',
+            0,
+            '',
+            $providerId,
+            0,
+            -1,
+            1,
+            0,
+        ]);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    private function ensureRatecard(int $trunkId): int
+    {
+        $statement = $this->pdo->prepare('SELECT id FROM cc_tariffplan WHERE iduser = 0 AND tariffname = ? LIMIT 1');
+        $statement->execute(['VectaVoIP Retail']);
+        $id = $statement->fetchColumn();
+        if ($id !== false) {
+            return (int)$id;
+        }
+
+        $insert = $this->pdo->prepare(
+            'INSERT INTO cc_tariffplan
+                (iduser, tariffname, description, id_trunk, dnidprefix, calleridprefix)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $insert->execute([
+            0,
+            'VectaVoIP Retail',
+            'Default VectaVoIP retail ratecard.',
+            $trunkId,
+            'all',
+            'all',
+        ]);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    /**
+     * @param array<string, string> $did
+     */
+    private function upsertDid(array $did): void
+    {
+        if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $statement = $this->pdo->prepare(
+                'INSERT INTO cc_vectavoip_did_inventory
+                    (did, country, region, monthly_rate, setup_rate, currency, status, provider_reference, created_at, updated_at)
+                 VALUES
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON CONFLICT(did) DO UPDATE SET
+                    country = excluded.country,
+                    region = excluded.region,
+                    monthly_rate = excluded.monthly_rate,
+                    setup_rate = excluded.setup_rate,
+                    currency = excluded.currency,
+                    status = excluded.status,
+                    provider_reference = excluded.provider_reference,
+                    updated_at = excluded.updated_at'
+            );
+        } else {
+            $statement = $this->pdo->prepare(
+                'INSERT INTO cc_vectavoip_did_inventory
+                    (did, country, region, monthly_rate, setup_rate, currency, status, provider_reference, created_at, updated_at)
+                 VALUES
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE
+                    country = VALUES(country),
+                    region = VALUES(region),
+                    monthly_rate = VALUES(monthly_rate),
+                    setup_rate = VALUES(setup_rate),
+                    currency = VALUES(currency),
+                    status = VALUES(status),
+                    provider_reference = VALUES(provider_reference),
+                    updated_at = VALUES(updated_at)'
+            );
+        }
+
+        $now = gmdate('Y-m-d H:i:s');
+        $statement->execute([
+            $did['did'],
+            $did['country'],
+            $did['region'],
+            $did['monthly_rate'],
+            $did['setup_rate'],
+            $did['currency'],
+            $did['status'],
+            $did['provider_reference'],
+            $now,
+            $now,
+        ]);
+    }
+
+    private function ensureDidInventoryTable(): void
+    {
+        if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $this->pdo->exec(
+                'CREATE TABLE IF NOT EXISTS cc_vectavoip_did_inventory (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    did TEXT NOT NULL UNIQUE,
+                    country TEXT NOT NULL DEFAULT \'\',
+                    region TEXT NOT NULL DEFAULT \'\',
+                    monthly_rate TEXT NOT NULL DEFAULT \'0.00000\',
+                    setup_rate TEXT NOT NULL DEFAULT \'0.00000\',
+                    currency TEXT NOT NULL DEFAULT \'USD\',
+                    status TEXT NOT NULL DEFAULT \'available\',
+                    provider_reference TEXT NOT NULL DEFAULT \'\',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )'
+            );
+            return;
+        }
+
+        $this->pdo->exec(
+            'CREATE TABLE IF NOT EXISTS cc_vectavoip_did_inventory (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                did VARCHAR(64) NOT NULL,
+                country VARCHAR(64) NOT NULL DEFAULT \'\',
+                region VARCHAR(64) NOT NULL DEFAULT \'\',
+                monthly_rate DECIMAL(15,5) NOT NULL DEFAULT 0.00000,
+                setup_rate DECIMAL(15,5) NOT NULL DEFAULT 0.00000,
+                currency VARCHAR(3) NOT NULL DEFAULT \'USD\',
+                status VARCHAR(32) NOT NULL DEFAULT \'available\',
+                provider_reference VARCHAR(128) NOT NULL DEFAULT \'\',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                UNIQUE KEY uniq_vectavoip_did_inventory_did (did),
+                KEY idx_vectavoip_did_inventory_status (status)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function stringValue(array $values, string $key, string $default = ''): string
+    {
+        $value = $values[$key] ?? $default;
+        return is_scalar($value) ? trim((string)$value) : $default;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function decimalValue(array $values, string $key): string
+    {
+        $value = $values[$key] ?? '0.00000';
+        return is_numeric($value) ? number_format((float)$value, 5, '.', '') : '0.00000';
+    }
+}
