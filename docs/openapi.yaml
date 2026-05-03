@@ -1340,6 +1340,32 @@ paths:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
   /pjsip-provisioning.php:
+    get:
+      summary: List or load provisioned PJSIP realtime endpoints without secrets
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: endpoint_id
+          in: query
+          schema:
+            type: string
+        - name: endpoint_type
+          in: query
+          schema:
+            type: string
+            enum: [customer_device, trunk]
+        - name: owner_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+      responses:
+        '200':
+          description: PJSIP endpoint rows and AOR metadata. Auth passwords are not returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
     post:
       summary: Provision PJSIP-first customer device or trunk realtime records
       parameters:
@@ -1385,6 +1411,54 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
         '401':
           $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    put:
+      summary: Update safe PJSIP endpoint and AOR fields
+      parameters:
+        - name: X-A2BP-Actor
+          in: header
+          schema:
+            type: string
+        - name: endpoint_id
+          in: query
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [provisioning]
+              properties:
+                provisioning:
+                  type: object
+                  properties:
+                    context:
+                      type: string
+                    allow:
+                      type: string
+                    contact:
+                      type: string
+                    max_contacts:
+                      type: integer
+                      minimum: 0
+                      maximum: 20
+      responses:
+        '200':
+          description: PJSIP endpoint was updated. Auth passwords are not returned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '404':
+          description: PJSIP endpoint was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
         '422':
           $ref: '#/components/responses/ValidationError'
   /admin-settings.php:

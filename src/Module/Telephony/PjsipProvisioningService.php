@@ -61,6 +61,144 @@ final class PjsipProvisioningService
         return ['status' => 201, 'body' => ['success' => true, 'endpoint' => $this->publicEndpoint($endpointId, 'trunk', 0, $trunkCode)]];
     }
 
+    /**
+     * @return array{items:list<array<string,mixed>>,columns:list<string>}
+     */
+    public function listEndpoints(int $limit, int $offset, string $type = '', ?int $ownerId = null): array
+    {
+        $where = [];
+        $bindings = [];
+        if ($type !== '') {
+            $where[] = 'm.endpoint_type = :endpoint_type';
+            $bindings[':endpoint_type'] = $type;
+        }
+        if ($ownerId !== null) {
+            $where[] = 'm.owner_id = :owner_id';
+            $bindings[':owner_id'] = $ownerId;
+        }
+        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
+
+        $statement = $this->pdo->prepare(
+            'SELECT
+                m.endpoint_id,
+                m.endpoint_type,
+                m.owner_id,
+                m.label,
+                e.context,
+                e.allow,
+                a.max_contacts,
+                a.contact,
+                m.updated_at
+             FROM cc_a2bp_pjsip_endpoint_map m
+             INNER JOIN ps_endpoints e ON e.id = m.endpoint_id
+             INNER JOIN ps_aors a ON a.id = m.endpoint_id' . $whereSql . '
+             ORDER BY m.updated_at DESC
+             LIMIT :limit OFFSET :offset'
+        );
+        foreach ($bindings as $parameter => $value) {
+            $statement->bindValue($parameter, $value, is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
+        $statement->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $statement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $statement->execute();
+
+        return [
+            'items' => $statement->fetchAll(\PDO::FETCH_ASSOC),
+            'columns' => ['endpoint_id', 'endpoint_type', 'owner_id', 'label', 'context', 'allow', 'max_contacts', 'contact', 'updated_at'],
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public function endpointDetail(string $endpointId): ?array
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT
+                m.endpoint_id,
+                m.endpoint_type,
+                m.owner_id,
+                m.label,
+                e.transport,
+                e.aors,
+                e.auth,
+                e.context,
+                e.disallow,
+                e.allow,
+                e.direct_media,
+                e.rtp_symmetric,
+                e.force_rport,
+                e.rewrite_contact,
+                a.max_contacts,
+                a.remove_existing,
+                a.contact,
+                m.created_at,
+                m.updated_at
+             FROM cc_a2bp_pjsip_endpoint_map m
+             INNER JOIN ps_endpoints e ON e.id = m.endpoint_id
+             INNER JOIN ps_aors a ON a.id = m.endpoint_id
+             WHERE m.endpoint_id = :endpoint_id'
+        );
+        $statement->bindValue(':endpoint_id', $endpointId);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array{status:int,body:array<string,mixed>}
+     */
+    public function updateEndpoint(string $endpointId, array $payload, string $actor): array
+    {
+        if ($this->endpointDetail($endpointId) === null) {
+            return $this->error(404, 'pjsip_endpoint_not_found', 'PJSIP endpoint was not found.', 'endpoint_id');
+        }
+
+        $endpointUpdates = [];
+        foreach (['context', 'allow'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $value = $this->stringValue($payload, $field);
+                if ($value === '' || strlen($value) > 100) {
+                    return $this->error(422, 'pjsip_validation_failed', $field . ' must be 1 to 100 characters.', $field);
+                }
+                $endpointUpdates[$field] = $value;
+            }
+        }
+
+        $aorUpdates = [];
+        if (array_key_exists('contact', $payload)) {
+            $contact = $this->stringValue($payload, 'contact');
+            if (strlen($contact) > 255) {
+                return $this->error(422, 'pjsip_validation_failed', 'contact must be 255 characters or fewer.', 'contact');
+            }
+            $aorUpdates['contact'] = $contact;
+        }
+        if (array_key_exists('max_contacts', $payload)) {
+            $maxContacts = $this->intValue($payload, 'max_contacts');
+            if (($maxContacts ?? 0) < 0 || ($maxContacts ?? 0) > 20) {
+                return $this->error(422, 'pjsip_validation_failed', 'max_contacts must be between 0 and 20.', 'max_contacts');
+            }
+            $aorUpdates['max_contacts'] = $maxContacts;
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            $this->updateColumns('ps_endpoints', 'id', $endpointId, $endpointUpdates);
+            $this->updateColumns('ps_aors', 'id', $endpointId, $aorUpdates);
+            $this->updateColumns('cc_a2bp_pjsip_endpoint_map', 'endpoint_id', $endpointId, ['updated_at' => gmdate('Y-m-d H:i:s')]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        $this->audit($actor, 'pjsip.endpoint.update', $endpointId, array_keys($endpointUpdates + $aorUpdates));
+
+        return ['status' => 200, 'body' => ['success' => true, 'endpoint' => $this->endpointDetail($endpointId)]];
+    }
+
     private function writeEndpoint(string $endpointId, string $username, string $secret, string $context, string $allow, ?string $contact, int $maxContacts): void
     {
         $this->pdo->beginTransaction();
@@ -136,6 +274,33 @@ final class PjsipProvisioningService
             'updated_at' => $now,
             'created_at' => $now,
         ]);
+    }
+
+    /**
+     * @param array<string,mixed> $values
+     */
+    private function updateColumns(string $table, string $keyColumn, string $keyValue, array $values): void
+    {
+        if ($values === []) {
+            return;
+        }
+
+        $assignments = [];
+        foreach (array_keys($values) as $column) {
+            $assignments[] = $column . ' = :' . $column;
+        }
+
+        $statement = $this->pdo->prepare(sprintf(
+            'UPDATE %s SET %s WHERE %s = :key_value',
+            $table,
+            implode(', ', $assignments),
+            $keyColumn
+        ));
+        foreach ($values as $column => $value) {
+            $statement->bindValue(':' . $column, $value, is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
+        $statement->bindValue(':key_value', $keyValue);
+        $statement->execute();
     }
 
     /**

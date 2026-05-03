@@ -43,6 +43,41 @@ final class PjsipProvisioningServiceTest extends TestCase
         $this->assertSame('sip:sip.vectavoip.com', $pdo->query("SELECT contact FROM ps_aors WHERE id = 'trunk-vectavoip'")->fetchColumn());
     }
 
+    public function testListsLoadsAndUpdatesProvisionedEndpoint(): void
+    {
+        $pdo = $this->pdo();
+        $service = new PjsipProvisioningService($pdo, new AuditLogRepository($pdo));
+        $service->provisionCustomerDevice([
+            'customer_id' => 10,
+            'username' => '1001',
+            'secret' => 'strong-device-secret',
+        ], 'admin:root');
+
+        $list = $service->listEndpoints(10, 0, 'customer_device', 10);
+        $detail = $service->endpointDetail('cust-10-1001');
+        $update = $service->updateEndpoint('cust-10-1001', [
+            'context' => 'from-internal',
+            'allow' => 'ulaw',
+            'max_contacts' => 2,
+        ], 'admin:root');
+
+        $this->assertCount(1, $list['items']);
+        $this->assertSame('customer_device', $detail['endpoint_type']);
+        $this->assertArrayNotHasKey('password', $detail);
+        $this->assertSame(200, $update['status']);
+        $this->assertSame('from-internal', $update['body']['endpoint']['context']);
+        $this->assertSame(2, (int)$update['body']['endpoint']['max_contacts']);
+    }
+
+    public function testRejectsInvalidEndpointUpdate(): void
+    {
+        $result = (new PjsipProvisioningService($this->pdo()))->updateEndpoint('missing', [
+            'context' => 'from-internal',
+        ], 'admin:root');
+
+        $this->assertSame(404, $result['status']);
+    }
+
     public function testRejectsInvalidCustomerPayload(): void
     {
         $result = (new PjsipProvisioningService($this->pdo()))->provisionCustomerDevice([
