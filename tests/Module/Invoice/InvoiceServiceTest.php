@@ -30,6 +30,14 @@ final class InvoiceServiceTest extends TestCase
         $this->assertSame('INV-2', $result['items'][0]['reference']);
     }
 
+    public function testCustomerDetailRequiresOwnership(): void
+    {
+        $service = new InvoiceService(new InvoiceRepository($this->pdo()));
+
+        $this->assertSame('INV-1', $service->customerDetail(1, 1)['reference']);
+        $this->assertNull($service->customerDetail(3, 1));
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

@@ -439,6 +439,78 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /customer-invoices.php:
+    get:
+      summary: List or load invoices owned by the signed customer
+      security:
+        - CustomerIdHeader: []
+          CustomerSignatureHeader: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/InvoicePaidStatus'
+      responses:
+        '200':
+          description: Signed customer's invoices or one invoice.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Invoice was not found or is not owned by the signed customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /customer-receipts.php:
+    get:
+      summary: List or load receipts owned by the signed customer
+      security:
+        - CustomerIdHeader: []
+          CustomerSignatureHeader: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - $ref: '#/components/parameters/DateFrom'
+        - $ref: '#/components/parameters/DateTo'
+        - $ref: '#/components/parameters/CustomerStatus'
+      responses:
+        '200':
+          description: Signed customer's receipts or one receipt.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          description: Receipt was not found or is not owned by the signed customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /rates.php:
     get:
       summary: List rate rows, load one rate by id, or lookup destinations

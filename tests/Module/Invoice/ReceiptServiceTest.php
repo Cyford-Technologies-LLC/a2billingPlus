@@ -30,6 +30,14 @@ final class ReceiptServiceTest extends TestCase
         $this->assertSame('Receipt 2', $result['items'][0]['title']);
     }
 
+    public function testCustomerDetailRequiresOwnership(): void
+    {
+        $service = new ReceiptService(new ReceiptRepository($this->pdo()));
+
+        $this->assertSame('Receipt 1', $service->customerDetail(1, 1)['title']);
+        $this->assertNull($service->customerDetail(3, 1));
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

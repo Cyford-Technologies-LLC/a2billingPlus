@@ -17,4 +17,25 @@ final class InvoiceService
     {
         return $this->repository->search($criteria);
     }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function detail(int $id): ?array
+    {
+        return $this->repository->find($id);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function customerDetail(int $id, int $customerId): ?array
+    {
+        $invoice = $this->detail($id);
+        if ($invoice === null || (int)($invoice['id_card'] ?? 0) !== $customerId) {
+            return null;
+        }
+
+        return $invoice;
+    }
 }

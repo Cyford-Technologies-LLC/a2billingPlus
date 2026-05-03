@@ -17,4 +17,25 @@ final class ReceiptService
     {
         return $this->repository->search($criteria);
     }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function detail(int $id): ?array
+    {
+        return $this->repository->find($id);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function customerDetail(int $id, int $customerId): ?array
+    {
+        $receipt = $this->detail($id);
+        if ($receipt === null || (int)($receipt['id_card'] ?? 0) !== $customerId) {
+            return null;
+        }
+
+        return $receipt;
+    }
 }
