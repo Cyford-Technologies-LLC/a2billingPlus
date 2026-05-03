@@ -1167,6 +1167,67 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /asterisk-health.php:
+    get:
+      summary: Validate Asterisk AMI/ARI and realtime configuration from environment or query overrides
+      parameters:
+        - name: version
+          in: query
+          schema:
+            type: string
+        - name: channel_driver
+          in: query
+          schema:
+            type: string
+            enum: [pjsip, chan_sip]
+        - name: realtime_enabled
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Asterisk readiness checks for supported version, AMI, ARI, PJSIP mode, and realtime.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+    post:
+      summary: Validate supplied Asterisk AMI/ARI and realtime settings
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [settings]
+              properties:
+                settings:
+                  type: object
+                  properties:
+                    version:
+                      type: string
+                    ami_user:
+                      type: string
+                    ami_password:
+                      type: string
+                    ari_user:
+                      type: string
+                    ari_password:
+                      type: string
+                    channel_driver:
+                      type: string
+                      enum: [pjsip, chan_sip]
+                    realtime_enabled:
+                      type: string
+      responses:
+        '200':
+          description: Asterisk readiness checks.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
   /telephony-accounts.php:
     get:
       summary: List SIP/IAX realtime accounts or load one account
