@@ -32,14 +32,20 @@
 **/
 
 include './lib/customer.defines.php';
+include __DIR__ . '/../common/lib/a2bp_legacy_payment_guard.php';
 
 getpost_ifset(array('transactionID', 'sess_id', 'key', 'mc_currency', 'currency', 'md5sig', 'merchant_id', 'mb_amount', 'status', 'mb_currency', 'transaction_id', 'mc_fee', 'card_number'));
 
 $trans_str = "transactionID=$transactionID";
 
-write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."EPAYMENT : $trans_str - transactionKey=$key \n -Vars: $transactionID : $sess_id : $transaction_id : $card_number");
+if (!empty($card_number) && !a2bp_legacy_direct_card_flow_enabled()) {
+    write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."-$trans_str : blocked legacy direct-card callback payload");
+    exit();
+}
 
-write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."EPAYMENT : $trans_str - transactionKey=$key \n -POST Var \n".print_r($_POST, true));
+write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."EPAYMENT : $trans_str - transactionKey=$key \n -Vars: $transactionID : $sess_id : $transaction_id : [redacted]");
+
+write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."EPAYMENT : $trans_str - transactionKey=$key \n -POST Var \n".print_r(a2bp_redacted_payment_post(), true));
 
 if (!intval($transactionID) > 0) {
     write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."-$trans_str : Wrong transactionID ($transactionID) provided in request");
@@ -284,7 +290,7 @@ if ($security_verify == false) {
     $mail->replaceInEmail(Mail::$ITEM_AMOUNT_KEY, $amount_paid.$currCurrency);
 
     // Add Post information / useful to track down payment transaction without having to log
-    $mail->AddToMessage("\n\n\n\n"."-POST Var \n".print_r($_POST, true));
+    $mail->AddToMessage("\n\n\n\n"."-POST Var \n".print_r(a2bp_redacted_payment_post(), true));
     $mail->send(ADMIN_EMAIL);
     exit();
 }
@@ -354,7 +360,7 @@ if ($customer_info[0] > 0 && $orderStatus == 2) {
     }
     write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."-$trans_str : CARD FOUND IN DB ($id)");
 } else {
-    write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."-$trans_str : ERROR CUSTOMER INFO OR ORDERSTATUS ($orderStatus)\n".print_r($_POST, true)."\n");
+    write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."-$trans_str : ERROR CUSTOMER INFO OR ORDERSTATUS ($orderStatus)\n".print_r(a2bp_redacted_payment_post(), true)."\n");
 }
 
 if ($id > 0) {
@@ -589,7 +595,7 @@ if (preg_match("/^[a-z]+[a-z0-9_-]*(([.]{1})|([a-z0-9_-]*))[a-z0-9_-]+[@]{1}[a-z
         write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."-$trans_str :- MAILTO:".$customer_info["email"]."-Sub=".$mail->getTitle()." , mtext=".$mail->getMessage());
 
         // Add Post information / useful to track down payment transaction without having to log
-        $mail->AddToMessage("\n\n\n\n"."-POST Var \n".print_r($_POST, true));
+        $mail->AddToMessage("\n\n\n\n"."-POST Var \n".print_r(a2bp_redacted_payment_post(), true));
         $mail->setTitle("COPY FOR ADMIN : ".$mail->getTitle());
         $mail->send(ADMIN_EMAIL);
 
