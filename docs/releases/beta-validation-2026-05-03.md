@@ -82,3 +82,33 @@ Result: the Asterisk 20 sandbox now has a verified PJSIP registration and
 authenticated call path into the sandbox dialplan. Media device playback is not
 validated inside the headless container; the client closed the call after SIP
 setup because no local audio sink exists.
+
+## Stripe Sandbox Webhook Verification
+
+Status: pending real Stripe sandbox credentials or a captured Stripe sandbox
+fixture.
+
+Local state on 2026-05-03:
+
+```text
+stripe CLI not found
+STRIPE_SECRET_KEY=missing
+STRIPE_WEBHOOK_SECRET=missing
+```
+
+Added `bin/verify-stripe-webhook-sandbox.ps1` so the remaining payment beta gate
+can be completed reproducibly once the secret and fixture are available. The
+script computes the `Stripe-Signature` header, posts to
+`/api/v1/payment-webhooks.php?provider=stripe`, and can replay the same event to
+confirm duplicate handling.
+
+Command to run when the real sandbox fixture is available:
+
+```powershell
+$env:STRIPE_WEBHOOK_SECRET = "whsec_..."
+docker compose up -d app
+powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -PayloadPath .\stripe-payment-intent-succeeded.json -VerifyDuplicate
+```
+
+This section is intentionally not marked passed until the command is run with a
+real Stripe sandbox payload and the observed output is recorded.

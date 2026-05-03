@@ -41,6 +41,24 @@ PAYMENT_CURRENCY=USD
 raw-body requirement and timestamped signature model here:
 <https://docs.stripe.com/webhooks/signatures>
 
+Local sandbox verification helper:
+
+```powershell
+$env:STRIPE_WEBHOOK_SECRET = "whsec_test_value"
+docker compose up -d app
+powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -VerifyDuplicate
+```
+
+For the beta gate, use the same script with a payload captured from a real Stripe
+sandbox fixture:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -PayloadPath .\stripe-payment-intent-succeeded.json -VerifyDuplicate
+```
+
+The secret in the shell must match `STRIPE_WEBHOOK_SECRET` in `.env`, and the
+`app` container must be restarted after `.env` changes.
+
 ## Storage Rules
 
 `PaymentSensitiveDataGuard` rejects payload keys that would store raw card
