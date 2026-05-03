@@ -325,6 +325,61 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /payment-intents.php:
+    post:
+      summary: Create a hosted Stripe payment intent
+      description: Creates a Stripe PaymentIntent for hosted or tokenized collection. Raw card numbers and CVV values are rejected before provider submission.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [payment]
+              properties:
+                payment:
+                  type: object
+                  required: [amount_minor_units, currency, customer_id]
+                  properties:
+                    amount_minor_units:
+                      type: integer
+                      minimum: 1
+                      example: 2500
+                    currency:
+                      type: string
+                      pattern: '^[A-Za-z]{3}$'
+                      example: USD
+                    customer_id:
+                      type: integer
+                      minimum: 1
+                      example: 42
+                    description:
+                      type: string
+                      maxLength: 255
+                      example: A2BillingPlus top-up
+                    idempotency_key:
+                      type: string
+                      maxLength: 255
+                      example: topup-42-2500
+      responses:
+        '201':
+          description: Stripe payment intent created.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+        '503':
+          description: Stripe payment intent provider is not configured or unavailable.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
   /payment-webhooks.php:
     post:
       summary: Receive signed payment provider webhook events
