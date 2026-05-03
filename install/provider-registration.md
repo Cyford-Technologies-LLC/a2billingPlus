@@ -147,7 +147,8 @@ Dry-run import of the previewed rows into an A2BillingPlus ratecard:
   "target_ratecard_id": "5",
   "rate_deck": "retail",
   "currency": "USD",
-  "dry_run": "1"
+  "dry_run": "1",
+  "update_existing": "0"
 }
 ```
 
@@ -155,6 +156,10 @@ Set `"dry_run": "0"` to write the rows into `cc_ratecard`. The first import
 mapping writes provider `prefix`, `rate`, `buyrate`, `increment`, and
 `destination` into the existing A2BillingPlus ratecard fields and tags rows as
 `VectaVoIP:<rate_deck>`.
+
+Repeated imports skip existing rows with the same ratecard, prefix, and
+VectaVoIP tag by default. Set `"update_existing": "1"` to update those rows
+instead.
 
 Each dry-run or write import records an audit row in `cc_provider_import_log`.
 The Provider Setup admin page shows the most recent import records.

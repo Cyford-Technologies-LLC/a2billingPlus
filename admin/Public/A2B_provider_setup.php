@@ -45,6 +45,7 @@ $defaults = [
     'rate_deck' => 'retail',
     'currency' => 'USD',
     'destination_filter' => '',
+    'update_existing' => '',
     'save_credentials' => '1',
 ];
 
@@ -56,6 +57,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $input[$key] = trim((string)($_POST[$key] ?? ''));
     }
     $input['save_credentials'] = isset($_POST['save_credentials']) ? '1' : '';
+    $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
 
     if ($input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
@@ -172,6 +174,7 @@ function importProviderRates(array $input, bool $dryRun): array
     $body = providerRateRequestBody('import_preview_rates', $input);
     $body['target_ratecard_id'] = $input['target_ratecard_id'];
     $body['dry_run'] = $dryRun ? '1' : '0';
+    $body['update_existing'] = $input['update_existing'] === '1' ? '1' : '0';
 
     $response = $controller->handle(new JsonRequest('POST', [], $body));
     $payload = $response->getPayload();
@@ -484,6 +487,15 @@ function h(string $value): string
                     <tr>
                         <td></td>
                         <td>
+                            <label>
+                                <input name="update_existing" type="checkbox" value="1" <?php echo $input['update_existing'] === '1' ? 'checked' : ''; ?>>
+                                Update existing rows with the same ratecard, prefix, and VectaVoIP tag
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
                             <button class="form_input_button" name="form_action" type="submit" value="preview_rates">Preview Rates</button>
                             <button class="form_input_button" name="form_action" type="submit" value="dry_run_import_rates">Dry Run Import</button>
                             <button class="form_input_button" name="form_action" type="submit" value="import_rates" onclick="return confirm('Import provider rates into cc_ratecard now?');">Import Rates</button>
@@ -536,6 +548,10 @@ function h(string $value): string
                     <tr>
                         <td width="220">Mode</td>
                         <td><?php echo !empty($rateImport['dry_run']) ? 'Dry run' : 'Write'; ?></td>
+                    </tr>
+                    <tr>
+                        <td>Duplicate Handling</td>
+                        <td><?php echo !empty($rateImport['update_existing']) ? 'Update existing' : 'Skip existing'; ?></td>
                     </tr>
                     <tr>
                         <td>Imported Rows</td>

@@ -239,6 +239,7 @@ final class ProviderApiControllerTest extends TestCase
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $pdo->exec(
             'CREATE TABLE cc_ratecard (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
                 idtariffplan INTEGER,
                 dialprefix TEXT,
                 destination INTEGER,
