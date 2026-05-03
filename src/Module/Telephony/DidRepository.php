@@ -38,6 +38,20 @@ final class DidRepository
         'validated',
     ];
 
+    private const INVENTORY_COLUMNS = [
+        'id',
+        'did',
+        'country',
+        'region',
+        'monthly_rate',
+        'setup_rate',
+        'currency',
+        'status',
+        'provider_reference',
+        'created_at',
+        'updated_at',
+    ];
+
     public function __construct(private readonly \PDO $pdo)
     {
     }
@@ -199,6 +213,119 @@ final class DidRepository
         $statement->execute();
 
         return $statement->fetchAll(\PDO::FETCH_ASSOC);
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public function findByNumber(string $did): ?array
+    {
+        $columns = $this->availableColumns('cc_vectavoip_did_inventory', self::INVENTORY_COLUMNS);
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s WHERE %s = :did',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier('cc_vectavoip_did_inventory'),
+            $this->quoteIdentifier('did')
+        ));
+        $statement->bindValue(':did', $did);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array{items:list<array<string,mixed>>,total:int,columns:list<string>}
+     */
+    public function listAvailable(int $limit, int $offset, string $country = '', string $region = ''): array
+    {
+        $columns = $this->availableColumns('cc_vectavoip_did_inventory', self::INVENTORY_COLUMNS);
+        $where = ['status = :status'];
+        $params = [':status' => 'available'];
+
+        if ($country !== '' && in_array('country', $columns, true)) {
+            $where[] = 'country = :country';
+            $params[':country'] = $country;
+        }
+        if ($region !== '' && in_array('region', $columns, true)) {
+            $where[] = 'region = :region';
+            $params[':region'] = $region;
+        }
+
+        $whereSql = ' WHERE ' . implode(' AND ', $where);
+        $countStatement = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM ' . $this->quoteIdentifier('cc_vectavoip_did_inventory') . $whereSql
+        );
+        foreach ($params as $name => $value) {
+            $countStatement->bindValue($name, $value);
+        }
+        $countStatement->execute();
+
+        $listStatement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s%s ORDER BY %s ASC LIMIT :limit OFFSET :offset',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier('cc_vectavoip_did_inventory'),
+            $whereSql,
+            $this->quoteIdentifier('did')
+        ));
+        foreach ($params as $name => $value) {
+            $listStatement->bindValue($name, $value);
+        }
+        $listStatement->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $listStatement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $listStatement->execute();
+
+        return [
+            'items' => $listStatement->fetchAll(\PDO::FETCH_ASSOC),
+            'total' => (int)$countStatement->fetchColumn(),
+            'columns' => $columns,
+        ];
+    }
+
+    /**
+     * @return array{items:list<array<string,mixed>>,total:int}
+     */
+    public function listAssignedToCustomer(int $customerId, int $limit, int $offset): array
+    {
+        $countStatement = $this->pdo->prepare(
+            "SELECT COUNT(*) FROM cc_did_assignment WHERE customer_id = :customer_id AND status = 'active'"
+        );
+        $countStatement->bindValue(':customer_id', $customerId, \PDO::PARAM_INT);
+        $countStatement->execute();
+
+        $listStatement = $this->pdo->prepare(
+            "SELECT a.*, i.country, i.region, i.monthly_rate, i.setup_rate, i.currency, i.provider_reference
+             FROM cc_did_assignment a
+             LEFT JOIN cc_vectavoip_did_inventory i ON i.did = a.did
+             WHERE a.customer_id = :customer_id AND a.status = 'active'
+             ORDER BY a.id DESC
+             LIMIT :limit OFFSET :offset"
+        );
+        $listStatement->bindValue(':customer_id', $customerId, \PDO::PARAM_INT);
+        $listStatement->bindValue(':limit', $limit, \PDO::PARAM_INT);
+        $listStatement->bindValue(':offset', $offset, \PDO::PARAM_INT);
+        $listStatement->execute();
+
+        return [
+            'items' => $listStatement->fetchAll(\PDO::FETCH_ASSOC),
+            'total' => (int)$countStatement->fetchColumn(),
+        ];
+    }
+
+    public function markAssigned(string $did): void
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE cc_vectavoip_did_inventory SET status = 'assigned', updated_at = :updated_at WHERE did = :did"
+        );
+        $statement->execute([':updated_at' => gmdate('Y-m-d H:i:s'), ':did' => $did]);
+    }
+
+    public function markAvailable(string $did): void
+    {
+        $statement = $this->pdo->prepare(
+            "UPDATE cc_vectavoip_did_inventory SET status = 'available', updated_at = :updated_at WHERE did = :did"
+        );
+        $statement->execute([':updated_at' => gmdate('Y-m-d H:i:s'), ':did' => $did]);
     }
 
     /**

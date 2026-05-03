@@ -1278,6 +1278,162 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiError'
+  /did-assignments.php:
+    get:
+      summary: List available VectaVoIP DIDs or active customer DID assignments
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: customer_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: country
+          in: query
+          schema:
+            type: string
+        - name: region
+          in: query
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Available inventory when customer_id is omitted, otherwise active assignments for that customer.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Assign an inventory DID to a customer for voice and messaging
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [assignment]
+              properties:
+                assignment:
+                  type: object
+                  required: [customer_id, did]
+                  properties:
+                    customer_id:
+                      type: integer
+                      minimum: 1
+                    did:
+                      type: string
+                    sms_enabled:
+                      type: boolean
+                    voice_enabled:
+                      type: boolean
+      responses:
+        '201':
+          description: DID assignment created and inventory marked assigned.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    delete:
+      summary: Release an active customer DID assignment
+      parameters:
+        - name: customer_id
+          in: query
+          required: true
+          schema:
+            type: integer
+            minimum: 1
+        - name: did
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Assignment released and inventory marked available.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+  /messages.php:
+    get:
+      summary: List customer SMS messages
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: customer_id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: direction
+          in: query
+          schema:
+            type: string
+            enum: [inbound, outbound]
+        - name: did
+          in: query
+          schema:
+            type: string
+            maxLength: 32
+      responses:
+        '200':
+          description: Matching SMS message records.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      summary: Create an outbound SMS message and send through VectaVoIP when credentials are configured
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [message]
+              properties:
+                message:
+                  type: object
+                  required: [customer_id, from, to, body]
+                  properties:
+                    customer_id:
+                      type: integer
+                      minimum: 1
+                    from:
+                      type: string
+                    to:
+                      type: string
+                    body:
+                      type: string
+                      maxLength: 1600
+      responses:
+        '201':
+          description: Message persisted, with provider delivery state when configured.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /asterisk-health.php:
     get:
       summary: Validate Asterisk AMI/ARI and realtime configuration from environment or query overrides
