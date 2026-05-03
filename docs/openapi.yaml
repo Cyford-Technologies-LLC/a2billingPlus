@@ -325,3 +325,38 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /payment-webhooks.php:
+    post:
+      summary: Receive signed payment provider webhook events
+      description: Currently supports Stripe with the `Stripe-Signature` header and raw request body verification.
+      parameters:
+        - name: provider
+          in: query
+          schema:
+            type: string
+            enum: [stripe]
+            default: stripe
+        - name: Stripe-Signature
+          in: header
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+      responses:
+        '202':
+          description: Webhook event accepted and recorded.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          description: Invalid payment webhook signature.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
