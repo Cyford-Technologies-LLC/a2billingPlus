@@ -15,6 +15,9 @@ See [docs/openapi.yaml](docs/openapi.yaml) for the current v1 REST API contract.
 See [docs/billing-rating-reporting.md](docs/billing-rating-reporting.md) for the
 new rating and reporting regression rules.
 
+See [docs/telephony-asterisk.md](docs/telephony-asterisk.md) for the Asterisk,
+PJSIP, trunk, and DID launch baseline.
+
 Use the web installer at:
 
 ```text

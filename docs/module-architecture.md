@@ -22,6 +22,8 @@ behavior moves into module services that are easier to test and reuse.
   duplicate/update behavior.
 - `Module\Billing`: deterministic call rating, ASR/ALOC reporting, timezone
   grouped report rows, and provider cost reconciliation.
+- `Module\Telephony`: launch-readiness checks for Asterisk versions, AMI/ARI
+  credentials, PJSIP mode, and Asterisk Realtime.
 - `Module\Migration`: migration dry-run/apply services for legacy A2Billing
   customer and VoIP data.
 
@@ -31,8 +33,8 @@ behavior moves into module services that are easier to test and reuse.
   balance-impacting audit events.
 - `Module\Customer`: customer records, caller IDs, portal account state, and
   customer-facing profile workflows.
-- `Module\Telephony`: Asterisk/PJSIP/IAX settings, trunks, DIDs, routes, AMI,
-  ARI, and provisioning workflows.
+- `Module\Telephony`: route editing, customer DID assignment workflows, and
+  deeper AMI/ARI runtime probes.
 - `Module\Reporting`: CDR summaries, ASR, ALOC, revenue, cost, and reconciliation
   reports.
 - `Module\Payment`: Stripe, Braintree, webhook validation, and reconciliation.
