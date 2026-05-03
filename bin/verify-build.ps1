@@ -3,6 +3,8 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$HttpPort = if ($env:A2BP_HTTP_PORT) { $env:A2BP_HTTP_PORT } else { '8080' }
+$BaseUrl = "http://localhost:$HttpPort"
 
 function Invoke-Step {
     param(
@@ -44,7 +46,7 @@ Invoke-Step 'PHP 8 static scan' {
 
 Invoke-Step 'Provider API status smoke' {
     $body = @{ action = 'provider_status'; provider = 'vectavoip' } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Uri http://localhost:8080/api/v1/providers.php -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri "$BaseUrl/api/v1/providers.php" -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
 }
 
 Invoke-Step 'Provider rate preview smoke' {
@@ -56,7 +58,7 @@ Invoke-Step 'Provider rate preview smoke' {
         rate_deck = 'retail'
         currency = 'USD'
     } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Uri http://localhost:8080/api/v1/providers.php -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 6
+    Invoke-RestMethod -Uri "$BaseUrl/api/v1/providers.php" -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 6
 }
 
 Invoke-Step 'Provider dry-run import smoke' {
@@ -71,7 +73,7 @@ Invoke-Step 'Provider dry-run import smoke' {
         dry_run = '1'
         update_existing = '0'
     } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Uri http://localhost:8080/api/v1/providers.php -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri "$BaseUrl/api/v1/providers.php" -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
 }
 
 Invoke-Step 'VectaVoIP production-compatible registration smoke' {
@@ -88,20 +90,20 @@ Invoke-Step 'VectaVoIP production-compatible registration smoke' {
         app_version = '0.1.0-alpha'
     } | ConvertTo-Json -Compress
 
-    $registration = Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/installations/register.php -Method Post -ContentType 'application/json' -Body $body
+    $registration = Invoke-RestMethod -Uri "$BaseUrl/api/vectavoip/v1/installations/register.php" -Method Post -ContentType 'application/json' -Body $body
     $headers = @{
         Authorization = 'Bearer ' + $registration.api_key
         'X-VectaVoIP-Secret' = $registration.api_secret
     }
 
-    Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/installations/status.php -Headers $headers | ConvertTo-Json -Depth 5
-    Invoke-RestMethod -Uri 'http://localhost:8080/api/vectavoip/v1/rates/preview.php?rate_deck=retail&currency=USD' -Headers $headers | ConvertTo-Json -Depth 6
-    $rotation = Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/credentials/rotate.php -Method Post -Headers $headers
+    Invoke-RestMethod -Uri "$BaseUrl/api/vectavoip/v1/installations/status.php" -Headers $headers | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri "$BaseUrl/api/vectavoip/v1/rates/preview.php?rate_deck=retail&currency=USD" -Headers $headers | ConvertTo-Json -Depth 6
+    $rotation = Invoke-RestMethod -Uri "$BaseUrl/api/vectavoip/v1/credentials/rotate.php" -Method Post -Headers $headers
     $rotatedHeaders = @{
         Authorization = 'Bearer ' + $rotation.api_key
         'X-VectaVoIP-Secret' = $rotation.api_secret
     }
-    Invoke-RestMethod -Uri http://localhost:8080/api/vectavoip/v1/installations/status.php -Headers $rotatedHeaders | ConvertTo-Json -Depth 5
+    Invoke-RestMethod -Uri "$BaseUrl/api/vectavoip/v1/installations/status.php" -Headers $rotatedHeaders | ConvertTo-Json -Depth 5
 }
 
 Invoke-Step 'A2Billing migration dry-run smoke' {
