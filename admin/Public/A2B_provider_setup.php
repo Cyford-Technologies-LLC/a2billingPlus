@@ -25,10 +25,14 @@ if (is_file($autoloadPath)) {
 $messages = [];
 $errors = [];
 $registration = [];
+$ratePreview = [];
+$rateImport = [];
 $envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 
 $defaults = [
     'base_url' => getenv('VECTAVOIP_API_BASE_URL') ?: 'https://api.VectaVoIP.com',
+    'api_key' => getenv('VECTAVOIP_API_KEY') ?: '',
+    'api_secret' => getenv('VECTAVOIP_API_SECRET') ?: '',
     'company_name' => 'VectaVoIP',
     'company_domain' => 'VectaVoIP.com',
     'contact_name' => '',
@@ -36,11 +40,17 @@ $defaults = [
     'contact_phone' => '',
     'details' => '',
     'install_key' => getenv('VECTAVOIP_INSTALL_KEY') ?: '',
+    'target_ratecard_id' => '',
+    'rate_deck' => 'retail',
+    'currency' => 'USD',
+    'destination_filter' => '',
     'save_credentials' => '1',
 ];
 
 $input = $defaults;
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $formAction = trim((string)($_POST['form_action'] ?? ''));
+
     foreach ($defaults as $key => $default) {
         $input[$key] = trim((string)($_POST[$key] ?? ''));
     }
@@ -49,17 +59,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
     }
-    if ($input['company_name'] === '') {
-        $errors[] = 'Company name is required.';
-    }
-    if ($input['contact_name'] === '') {
-        $errors[] = 'Contact name is required.';
-    }
-    if ($input['contact_email'] === '' || !filter_var($input['contact_email'], FILTER_VALIDATE_EMAIL)) {
-        $errors[] = 'A valid contact email is required.';
+
+    if ($formAction === 'register_provider') {
+        if ($input['company_name'] === '') {
+            $errors[] = 'Company name is required.';
+        }
+        if ($input['contact_name'] === '') {
+            $errors[] = 'Contact name is required.';
+        }
+        if ($input['contact_email'] === '' || !filter_var($input['contact_email'], FILTER_VALIDATE_EMAIL)) {
+            $errors[] = 'A valid contact email is required.';
+        }
     }
 
-    if (!$errors) {
+    if (!$errors && $formAction === 'register_provider') {
         $registration = registerProviderInstall($input);
         if (($registration['success'] ?? false) !== true) {
             $errors[] = (string)($registration['message'] ?? 'Provider registration failed.');
@@ -68,6 +81,29 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
             if ($input['save_credentials'] === '1') {
                 saveProviderCredentials($envPath, $input['base_url'], $registration, $messages, $errors);
+            }
+        }
+    }
+
+    if (!$errors && $formAction === 'preview_rates') {
+        $ratePreview = previewProviderRates($input);
+        if (isset($ratePreview['error'])) {
+            $errors[] = (string)$ratePreview['error'];
+        } else {
+            $messages[] = (string)($ratePreview['message'] ?? 'Rate preview completed.');
+        }
+    }
+
+    if (!$errors && in_array($formAction, ['dry_run_import_rates', 'import_rates'], true)) {
+        if ((int)$input['target_ratecard_id'] <= 0) {
+            $errors[] = 'Target ratecard ID is required for import.';
+        }
+        if (!$errors) {
+            $rateImport = importProviderRates($input, $formAction === 'dry_run_import_rates');
+            if (($rateImport['success'] ?? false) !== true) {
+                $errors[] = (string)($rateImport['message'] ?? 'Rate import failed.');
+            } else {
+                $messages[] = (string)($rateImport['message'] ?? 'Rate import completed.');
             }
         }
     }
@@ -110,6 +146,54 @@ function registerProviderInstall(array $input): array
     $payload['http_status'] = $response->getStatusCode();
 
     return $payload;
+}
+
+function previewProviderRates(array $input): array
+{
+    $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
+    $body = providerRateRequestBody('preview_rates', $input);
+    $response = $controller->handle(new JsonRequest('POST', [], $body));
+    $payload = $response->getPayload();
+    $payload['http_status'] = $response->getStatusCode();
+
+    if ($response->getStatusCode() >= 400) {
+        $payload['error'] = (string)($payload['message'] ?? $payload['error'] ?? 'Rate preview failed.');
+    }
+
+    return $payload;
+}
+
+function importProviderRates(array $input, bool $dryRun): array
+{
+    $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
+    $body = providerRateRequestBody('import_preview_rates', $input);
+    $body['target_ratecard_id'] = $input['target_ratecard_id'];
+    $body['dry_run'] = $dryRun ? '1' : '0';
+
+    $response = $controller->handle(new JsonRequest('POST', [], $body));
+    $payload = $response->getPayload();
+    $payload['http_status'] = $response->getStatusCode();
+
+    return $payload;
+}
+
+function providerRateRequestBody(string $action, array $input): array
+{
+    $filters = [];
+    if ($input['destination_filter'] !== '') {
+        $filters['destination'] = $input['destination_filter'];
+    }
+
+    return [
+        'action' => $action,
+        'provider' => 'vectavoip',
+        'base_url' => $input['base_url'],
+        'api_key' => $input['api_key'],
+        'api_secret' => $input['api_secret'],
+        'rate_deck' => $input['rate_deck'],
+        'currency' => $input['currency'],
+        'filters' => $filters,
+    ];
 }
 
 function saveProviderCredentials(string $envPath, string $baseUrl, array $registration, array &$messages, array &$errors): void
@@ -231,6 +315,7 @@ function h(string $value): string
 
             <br>
             <form method="post">
+                <input type="hidden" name="form_action" value="register_provider">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
                         <td width="220"><label for="base_url">API Base URL</label></td>
@@ -285,6 +370,115 @@ function h(string $value): string
                     </tr>
                 </table>
             </form>
+
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8" style="border-top:1px solid #ddd;">
+                <tr>
+                    <td class="form_head" colspan="2">VectaVoIP Rate Preview and Import</td>
+                </tr>
+            </table>
+            <form method="post">
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td width="220"><label for="rate_base_url">API Base URL</label></td>
+                        <td>
+                            <input id="rate_base_url" name="base_url" type="text" size="70" value="<?php echo h($input['base_url']); ?>">
+                            <br><span style="color:#666;">Sandbox inside Docker: http://localhost/api/sandbox</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="api_key">API Key</label></td>
+                        <td><input id="api_key" name="api_key" type="text" size="70" value="<?php echo h($input['api_key']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="api_secret">API Secret</label></td>
+                        <td><input id="api_secret" name="api_secret" type="password" size="70" value="<?php echo h($input['api_secret']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="rate_deck">Rate Deck</label></td>
+                        <td><input id="rate_deck" name="rate_deck" type="text" size="35" value="<?php echo h($input['rate_deck']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="currency">Currency</label></td>
+                        <td><input id="currency" name="currency" type="text" size="10" value="<?php echo h($input['currency']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="destination_filter">Destination Filter</label></td>
+                        <td><input id="destination_filter" name="destination_filter" type="text" size="35" value="<?php echo h($input['destination_filter']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="target_ratecard_id">Target Ratecard ID</label></td>
+                        <td>
+                            <input id="target_ratecard_id" name="target_ratecard_id" type="text" size="10" value="<?php echo h($input['target_ratecard_id']); ?>">
+                            <br><span style="color:#666;">Required for dry-run import and import. Find IDs under Rates &gt; RateCards.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <button class="form_input_button" name="form_action" type="submit" value="preview_rates">Preview Rates</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="dry_run_import_rates">Dry Run Import</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="import_rates" onclick="return confirm('Import provider rates into cc_ratecard now?');">Import Rates</button>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+
+            <?php if ($ratePreview): ?>
+                <br>
+                <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                    <tr>
+                        <td class="form_head" colspan="6">Rate Preview</td>
+                    </tr>
+                    <tr>
+                        <td colspan="6">
+                            <?php echo h((string)($ratePreview['message'] ?? '')); ?>
+                            Total rows: <?php echo h((string)($ratePreview['total_rows'] ?? 0)); ?>
+                        </td>
+                    </tr>
+                    <tr style="font-weight:bold;">
+                        <td>Destination</td>
+                        <td>Prefix</td>
+                        <td>Rate</td>
+                        <td>Currency</td>
+                        <td>Increment</td>
+                        <td>Deck</td>
+                    </tr>
+                    <?php foreach (($ratePreview['sample_rows'] ?? []) as $row): ?>
+                        <?php if (is_array($row)): ?>
+                            <tr>
+                                <td><?php echo h((string)($row['destination'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['prefix'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['rate'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['currency'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['increment'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['rate_deck'] ?? '')); ?></td>
+                            </tr>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </table>
+            <?php endif; ?>
+
+            <?php if ($rateImport): ?>
+                <br>
+                <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                    <tr>
+                        <td class="form_head" colspan="2">Import Result</td>
+                    </tr>
+                    <tr>
+                        <td width="220">Mode</td>
+                        <td><?php echo !empty($rateImport['dry_run']) ? 'Dry run' : 'Write'; ?></td>
+                    </tr>
+                    <tr>
+                        <td>Imported Rows</td>
+                        <td><?php echo h((string)($rateImport['imported_rows'] ?? 0)); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Skipped Rows</td>
+                        <td><?php echo h((string)($rateImport['skipped_rows'] ?? 0)); ?></td>
+                    </tr>
+                </table>
+            <?php endif; ?>
         </td>
     </tr>
 </table>
