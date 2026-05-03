@@ -32,6 +32,21 @@ docker compose -f docker-compose.vectavoip-api.yml up -d --build
 docker compose -f docker-compose.vectavoip-api.yml exec -T app php bin/apply-install-migrations.php
 ```
 
+The migration command can bootstrap the database when `.env.production`
+contains admin credentials:
+
+```text
+A2BP_DB_ADMIN_USER=root
+A2BP_DB_ADMIN_PASSWORD=...
+A2BP_DB_ADMIN_DSN=mysql:host=db;charset=utf8mb4
+A2BP_DB_USER_HOST=%
+```
+
+With those values set, it creates `A2BP_DB_NAME`, creates or updates
+`A2BP_DB_USER`, grants privileges, and then applies the A2BillingPlus
+tables. If the admin variables are omitted, it behaves like a normal
+migration runner and expects the application database/user to already exist.
+
 Put HTTPS in front of the app service. The app listens on
 `A2BP_HTTP_PORT`, default `8080`.
 
