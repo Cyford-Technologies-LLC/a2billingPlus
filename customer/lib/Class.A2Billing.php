@@ -3609,13 +3609,8 @@ class A2Billing
         $ADODB_CACHE_DIR = '/tmp';
         /* $ADODB_FETCH_MODE = ADODB_FETCH_ASSOC; */
 
-        if ($this->config['database']['dbtype'] == "postgres") {
-            $datasource = 'pgsql://' . $this->config['database']['user'] . ':' . $this->config['database']['password'] . '@' . $this->config['database']['hostname'] . '/' . $this->config['database']['dbname'];
-        } else {
-            $datasource = 'mysqli://' . $this->config['database']['user'] . ':' . $this->config['database']['password'] . '@' . $this->config['database']['hostname'] . '/' . $this->config['database']['dbname'];
-        }
-        $this->DBHandle = NewADOConnection($datasource);
-        if (!$this->DBHandle) {
+        $this->DBHandle = $this->newDatabaseConnection();
+        if (!$this->DBHandle || !$this->connectDatabaseHandle($this->DBHandle)) {
             die("Connection failed");
         }
         if ($this->config['database']['dbtype'] == "mysql") {
@@ -3634,15 +3629,10 @@ class A2Billing
         if (!$res) {
             $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[DB CONNECTION LOST] - RECONNECT ATTEMPT");
             $this->DBHandle->Close();
-            if ($this->config['database']['dbtype'] == "postgres") {
-                $datasource = 'pgsql://' . $this->config['database']['user'] . ':' . $this->config['database']['password'] . '@' . $this->config['database']['hostname'] . '/' . $this->config['database']['dbname'];
-            } else {
-                $datasource = 'mysqli://' . $this->config['database']['user'] . ':' . $this->config['database']['password'] . '@' . $this->config['database']['hostname'] . '/' . $this->config['database']['dbname'];
-            }
             $count = 1; $sleep = 1;
             while ((!$res) && ($count < 5)) {
-                $this->DBHandle = NewADOConnection($datasource);
-                if (!$this->DBHandle) {
+                $this->DBHandle = $this->newDatabaseConnection();
+                if (!$this->DBHandle || !$this->connectDatabaseHandle($this->DBHandle)) {
                     $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[DB CONNECTION LOST]- RECONNECT FAILED ,ATTEMPT $count sleep for $sleep ");
                     $count += 1; $sleep = $sleep * 2;
                     sleep($sleep);
@@ -3673,6 +3663,38 @@ class A2Billing
     public function DbDisconnect()
     {
         $this->DBHandle->disconnect();
+    }
+
+    private function newDatabaseConnection()
+    {
+        if ($this->config['database']['dbtype'] == "postgres") {
+            return NewADOConnection('pgsql');
+        }
+
+        return NewADOConnection('mysqli');
+    }
+
+    private function connectDatabaseHandle($DBHandle)
+    {
+        $host = $this->config['database']['hostname'];
+        $port = $this->config['database']['port'];
+        if ($this->config['database']['dbtype'] == "mysql" && strpos($host, ':') !== false) {
+            list($hostOnly, $hostPort) = explode(':', $host, 2);
+            if (is_numeric($hostPort)) {
+                $host = $hostOnly;
+                $port = $hostPort;
+            }
+        }
+        if ($this->config['database']['dbtype'] == "mysql" && is_numeric($port)) {
+            $DBHandle->port = (int) $port;
+        }
+
+        return $DBHandle->Connect(
+            $host,
+            $this->config['database']['user'],
+            $this->config['database']['password'],
+            $this->config['database']['dbname']
+        );
     }
 
 
