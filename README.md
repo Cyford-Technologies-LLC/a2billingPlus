@@ -27,6 +27,9 @@ launch scope and UI replacement order.
 See [docs/migration.md](docs/migration.md) for source-to-target migration
 scopes, CDR windows, dry-run reports, and rollback guidance.
 
+See [docs/release-readiness.md](docs/release-readiness.md) for alpha, beta, and
+production-ready acceptance criteria.
+
 Use the web installer at:
 
 ```text

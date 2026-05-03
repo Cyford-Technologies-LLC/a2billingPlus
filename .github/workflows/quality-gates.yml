@@ -1,0 +1,27 @@
+name: Quality Gates
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [develop]
+  workflow_dispatch:
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Start sandbox stack
+        run: docker compose up -d --build app app84 db redis
+      - name: Install dependencies
+        run: docker compose exec -T app composer install --no-interaction --prefer-dist
+      - name: Verify build
+        shell: pwsh
+        run: ./bin/verify-build.ps1
+      - name: Crawl portals
+        shell: pwsh
+        run: ./bin/crawl-portals.ps1 -BaseUrl http://localhost:8080
+      - name: Stop sandbox stack
+        if: always()
+        run: docker compose down
