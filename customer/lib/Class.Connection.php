@@ -41,10 +41,13 @@ class Connection
         $ADODB_CACHE_DIR = '/tmp';
         /*	$ADODB_FETCH_MODE = ADODB_FETCH_ASSOC;	*/
 
+        $encodedUser = rawurlencode(USER);
+        $encodedPass = rawurlencode(PASS);
+
         if (DB_TYPE == "postgres") {
-            $datasource = 'pgsql://' . USER . ':' . PASS . '@' . HOST . '/' . DBNAME;
+            $datasource = 'pgsql://' . $encodedUser . ':' . $encodedPass . '@' . HOST . '/' . DBNAME;
         } else {
-            $datasource = 'mysqli://' . USER . ':' . PASS . '@' . HOST . '/' . DBNAME;
+            $datasource = 'mysqli://' . $encodedUser . ':' . $encodedPass . '@' . HOST . '/' . DBNAME;
         }
 
         $DBHandle = NewADOConnection($datasource);
