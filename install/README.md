@@ -9,6 +9,8 @@ Start here:
 - [Sandbox Install](sandbox.md): local Docker setup for development and testing.
 - [Production Install](production.md): production-oriented container deployment checklist.
 - [Environment Reference](environment.md): required and optional `.env` variables.
+- [Backup and Restore](backup-restore.md): database/config backup and restore-test workflow.
+- [Upgrade Workflow](upgrade.md): staged upgrade, migration, verification, and rollback steps.
 - [Troubleshooting](troubleshooting.md): common install and runtime problems.
 
 Migration CLI:

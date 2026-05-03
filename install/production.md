@@ -53,7 +53,10 @@ docker compose --profile asterisk up -d --build asterisk
 
 ## Database Backups
 
-Create backups outside the container volume:
+Use the full [Backup and Restore](backup-restore.md) workflow before production
+maintenance, migrations, or upgrades.
+
+Create a quick database backup outside the container volume:
 
 ```bash
 docker compose exec -T db mariadb-dump -uroot -p"$MYSQL_ROOT_PASSWORD" mya2billing > backup-mya2billing.sql
@@ -77,6 +80,8 @@ docker compose exec -T db mariadb -uroot -p"$MYSQL_ROOT_PASSWORD" mya2billing < 
 - Run regular backups and restore tests.
 
 ## Upgrade Checklist
+
+Use the full [Upgrade Workflow](upgrade.md) for staged upgrades and rollback.
 
 Before upgrading containers or code:
 
