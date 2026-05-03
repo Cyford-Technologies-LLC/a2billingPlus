@@ -82,12 +82,16 @@ if ($result_nb_card[0][0] > 0) {
     $checkdate = $datetime->format("Y-m-d");
     $QUERY_INVOICE_ENOUGH_PAID = "SELECT DATE_FORMAT(sub.date,'%c'),SUM(sub.test) FROM( SELECT cc_invoice.date date,IF(IFNULL(SUM(CEIL(cc_invoice_item.price*(1+(cc_invoice_item.vat/100))*100)/100),0) <= IFNULL(SUM(CEIL(cc_logpayment.payment*100)/100),0),1,0) test FROM cc_invoice LEFT JOIN cc_invoice_item on cc_invoice_item.id_invoice=cc_invoice.id LEFT JOIN cc_invoice_payment on cc_invoice_payment.id_invoice = cc_invoice.id  LEFT JOIN cc_logpayment on cc_invoice_payment.id_payment = cc_logpayment.id WHERE cc_invoice.date >= TIMESTAMP('$checkdate') AND cc_invoice.date <= CURRENT_TIMESTAMP group by cc_invoice.id ) AS sub group by MONTH(sub.date) ORDER BY  sub.date DESC";
     $result_invoice_enough_paid = $table->SQLExec($HD_Form->DBHandle, $QUERY_INVOICE_ENOUGH_PAID);
+    $result_invoice_enough_paid = is_array($result_invoice_enough_paid) ? $result_invoice_enough_paid : array();
     $QUERY_INVOICE_PAID = "SELECT DATE_FORMAT(date,'%c'),COUNT(*) FROM cc_invoice WHERE paid_status = 1 AND cc_invoice.date >= TIMESTAMP('$checkdate') AND cc_invoice.date <= CURRENT_TIMESTAMP group by MONTH(date) ORDER BY date DESC";
     $result_invoice_paid = $table->SQLExec($HD_Form->DBHandle, $QUERY_INVOICE_PAID);
+    $result_invoice_paid = is_array($result_invoice_paid) ? $result_invoice_paid : array();
     $QUERY_INVOICE_UNPAID = "SELECT DATE_FORMAT(date,'%c'),COUNT(*) FROM cc_invoice WHERE paid_status = 0 AND cc_invoice.date >= TIMESTAMP('$checkdate') AND cc_invoice.date <= CURRENT_TIMESTAMP group by MONTH(date) ORDER BY date DESC";
     $result_invoice_unpaid = $table->SQLExec($HD_Form->DBHandle, $QUERY_INVOICE_UNPAID);
+    $result_invoice_unpaid = is_array($result_invoice_unpaid) ? $result_invoice_unpaid : array();
     $QUERY_INVOICE_COUNT = "SELECT DATE_FORMAT(date,'%c'),COUNT(*) FROM cc_invoice WHERE cc_invoice.date >= TIMESTAMP('$checkdate') AND cc_invoice.date <= CURRENT_TIMESTAMP group by MONTH(date) ORDER BY date DESC";
     $result_invoice_count = $table->SQLExec($HD_Form->DBHandle, $QUERY_INVOICE_COUNT);
+    $result_invoice_count = is_array($result_invoice_count) ? $result_invoice_count : array();
     $list_month = Constants :: getMonth();
 
     $list_invoice_enough_paid = array ();

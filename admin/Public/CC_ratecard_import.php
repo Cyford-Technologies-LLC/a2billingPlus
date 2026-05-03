@@ -52,13 +52,15 @@ $my_max_file_size = (int) MY_MAX_FILE_SIZE_IMPORT;
 $instance_table_tariffname = new Table("cc_tariffplan", "id, tariffname");
 $FG_TABLE_CLAUSE = "";
 $list_tariffname = $instance_table_tariffname->Get_list($DBHandle, $FG_TABLE_CLAUSE, "id", "DESC", null, null, null, null);
-$nb_tariffname = count($list_tariffname);
+$list_tariffname = is_array($list_tariffname) ? $list_tariffname : array();
+$nb_tariffname = a2b_count($list_tariffname);
 
 // GET TRUNK LIST
 $instance_table_trunk = new Table("cc_trunk", "id_trunk, trunkcode");
 $FG_TABLE_CLAUSE = "";
 $list_trunk = $instance_table_trunk->Get_list($DBHandle, $FG_TABLE_CLAUSE, "id_trunk", "ASC", null, null, null, null);
-$nb_trunk = count($list_trunk);
+$list_trunk = is_array($list_trunk) ? $list_trunk : array();
+$nb_trunk = a2b_count($list_trunk);
 
 $smarty->display('main.tpl');
 

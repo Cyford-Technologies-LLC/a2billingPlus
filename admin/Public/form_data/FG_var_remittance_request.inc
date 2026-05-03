@@ -34,6 +34,8 @@
 
 getpost_ifset(array('id','id_agent','date', 'amount,type', 'status'));
 
+
+$form_action = $form_action ?? '';
 if (!isset($form_action) || $form_action=="list") {
 	$HD_Form = new FormHandler("cc_remittance_request LEFT JOIN cc_agent ON cc_agent.id=id_agent","Remittance Request Agent");
 } else {

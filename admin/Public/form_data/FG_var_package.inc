@@ -33,7 +33,10 @@
 
 
 
-getpost_ifset(array('id', 'label', 'packagetype', 'billingtype','startday', 'freetimetocall'));
+getpost_ifset(array('id', 'label', 'packagetype', 'billingtype','startday', 'freetimetocall', 'form_action'));
+
+$form_action = $form_action ?? '';
+$default_init = '';
 
 $HD_Form = new FormHandler("cc_package_offer","OFFER PACKAGE");
 

@@ -80,7 +80,7 @@ $FG_COL_QUERY='ch.ID, ch.datecreated, ch.description';
 $FG_LIMITE_DISPLAY=25;
 
 // Number of column in the html table
-$FG_NB_TABLE_COL=count($FG_TABLE_COL);
+$FG_NB_TABLE_COL=a2b_count($FG_TABLE_COL);
 
 // The variable $FG_EDITION define if you want process to the edition of the database record
 $FG_EDITION=false;
@@ -327,7 +327,7 @@ function MM_openBrWindow(theURL,winName,features) {
                   <TD width="<?php echo $FG_ACTION_SIZE_COLUMN?>" align=center class="tableBodyRight" style="PADDING-BOTTOM: 2px; PADDING-LEFT: 2px; PADDING-RIGHT: 2px; PADDING-TOP: 2px"></TD>
 
                   <?php
-                      if (is_array($list) && count($list)>0) {
+                      if (is_array($list) && a2b_count($list)>0) {
                       for ($i=0;$i<$FG_NB_TABLE_COL;$i++) {
                     ?>
                   <TD width="<?php echo $FG_TABLE_COL[$i][2]?>" align=middle class="tableBody" style="PADDING-BOTTOM: 2px; PADDING-LEFT: 2px; PADDING-RIGHT: 2px; PADDING-TOP: 2px">

@@ -90,7 +90,7 @@ if ($task == 'upload') {
     $the_file_type = $_FILES['the_file']['type'];
     $the_file = $_FILES['the_file']['tmp_name'];
 
-    if (count($_FILES) > 0) {
+    if (a2b_count($_FILES) > 0) {
         $errortext = validate_upload($the_file, $the_file_type);
         if ($errortext != "" || $errortext != false) {
             echo $errortext;
@@ -150,7 +150,7 @@ if ($task == 'upload') {
 
             $FG_ADITION_SECOND_ADD_VALUE = "'" . $tariffplanval[0] . "', '" . $trunkval[0] . "', '" . $val[0] . "', '" . intval($val[0]) . "', '" . $val[2] . "'";
 
-            for ($k = 0; $k < count($fieldtoimport); $k++) {
+            for ($k = 0; $k < a2b_count($fieldtoimport); $k++) {
                 if (!empty ($val[$k +3]) || $val[$k +3] == '0') {
                     if ($fieldtoimport[$k] == "startdate" && ($val[$k +3] == '0' || $val[$k +3] == ''))
                         continue;
@@ -280,13 +280,13 @@ if ($status=="ok") {
      <td class="tableBody" align="left" valign="top"><font color="red"><b><?php echo strtoupper($fixfield[1])?></b></font></td>
      <td class="tableBody" align="center" valign="top"><font color="red"><b><?php echo $trunkval[1]?> (<?php echo $trunkval[0]?>)</b></font></td>
     </tr>
-    <?php  for ($i=0;$i<count($field);$i++) { ?>
+    <?php  for ($i=0;$i<a2b_count($field);$i++) { ?>
     <tr bgcolor="<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i+1)%2]?>"  onMouseOver="bgColor='#C4FFD7'" onMouseOut="bgColor='<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i+1)%2]?>'">
      <td class="tableBody" align="left" valign="top"><b><?php echo strtoupper($field[$i])?></b></td>
      <td class="tableBody" align="center" valign="top"><?php echo $val[$i]?></td>
     </tr>
     <?php  } ?>
-    <?php  for ($i=0;$i<count($fieldtoimport);$i++) { ?>
+    <?php  for ($i=0;$i<a2b_count($fieldtoimport);$i++) { ?>
     <tr bgcolor="<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i)%2]?>"  onMouseOver="bgColor='#C4FFD7'" onMouseOut="bgColor='<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i)%2]?>'">
      <td class="tableBody" align="left" valign="top"><b><?php echo strtoupper($fieldtoimport[$i])?></b></td>
      <td class="tableBody" align="center" valign="top"><?php echo $val[$i+3]?></td>
@@ -327,7 +327,7 @@ if ($status=="ok") {
 
     <tr>
       <td  class="bgcolor_014" colspan="2"><b>
-        <?php echo $translate[P34_9]?>
+        <?php echo $translate['P34_9']?>
         </b></td>
     </tr>
 

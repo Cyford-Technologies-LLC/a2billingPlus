@@ -33,7 +33,11 @@
 
 
 
-getpost_ifset(array('id', 'tariffgroupname', 'lcrtype', 'removeinterprefix', 'idtariffplan', 'idtariffplan_hidden', 'id_cc_package_offer', 'popup_select'));
+getpost_ifset(array('id', 'tariffgroupname', 'lcrtype', 'removeinterprefix', 'idtariffplan', 'idtariffplan_hidden', 'id_cc_package_offer', 'popup_select', 'popup_formname', 'popup_fieldname'));
+
+$popup_select = isset($popup_select) ? (int) $popup_select : 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
 
 $HD_Form = new FormHandler("cc_tariffgroup","Call Plan");
 

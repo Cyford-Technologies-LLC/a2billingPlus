@@ -35,6 +35,11 @@
 
 getpost_ifset(array('id', 'displayheader', 'type','popup_select','popup_formname','popup_fieldname'));
 
+$id = $id ?? 0;
+$type = $type ?? '';
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
 
 // type : refill or payment
 $HD_Form -> FG_DEBUG = 0;

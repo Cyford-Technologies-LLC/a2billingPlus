@@ -65,7 +65,11 @@ $smarty->display('main.tpl');
 <SCRIPT LANGUAGE="javascript">
 <!--
 function sendValue(selvalue) {
-    window.opener.document.<?php echo $popup_formname ?>.<?php echo $popup_fieldname ?>.value = selvalue;
+    var formName = <?php echo json_encode($popup_formname ?? ''); ?>;
+    var fieldName = <?php echo json_encode($popup_fieldname ?? ''); ?>;
+    if (window.opener && formName && fieldName && window.opener.document.forms[formName] && window.opener.document.forms[formName].elements[fieldName]) {
+        window.opener.document.forms[formName].elements[fieldName].value = selvalue;
+    }
     window.close();
 }
 // -->

@@ -79,7 +79,7 @@ $FG_COL_QUERY='t1.starttime, t1.calledstation, t1.destination, t1.sessiontime, t
 $FG_COL_QUERY_GRAPH='t1.starttime, t1.sessiontime, t1.sessionbill-t1.buycost as profit, t1.sessionbill, t1.buycost';
 
 $FG_LIMITE_DISPLAY=25;
-$FG_NB_TABLE_COL=count($FG_TABLE_COL);
+$FG_NB_TABLE_COL=a2b_count($FG_TABLE_COL);
 $FG_EDITION=true;
 
 $FG_TOTAL_TABLE_COL = $FG_NB_TABLE_COL;
@@ -181,7 +181,8 @@ if ($posted==1) {
     $list_total = $instance_table_graph -> Get_list ($DBHandle, $FG_TABLE_CLAUSE, null, null, null, null, null, null);
 }
 
-$nb_record = count($list_total);
+$list_total = is_array($list_total) ? $list_total : array();
+$nb_record = a2b_count($list_total);
 
 if ($nb_record<=$FG_LIMITE_DISPLAY) {
     $nb_record_max=1;
@@ -340,7 +341,7 @@ $smarty->display('main.tpl');
 <br><br>
 
 <?php
-if (is_array($list) && count($list)>0) {
+if (is_array($list) && a2b_count($list)>0) {
 
 $table_graph=array();
 $table_graph_hours=array();

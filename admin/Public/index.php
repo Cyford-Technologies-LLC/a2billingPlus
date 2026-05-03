@@ -41,4 +41,12 @@ getpost_ifset(array (
 ));
 
 $smarty -> assign("error", $error);
+$smarty -> assign("AUTHENTICATION_LABEL", gettext("AUTHENTICATION"));
+$smarty -> assign("USER_LABEL", gettext("User"));
+$smarty -> assign("PASSWORD_LABEL", gettext("Password"));
+$smarty -> assign("LOGIN_LABEL", gettext("LOGIN"));
+$smarty -> assign("ERROR_AUTH_REFUSED", gettext("AUTHENTICATION REFUSED, please check your user/password!"));
+$smarty -> assign("ERROR_INACTIVE_ACCOUNT", gettext("INACTIVE ACCOUNT, Please activate your account!"));
+$smarty -> assign("ERROR_BLOCKED_ACCOUNT", gettext("BLOCKED ACCOUNT, Please contact the administrator!"));
+$smarty -> assign("LANGUAGE", LANGUAGE);
 $smarty -> display('index.tpl');

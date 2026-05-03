@@ -35,6 +35,8 @@
 
 getpost_ifset(array('id', 'name', 'periode', 'type', 'maxvalue', 'minvalue', 'status', 'id_trunk', 'numberofrun', 'datelastrun', 'popup_select'));
 
+
+$value = $value ?? '';
 $HD_Form = new FormHandler("cc_monitor","Monitoring");
 
 $HD_Form -> FG_DEBUG = 0;

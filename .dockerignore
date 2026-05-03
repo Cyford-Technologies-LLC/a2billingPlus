@@ -1,0 +1,9 @@
+.git
+.idea
+vendor
+development/migration/snapshots
+development/migration/reports
+*.log
+*.tmp
+*.cache
+.env

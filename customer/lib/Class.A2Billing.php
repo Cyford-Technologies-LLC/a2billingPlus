@@ -1142,7 +1142,7 @@ class A2Billing
         $result = $this->instance_table->SQLExec($this->DBHandle, $QUERY);
         $this->debug(DEBUG, $agi, __FILE__, __LINE__, $result);
 
-        if (is_array($result) && count($result) > 0) {
+        if (is_array($result) && a2b_count($result) > 0) {
             $iax_buddies = 1;
             $destiax = $result[0][0];
             $dest_username = $result[0][1];
@@ -1153,7 +1153,7 @@ class A2Billing
         $result = $this->instance_table->SQLExec($this->DBHandle, $QUERY);
         $this->debug(DEBUG, $agi, __FILE__, __LINE__, "RESULT : " . print_r($result, true));
 
-        if (is_array($result) && count($result) > 0) {
+        if (is_array($result) && a2b_count($result) > 0) {
             $sip_buddies = 1;
             $destsip = $result[0][0];
             $dest_username = $result[0][1];
@@ -1353,12 +1353,12 @@ class A2Billing
                         if ($this->agiconfig['busy_timeout'] > 0)
                             $res_busy = $agi->exec("Busy " . $this->agiconfig['busy_timeout']);
                         $agi->stream_file('prepaid-isbusy', '#');
-                        if (count($listdestination) > $callcount)
+                        if (a2b_count($listdestination) > $callcount)
                             continue;
                     } elseif ($dialstatus == "NOANSWER") {
                         $answeredtime = 0;
                         $agi->stream_file('prepaid-callfollowme', '#');
-                        if (count($listdestination) > $callcount)
+                        if (a2b_count($listdestination) > $callcount)
                             continue;
                     } elseif ($dialstatus == "CANCEL") {
                         // Call cancelled, no need to follow-me
@@ -1368,11 +1368,11 @@ class A2Billing
                                         "[A2Billing] DID call friend: dialstatus : $dialstatus, answered time is " . $answeredtime . " \n");
                     } elseif (($dialstatus == "CHANUNAVAIL") || ($dialstatus == "CONGESTION")) {
                         $answeredtime = 0;
-                        if (count($listdestination) > $callcount)
+                        if (a2b_count($listdestination) > $callcount)
                             continue;
                     } else {
                         $agi->stream_file('prepaid-callfollowme', '#');
-                        if (count($listdestination) > $callcount)
+                        if (a2b_count($listdestination) > $callcount)
                             continue;
                     }
 
@@ -1610,7 +1610,7 @@ class A2Billing
                     $answeredtime = 0;
                     if ($this->agiconfig['busy_timeout'] > 0)
                         $res_busy = $agi->exec("Busy " . $this->agiconfig['busy_timeout']);
-                    if (count($listdestination) > $callcount) {
+                    if (a2b_count($listdestination) > $callcount) {
                         continue;
                     } else {
                         $agi->stream_file('prepaid-isbusy', '#');
@@ -1618,7 +1618,7 @@ class A2Billing
                 } elseif ($dialstatus == "NOANSWER") {
                     $answeredtime = 0;
                     $agi->stream_file('prepaid-callfollowme', '#');
-                    if (count($listdestination) > $callcount)
+                    if (a2b_count($listdestination) > $callcount)
                         continue;
                 } elseif ($dialstatus == "CANCEL") {
                     // Call cancelled, no need to follow-me
@@ -1628,10 +1628,10 @@ class A2Billing
                                     "[A2Billing] DID call friend: dialstatus : $dialstatus, answered time is " . $answeredtime . " \n");
                 } elseif (($dialstatus == "CHANUNAVAIL") || ($dialstatus == "CONGESTION")) {
                     $answeredtime = 0;
-                    if (count($listdestination) > $callcount) continue;
+                    if (a2b_count($listdestination) > $callcount) continue;
                 } else {
                     $agi->stream_file('prepaid-callfollowme', '#');
-                    if (count($listdestination) > $callcount) continue;
+                    if (a2b_count($listdestination) > $callcount) continue;
                 }
 
                 if ($answeredtime > 0) {
@@ -2509,7 +2509,7 @@ class A2Billing
             $this->debug(DEBUG, $agi, __FILE__, __LINE__, print_r($result2, true));
         }
 
-        if (count($result1) > 0 || count($result2) > 0) {
+        if (a2b_count($result1) > 0 || a2b_count($result2) > 0) {
             $result = array_merge((array) $result1, (array) $result2);
         }
 
@@ -2519,7 +2519,7 @@ class A2Billing
             $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[CID_SANITIZE - CID: NO DATA]");
             return '';
         }
-        for ($i = 0; $i < count($result); $i++) {
+        for ($i = 0; $i < a2b_count($result); $i++) {
             $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[CID_SANITIZE - CID COMPARING: " . substr($result[$i][0], strlen($this->CallerID) * -1) . " to " . $this->CallerID . "]");
             if (substr($result[$i][0], strlen($this->CallerID) * -1) == $this->CallerID) {
                 $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[CID_SANITIZE - CID: " . $result[$i][0] . "]");
@@ -3546,7 +3546,7 @@ class A2Billing
 
             $arr_value = trim($arr_value);
             $arr_value_explode = explode(":", $arr_value, 2);
-            if (count($arr_value_explode) > 1) {
+            if (a2b_count($arr_value_explode) > 1) {
                 if (is_numeric($arr_value_explode[0]) && is_numeric($arr_value_explode[1])) {
                     $arr_value_deck_callplan[] = $arr_value_explode[0];
                     $arr_value_deck_minute[] = $arr_value_explode[1];
@@ -3559,7 +3559,7 @@ class A2Billing
             }
         }
         // We have $arr_value_deck_callplan with 1, 2, 3 & we have $arr_value_deck_minute with 5, 1, 0
-        if (count($arr_value_deck_callplan) == 0)
+        if (a2b_count($arr_value_deck_callplan) == 0)
             return false;
 
         $QUERY = "SELECT sum(sessiontime), count(*) FROM cc_call WHERE card_id = '" . $this->id_card . "'";
@@ -3570,7 +3570,7 @@ class A2Billing
 
         $find_deck = false;
         $accumul_seconds = 0;
-        for ($ind_deck = 0; $ind_deck < count($arr_value_deck_callplan); $ind_deck++) {
+        for ($ind_deck = 0; $ind_deck < a2b_count($arr_value_deck_callplan); $ind_deck++) {
             $accumul_seconds += $arr_value_deck_minute[$ind_deck];
 
             if ($arr_value_deck_callplan[$ind_deck] == $this->tariff) {
@@ -3687,7 +3687,7 @@ class A2Billing
         foreach ($arr_splitable_value as $arr_value) {
             $arr_value = trim($arr_value);
             $arr_value_explode = explode("-", $arr_value, 2);
-            if (count($arr_value_explode) > 1) {
+            if (a2b_count($arr_value_explode) > 1) {
                 if (is_numeric($arr_value_explode[0]) && is_numeric($arr_value_explode[1]) && $arr_value_explode[0] < $arr_value_explode[1]) {
                     for ($kk = $arr_value_explode[0]; $kk <= $arr_value_explode[1]; $kk++) {
                         $arr_value_to_import[] = $kk;

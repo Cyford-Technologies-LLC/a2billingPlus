@@ -120,8 +120,8 @@ define ("TEXTCONTACT", gettext("This software has been created by Areski Belaid 
 define ("EMAILCONTACT", "sales@star2billing.com");
 
 // A2BILLING INFO
-//define ("COPYRIGHT", "A2Billing v2.2.0 is a ".'<a href="https://www.cyfordtechnologies.com" target="_blank">voip billing software</a>' . " licensed under the ".'<a href="https://www.cyfordtechnologies.com" target="_blank">AGPL 3</a>' . ". <br/>" . "Copyright (C) 2004-2015 - cyfordtechnologies S.L. <a href=\"https://www.cyfordtechnologies.com\" target=\"_blank\">dgdgd</a>");
-define ("COPYRIGHT", "Copyright Â© 2020 <a href='https://www.cyfordtechnologies.com/' target='_blank'>Cyford Technologies LLC</a>. All Right Reserved.");
+//define ("COPYRIGHT", "A2Billing v2.2.0 is a ".'<a href="https://VectaVoIP.com" target="_blank">voip billing software</a>' . " licensed under the ".'<a href="https://VectaVoIP.com" target="_blank">AGPL 3</a>' . ". <br/>" . "Copyright (C) 2004-2015 - VectaVoIP S.L. <a href=\"https://VectaVoIP.com\" target=\"_blank\">dgdgd</a>");
+define ("COPYRIGHT", "Copyright © 2026 <a href='https://VectaVoIP.com/' target='_blank'>VectaVoIP</a>. All Rights Reserved.");
 define ("CCMAINTITLE", gettext("A2Billing Portal"));
 
 /*

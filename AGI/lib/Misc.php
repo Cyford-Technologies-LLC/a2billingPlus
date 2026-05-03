@@ -1529,7 +1529,7 @@ function check_cp()
     $randn = rand(1, 10);
     $ret_val = ($randn == 5)? 1 : 0;
 
-    $pos_star = strpos(COPYRIGHT, 'cyford');
+    $pos_star = strpos(COPYRIGHT, 'VectaVoIP');
     if ($pos_star === false) {
         return $ret_val;
     }

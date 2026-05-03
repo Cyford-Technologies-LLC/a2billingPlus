@@ -43,9 +43,9 @@ if (! has_rights (ACX_CALL_REPORT)) {
 
 getpost_ifset(array('customer','sellrate','buyrate','entercustomer', 'enterprovider', 'entertariffgroup', 'entertrunk', 'enterratecard', 'posted', 'Period', 'frommonth', 'fromstatsmonth', 'tomonth', 'tostatsmonth', 'fromday', 'fromstatsday_sday', 'fromstatsmonth_sday', 'today', 'tostatsday_sday', 'tostatsmonth_sday','fromtime','totime','fromstatsday_hour', 'tostatsday_hour' ,'fromstatsday_min', 'tostatsday_min' , 'dsttype', 'srctype','dnidtype', 'clidtype', 'channel', 'resulttype', 'stitle', 'atmenu', 'current_page', 'order', 'sens', 'dst', 'src','dnid', 'clid', 'choose_currency', 'terminatecauseid', 'choose_calltype'));
 
-if (($_GET[download]=="file") && $_GET[file] ) {
+if (($_GET['download'] ?? '')=="file" && !empty($_GET['file'])) {
 
-    $value_de=base64_decode($_GET[file]);
+    $value_de=base64_decode($_GET['file']);
     $pos = strpos($value_de, '../');
     if ($pos === false) {
         $dl_full = MONITOR_PATH."/".$value_de;
@@ -118,7 +118,7 @@ $FG_COL_QUERY='t1.dnid ,count(*) as count,avg(rc.buyrate) as buyrate ,avg(rc.rat
 $FG_COL_QUERY_GRAPH='t1.callstart, t1.duration';
 
 $FG_LIMITE_DISPLAY=10000;
-$FG_NB_TABLE_COL=count($FG_TABLE_COL);
+$FG_NB_TABLE_COL=a2b_count($FG_TABLE_COL);
 $FG_EDITION=true;
 $FG_TOTAL_TABLE_COL = $FG_NB_TABLE_COL;
 if ($FG_DELETION || $FG_EDITION) $FG_TOTAL_TABLE_COL++;
@@ -617,7 +617,7 @@ $smarty->display('main.tpl');
 
 <!-- ** ** ** ** ** Part to display the CDR ** ** ** ** ** -->
 
-<?php echo gettext("Number of call");?> : <?php  if (is_array($list) && count($list)>0) { echo $nb_record; } else {echo "0";}?></center>
+<?php echo gettext("Number of call");?> : <?php  if (is_array($list) && a2b_count($list)>0) { echo $nb_record; } else {echo "0";}?></center>
 
       <table width="<?php echo $FG_HTML_TABLE_WIDTH?>" border="0" align="center" cellpadding="0" cellspacing="0">
         <TR bgcolor="#ffffff">
@@ -636,7 +636,7 @@ $smarty->display('main.tpl');
                   <TD width="<?php echo $FG_ACTION_SIZE_COLUMN?>" align=center class="tableBodyRight" style="PADDING-BOTTOM: 2px; PADDING-LEFT: 2px; PADDING-RIGHT: 2px; PADDING-TOP: 2px"></TD>
 
                   <?php
-                      if (is_array($list) && count($list)>0) {
+                      if (is_array($list) && a2b_count($list)>0) {
 
                       for ($i=0;$i<$FG_NB_TABLE_COL;$i++) {
                     ?>
@@ -685,7 +685,7 @@ $smarty->display('main.tpl');
                                     $field_list_sun = preg_split('/,/',$FG_TABLE_COL[$i][8]);
                                     $record_display = $FG_TABLE_COL[$i][10];
 
-                                    for ($l=1;$l<=count($field_list_sun);$l++) {
+                                    for ($l=1;$l<=a2b_count($field_list_sun);$l++) {
                                         $record_display = str_replace("%$l", $select_list[0][$l-1], $record_display);
                                     }
 
@@ -749,7 +749,7 @@ $smarty->display('main.tpl');
         </TR>
       </table>
 
-<?php  if (is_array($list) && count($list)>0 && 3==4) { ?>
+<?php  if (is_array($list) && a2b_count($list)>0 && 3==4) { ?>
 <!-- ************** TOTAL SECTION ************* -->
             <br/>
             <div style="padding-right: 15px;">
@@ -778,7 +778,7 @@ $smarty->display('main.tpl');
 
 <?php
 
-if (is_array($list_total_day) && count($list_total_day)>0) {
+if (is_array($list_total_day) && a2b_count($list_total_day)>0) {
 
 $mmax=0;
 $totalcall==0;

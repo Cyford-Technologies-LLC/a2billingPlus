@@ -150,7 +150,7 @@
         while ($buffer != '') {
           $a = strpos($buffer, ':');
           if ($a) {
-            if (!count($parameters)) { // first line in a response?
+            if (!a2b_count($parameters)) { // first line in a response?
               $type = strtolower(substr($buffer, 0, $a));
               if (substr($buffer, $a + 2) == 'Follows') {
                 // A follows response means there is a miltiline field that follows.

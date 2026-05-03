@@ -34,13 +34,31 @@
 
 getpost_ifset(array('id_cc_card', 'cardnumber', 'id', 'name', 'amaflags', 'callgroup', 'accountcode', 'callerid', 'canreinvite', 'context', 'defaultip', 'dtmfmode',
 'fromuser', 'fromdomain', 'host', 'insecure', 'language', 'mailbox', 'md5secret', 'nat', 'permit', 'deny', 'mask', 'pickupgroup', 'port', 'qualify',
-'restrictcid', 'rtptimeout', 'rtpholdtimeout', 'secret', 'type', 'username', 'disallow', 'allow', 'musiconhold', 'regseconds', 'ipaddr', 'cancallforward', 'regexten','friend_id'));
+'restrictcid', 'rtptimeout', 'rtpholdtimeout', 'secret', 'type', 'username', 'disallow', 'allow', 'musiconhold', 'regseconds', 'ipaddr', 'cancallforward', 'regexten','friend_id',
+'form_action', 'atmenu'));
 
 getpost_ifset(array('defaultuser', 'subscribemwi', 'vmexten', 'cid_number', 'callingpres', 'usereqphone', 'incominglimit', 'subscribecontext', 'musicclass', 'mohsuggest',
 'allowtransfer', 'autoframing', 'maxcallbitrate', 'outboundproxy', 'regserver', 'rtpkeepalive', 'dbsecret ', 'regcontext ', 'sourceaddress ', 'mohinterpret ',
 'inkeys ', 'outkey ', ' sendani ', 'fullname ', ' maxauthreq ', 'encryption ', 'transfer ', 'jitterbuffer ', 'forcejitterbuffer ', 'codecpriority ', 'qualifysmoothing ',
 'qualifyfreqok ', 'qualifyfreqnotok ', 'timezone', 'adsi'));
 
+
+$form_action = $form_action ?? '';
+$atmenu = $atmenu ?? 'sip';
+$value = '$value';
+$pass_secret = '';
+$AMAFLAGS_default = '';
+$TYPE_default = '';
+$NAT_default = '';
+$DTMFMODE_default = '';
+$CANREINVITE_default = '';
+$DISALLOW_default = '';
+$ALLOW_default = '';
+$HOST_default = '';
+$CONTEXT_default = '';
+$REGSECONDS_default = '';
+$CANCALLFORWARD_default = '';
+$TRUNK_default = '';
 
 if ($atmenu=='sip') {
 	if (!isset($form_action) || $form_action=="list") {

@@ -36,6 +36,11 @@
 getpost_ifset(array('id', 'amount', 'id_cc_card', 'chargetype', 'description', 'id_did', 'username'));
 
 
+
+$form_action = $form_action ?? '';
+$wantinclude = $wantinclude ?? '';
+$order = $order ?? '';
+$filterprefix = $filterprefix ?? '';
 if (($form_action=='ask-edit') || ($form_action=='ask-add') || ($form_action=='add') || ($form_action=='edit') || ($form_action=='ask-delete') || ($form_action=='delete')){
 	if ($wantinclude==1) $HD_Form_c = new FormHandler("cc_charge","charge","A2B_entity_charge.php");
 	else $HD_Form_c = new FormHandler("cc_charge","charge");

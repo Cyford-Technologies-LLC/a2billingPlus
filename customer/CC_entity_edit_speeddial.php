@@ -180,7 +180,7 @@ function sendtolittle(direction)
                             $split_hidden_fields = preg_split("/,/",trim($FG_QUERY_ADITION_HIDDEN_FIELDS));
                             $split_hidden_fields_value = preg_split("/,/",trim($FG_QUERY_ADITION_HIDDEN_VALUE));
 
-                            for ($cur_hidden=0;$cur_hidden<count($split_hidden_fields);$cur_hidden++) {
+                            for ($cur_hidden=0;$cur_hidden<a2b_count($split_hidden_fields);$cur_hidden++) {
                                     echo "<INPUT class=\"form_enter\" type=\"hidden\" name=\"".trim($split_hidden_fields[$cur_hidden])."\" value=\"".trim($split_hidden_fields_value[$cur_hidden])."\">\n";
                             }
 
@@ -230,7 +230,7 @@ function sendtolittle(direction)
 
                                                 $select_list = $FG_TABLE_EDITION[$i][11];
                                                 if ($FG_DEBUG >= 2) { echo "<br>"; print_r($select_list);}
-                                                //$select_list_nb = count($select_list);
+                                                //$select_list_nb = a2b_count($select_list);
                                          }
                           if ($FG_DEBUG >= 2) print_r ($list);
                           if ($FG_DEBUG >= 2) echo "<br>#$i<br>::>".$VALID_SQL_REG_EXP;
@@ -241,7 +241,7 @@ function sendtolittle(direction)
                         <SELECT name=<?php echo $FG_TABLE_EDITION[$i][1]?> class="form_input_select">
                         <?php echo $FG_TABLE_EDITION[$i][15]?>
                           <?php
-                                         if (count($select_list)>0) {
+                                         if (a2b_count($select_list)>0) {
                                                  $select_number=0;
 
                                                  foreach ($select_list as $select_recordset) {
@@ -256,7 +256,7 @@ function sendtolittle(direction)
                                    if ($FG_TABLE_EDITION[$i][12] != "") {
 
                                        $value_display = $FG_TABLE_EDITION[$i][12];
-                                    $nb_recor_k = count($select_recordset);
+                                    $nb_recor_k = a2b_count($select_recordset);
 
                                     for ($k=1;$k<=$nb_recor_k;$k++) {
                                                         $value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
@@ -353,7 +353,7 @@ function sendtolittle(direction)
     if (!is_array($split_select_list)) {
         $num=0;
     } else {
-        $num = count($split_select_list);
+        $num = a2b_count($split_select_list);
     }
 
     if ($num>0) {
@@ -406,7 +406,7 @@ function sendtolittle(direction)
                     </TR>
                     <?php
                         $split_select_list = $instance_sub_table -> Get_list ($DBHandle, $SPLIT_CLAUSE2, null, null, null, null, null, null);
-                        if (count($split_select_list)>0) {
+                        if (a2b_count($split_select_list)>0) {
                     ?>
                     <TR>
                       <!-- *******************   Select to ADD new instances  ****************************** -->
@@ -439,7 +439,7 @@ function sendtolittle(direction)
                                           <SELECT name=<?php echo $table_split[1]?> class="form_input_select">
                                             <?php
 
-                                         if (count($split_select_list)>0) {
+                                         if (a2b_count($split_select_list)>0) {
                                                  $select_number=0;
 
                                                  foreach ($split_select_list as $select_recordset) {
@@ -458,7 +458,7 @@ function sendtolittle(direction)
                                                             }
 
                                                              $value_display = $table_split[6];
-                                                             $nb_recor_k = count($select_recordset);
+                                                             $nb_recor_k = a2b_count($select_recordset);
                                                              for ($k=1;$k<=$nb_recor_k;$k++) {
                                                                     $value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
                                                              }
@@ -549,7 +549,7 @@ function sendtolittle(direction)
     if (!is_array($split_select_list)) {
         $num=0;
     } else {
-        $num = count($split_select_list);
+        $num = a2b_count($split_select_list);
     }
 
     if ($num>0) {
@@ -677,14 +677,14 @@ function sendtolittle(direction)
     if (!is_array($split_select_list)) {
         $num=0;
     } else {
-        $num = count($split_select_list);
+        $num = a2b_count($split_select_list);
     }
 
      ////////////////////////////////////////////////////////////////////////////////////////////////////////
 
      $split_select_list_tariff = $instance_sub_table -> Get_list ($DBHandle, null, null, null, null, null, null, null);
 
-     if (count($split_select_list_tariff)>0) {
+     if (a2b_count($split_select_list_tariff)>0) {
              $select_number=0;
           ?>
                       <TABLE width="400" height=50 border=0 align="center" cellPadding=0 cellSpacing=0>
@@ -723,7 +723,7 @@ function sendtolittle(direction)
                         }
 
                          $value_display = $table_split[6];
-                         $nb_recor_k = count($select_recordset);
+                         $nb_recor_k = a2b_count($select_recordset);
                          for ($k=1;$k<=$nb_recor_k;$k++) {
                                 $value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
                          }
@@ -798,7 +798,7 @@ function sendtolittle(direction)
                             $split_hidden_fields = preg_split("/,/",trim($FG_QUERY_ADITION_HIDDEN_FIELDS));
                             $split_hidden_fields_value = preg_split("/,/",trim($FG_QUERY_ADITION_HIDDEN_VALUE));
 
-                            for ($cur_hidden=0;$cur_hidden<count($split_hidden_fields);$cur_hidden++) {
+                            for ($cur_hidden=0;$cur_hidden<a2b_count($split_hidden_fields);$cur_hidden++) {
                                     echo "<INPUT type=\"hidden\" name=\"".trim($split_hidden_fields[$cur_hidden])."\" value=\"".trim($split_hidden_fields_value[$cur_hidden])."\">\n";
                             }
 
@@ -851,7 +851,7 @@ function sendtolittle(direction)
                         <SELECT class="form_input_select" name=<?php echo $FG_TABLE_ADITION[$i][1]?> <?php echo $FG_TABLE_ADITION[$i][4]?>>
                         <?php echo $FG_TABLE_ADITION[$i][15]?>
                           <?php
-                                        if (count($select_list)>0) {
+                                        if (a2b_count($select_list)>0) {
                                                $select_number=0;
 
                                                foreach ($select_list as $select_recordset) {
@@ -860,7 +860,7 @@ function sendtolittle(direction)
                                                    if ($FG_TABLE_ADITION[$i][12] != "") {
 
                                                         $value_display = $FG_TABLE_ADITION[$i][12];
-                                                        $nb_recor_k = count($select_recordset);
+                                                        $nb_recor_k = a2b_count($select_recordset);
                                                         for ($k=1;$k<=$nb_recor_k;$k++) {
                                                                             $value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
                                                         }
@@ -973,12 +973,12 @@ function sendtolittle(direction)
                                             } elseif (strtoupper ($FG_TABLE_EDITION[$i][7])==strtoupper ("LIST")) {
 
                                                 $select_list = $FG_TABLE_EDITION[$i][11];
-                                                //$select_list_nb = count($select_list);
+                                                //$select_list_nb = a2b_count($select_list);
                                             }
                           ?>
                         <SELECT class="form_input_select" disabled name=<?php echo $FG_TABLE_EDITION[$i][1]?>>
                           <?php
-                                        if (count($select_list)>0) {
+                                        if (a2b_count($select_list)>0) {
                                                $select_number=0;
 
                                                foreach ($select_list as $select_recordset) {
@@ -986,7 +986,7 @@ function sendtolittle(direction)
                                                  //%1 : (%2)
                                                  if (!is_null($FG_TABLE_EDITION[$i][12]) && strlen($FG_TABLE_EDITION[$i][12])) {
                                                          $value_display =  $FG_TABLE_EDITION[$i][12];
-                                                        $nb_recor_k = count($select_recordset);
+                                                        $nb_recor_k = a2b_count($select_recordset);
                                                         for ($k=1;$k<=$nb_recor_k;$k++) {
                                                             $value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
                                                         }

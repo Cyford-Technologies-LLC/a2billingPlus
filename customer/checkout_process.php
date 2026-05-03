@@ -88,7 +88,7 @@ $QUERY = "UPDATE cc_epayment_log SET status = 2 WHERE id = ".$transactionID;
 write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."- QUERY = $QUERY");
 $paymentTable->SQLExec ($DBHandle_max, $QUERY);
 
-if (!is_array($transaction_data) && count($transaction_data) == 0) {
+if (!is_array($transaction_data) && a2b_count($transaction_data) == 0) {
     write_log(LOGFILE_EPAYMENT, basename(__FILE__).
         ' line:'.__LINE__."- $trans_str : ERROR INVALID TRANSACTION ID PROVIDED, TRANSACTION ID =".$transactionID);
     exit();
@@ -128,7 +128,7 @@ switch ($transaction_data[0][4]) {
         $myPost = array();
         foreach ($raw_post_array as $keyval) {
           $keyval = explode ('=', $keyval);
-          if (count($keyval) == 2)
+          if (a2b_count($keyval) == 2)
              $myPost[$keyval[0]] = urldecode($keyval[1]);
         }
         // read the IPN message sent from PayPal and prepend 'cmd=_notify-validate'

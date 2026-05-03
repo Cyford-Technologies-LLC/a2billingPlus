@@ -32,7 +32,7 @@
 **/
 
 $FG_DEBUG = 0;
-error_reporting(E_ALL & ~E_NOTICE);
+error_reporting(E_ALL & ~(E_NOTICE | E_DEPRECATED | E_USER_DEPRECATED));
 
 // Zone strings
 define ("MODULE_ACCESS_DOMAIN",		"A2Billing - VoIP Billing Software");
@@ -80,44 +80,44 @@ if (isset($_GET["logout"]) && $_GET["logout"]=="true") {
 
 getpost_ifset (array('pr_login', 'pr_password'));
 
-if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset($_SESSION['rights']) || (isset($_POST["done"]) && $_POST["done"]=="submit_log") )) {
+$done = $_POST["done"] ?? '';
+
+if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset($_SESSION['rights']) || $done=="submit_log" )) {
 
     if ($FG_DEBUG == 1) echo "<br>0. HERE WE ARE";
 
-    if ($_POST["done"]=="submit_log") {
+    if ($done=="submit_log") {
 
         $DBHandle  = DbConnect();
 
         if ($FG_DEBUG == 1) echo "<br>1. ".$pr_login." - ".$pr_password;
 
-        $return = login ($pr_login, $pr_password);
+        $loginResult = login ($pr_login, $pr_password);
 
-        if ($FG_DEBUG == 1) print_r($return);
-        if ($FG_DEBUG == 1) echo "==>".$return[1];
+        if ($FG_DEBUG == 1) print_r($loginResult);
+        if ($FG_DEBUG == 1 && is_array($loginResult)) echo "==>".$loginResult[1];
 
-        if (!is_array($return) || $return[1]==0 ) {
+        if (!is_array($loginResult) || a2b_count($loginResult) < 4 || empty($loginResult[1])) {
             header ("HTTP/1.0 401 Unauthorized");
             Header ("Location: index.php?error=1");
             die();
         }
         // if groupID egal 1, this user is a root
 
-        if ($return[3]==0) {
-            $admin_id = $return[0];
-            $return = true;
+        $admin_id = (int) $loginResult[0];
+        $rights = (int) $loginResult[1];
+        $pr_groupID = (int) $loginResult[3];
+        $pr_reseller_ID = 0;
+
+        if ($pr_groupID==0) {
             $rights = 33554431;
             $is_admin = 1;
-            $pr_groupID = $return[3];
         } else {
-            $pr_reseller_ID = $return[0];
-            $admin_id = $return[0];
-            $rights = $return[1];
-            if ($return[3]==1) $is_admin=1;
+            $pr_reseller_ID = $admin_id;
+            if ($pr_groupID==1) $is_admin=1;
             else $is_admin=0;
 
-            if ($return[3] == 3) $pr_reseller_ID = $return[4];
-
-            $pr_groupID = $return[3];
+            if ($pr_groupID == 3) $pr_reseller_ID = isset($loginResult[4]) ? (int) $loginResult[4] : $admin_id;
         }
 
         if ($pr_login) {
@@ -152,8 +152,8 @@ function login ($user, $pass)
 
     $user = trim($user);
     $pass = trim($pass);
-    $user = filter_var($user, FILTER_SANITIZE_STRING);
-    $pass = filter_var($pass, FILTER_SANITIZE_STRING);
+    $user = filter_var($user, FILTER_UNSAFE_RAW);
+    $pass = filter_var($pass, FILTER_UNSAFE_RAW);
 
     $pass_encoded= hash( 'whirlpool',$pass);
     if (strlen($user)==0 || strlen($user)>=50 || strlen($pass)==0 || strlen($pass)>=50) return false;
@@ -167,17 +167,17 @@ function login ($user, $pass)
         return (false);
     }
 
-    $row [] =$res -> fetchRow();
+    $row = $res -> fetchRow();
 
-    return ($row[0]);
+    return is_array($row) ? $row : false;
 }
 
 function has_rights ($condition)
 {
-    return ($_SESSION["rights"] & $condition);
+    return ((int) ($_SESSION["rights"] ?? 0) & $condition);
 }
 
-$ACXACCESS 				= ($_SESSION["rights"] > 0) ? true : false;
+$ACXACCESS 				= ((int) ($_SESSION["rights"] ?? 0) > 0) ? true : false;
 $ACXDASHBOARD			= has_rights (ACX_DASHBOARD);
 $ACXCUSTOMER 			= has_rights (ACX_CUSTOMER);
 $ACXBILLING 			= has_rights (ACX_BILLING);

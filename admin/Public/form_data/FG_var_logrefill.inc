@@ -35,6 +35,15 @@
 
 getpost_ifset(array('id', 'card_id', 'date', 'credit','description,added_invoice'));
 
+
+$form_action = $form_action ?? '';
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$value = $value ?? '';
+$filterprefix = $filterprefix ?? '';
+$id_val = $id_val ?? '';
+$comp_date = $comp_date ?? '';
 if (!isset($form_action) || $form_action=="list") {
 	$HD_Form = new FormHandler("cc_logrefill LEFT JOIN cc_card ON cc_card.id=card_id","Refill");
 } else {

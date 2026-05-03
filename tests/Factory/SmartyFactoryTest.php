@@ -1,10 +1,12 @@
 <?php
 
 use Factory\SmartyFactory;
+use PHPUnit\Framework\TestCase;
 
-class SmartyFactoryTest extends PHPUnit_Framework_TestCase
+class SmartyFactoryTest extends TestCase
 {
-    public function testCreateInstance(){
+    public function testCreateInstance(): void
+    {
         $smarty = SmartyFactory::getInstance();
 
         $this->assertInstanceOf('\Smarty', $smarty);

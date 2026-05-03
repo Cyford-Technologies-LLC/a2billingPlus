@@ -98,7 +98,7 @@ $right_list["17"] = array( gettext("AUTODIALER"), "65536");
 $right_list["18"] = array( gettext("EDIT PERSONAL INFO"), "131072");
 $right_list["19"] = array( gettext("SEE RECORDING"), "262144");
 
-$len_right_list = count($right_list);
+$len_right_list = a2b_count($right_list);
 
 
 $HD_Form -> AddEditElement ( gettext("NAME"),

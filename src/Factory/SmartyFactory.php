@@ -14,10 +14,9 @@ class SmartyFactory implements Factory{
      */
     public static function getInstance()
     {
-        $smarty = new \SmartyBC();
+        $smarty = new \Smarty();
 
         $securityPolicy = new Smarty_Security($smarty);
-        $securityPolicy->php_handling = \Smarty::PHP_ALLOW;
         $smarty->enableSecurity($securityPolicy);
 
         return $smarty;

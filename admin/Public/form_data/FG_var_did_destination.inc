@@ -35,6 +35,9 @@
 
 getpost_ifset(array('id', 'destination', 'id_cc_card', 'id_cc_did', 'activated', 'priority', 'id_trunk', 'voip_call'));
 
+
+$form_action = $form_action ?? '';
+$filterprefix = $filterprefix ?? '';
 if ( (empty($form_action) || $form_action=="list")) {
 	$HD_Form = new FormHandler("cc_did_destination LEFT JOIN cc_did ON cc_did.id = cc_did_destination.id_cc_did","Did Destination");
 } else {

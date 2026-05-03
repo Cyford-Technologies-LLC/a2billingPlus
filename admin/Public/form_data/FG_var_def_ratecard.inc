@@ -38,7 +38,21 @@ getpost_ifset(array('id', 'idtariffplan', 'dialprefix', 'destination', 'buyrate'
 'billingblockb', 'stepchargec', 'chargec', 'timechargec', 'billingblockc', 'startdate', 'stopdate',
 'starttime', 'endtime', 'id_trunk', 'musiconhold','tariffplan', 'tariffgroup','posted','id_outbound_cidgroup','rounding_calltime',
 'rounding_threshold', 'additional_block_charge', 'additional_block_charge_time', 'additional_grace','minimal_cost','announce_time_correction',
-'cancelsearch_callplanlcr', 'deleteselected'));
+'cancelsearch_callplanlcr', 'deleteselected', 'form_action', 'popup_select', 'popup_formname', 'popup_fieldname'));
+
+
+$filterprefix = $filterprefix ?? '';
+$form_action = $form_action ?? '';
+$destination = $destination ?? '';
+$deleteselected = $deleteselected ?? '';
+$cancelsearch_callplanlcr = $cancelsearch_callplanlcr ?? '';
+$popup_select = isset($popup_select) ? (int) $popup_select : 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$comp_date = '';
+$comp_date_plus = '';
+$comp_time = '';
+$comp_time_plus = '';
 
 // put all the destination name to lowercase
 $destination = strtolower ($destination);

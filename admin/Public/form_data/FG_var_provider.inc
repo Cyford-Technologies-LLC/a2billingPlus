@@ -35,6 +35,10 @@
 
 getpost_ifset(array('id', 'provider_name', 'creationdate', 'description', 'popup_select'));
 
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+
 $HD_Form = new FormHandler("cc_provider","Provider");
 
 $HD_Form -> FG_DEBUG = 0;

@@ -52,17 +52,17 @@ function put_dislay($position, $title, $links)
     global $right;
 
     if ($position=="LEFT") {
-        $idx = count($left);
+        $idx = a2b_count($left);
         $left[$idx] = array();
         $left[$idx]["title"] = $title;
         $left[$idx]["links"] = $links;
     } elseif ($position=="CENTER") {
-        $idx = count($center);
+        $idx = a2b_count($center);
         $center[$idx] = array();
         $center[$idx]["title"] = $title;
         $center[$idx]["links"] = $links;
     } elseif ($position=="RIGHT") {
-        $idx = count($right);
+        $idx = a2b_count($right);
         $right[$idx] = array();
         $right[$idx]["title"] = $title;
         $right[$idx]["links"] = $links;
@@ -96,7 +96,7 @@ $smarty->display('main.tpl');
 <table align="center" width="100%">
     <tr>
         <td width="33%" valign="top" class="tableBodyRight">
-          <?php for ($i_left=0;$i_left<count($left);$i_left++) { ?>
+          <?php for ($i_left=0;$i_left<a2b_count($left);$i_left++) { ?>
           <div class="dashbox">
               <div class="dashtitle" >
                <?php echo $left[$i_left]["title"]; ?>
@@ -112,7 +112,7 @@ $smarty->display('main.tpl');
         </td>
 
         <td width="33%" valign="top"  class="tableBodyRight">
-          <?php for ($i_center=0;$i_center<count($center);$i_center++) { ?>
+          <?php for ($i_center=0;$i_center<a2b_count($center);$i_center++) { ?>
           <div class="dashbox">
               <div class="dashtitle" >
                <?php echo $center[$i_center]["title"]; ?>
@@ -128,7 +128,7 @@ $smarty->display('main.tpl');
         </td>
 
         <td width="33%" valign="top"  class="tableBodyRight">
-          <?php for ($i_right=0;$i_right<count($right);$i_right++) { ?>
+          <?php for ($i_right=0;$i_right<a2b_count($right);$i_right++) { ?>
           <div class="dashbox">
               <div class="dashtitle" >
                <?php echo $right[$i_right]["title"]; ?>

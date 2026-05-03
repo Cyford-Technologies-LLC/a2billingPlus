@@ -173,7 +173,7 @@ if ($form_action == "purchase" || $form_action == "add") {
     if (empty($ID))
         $ID = 0;
     if (empty($rating))
-        $rating = MIN_RATING;
+        $rating = DIDX_MIN_RATING;
     $country_arr=$area_arr=$nxx_arr=$number_arr=0;
 
     $country_arr = $didx->getDIDCountry($rating);

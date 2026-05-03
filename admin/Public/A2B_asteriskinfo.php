@@ -273,17 +273,17 @@ function convertActiveChannel($sipChannel, $channel = NULL)
 
 function getActiveChannel($channel_arr, $channelType = NULL)
 {
-    if (count($channel_arr) > 1) {
+    if (a2b_count($channel_arr) > 1) {
         if ($channelType == NULL || $channelType == 'SIP') {
             $sipChannel_arr = $channel_arr;
-            $sipChannel_arrCount = count($sipChannel_arr);
+            $sipChannel_arrCount = a2b_count($sipChannel_arr);
             $sipChannel_string = $sipChannel_arr[$sipChannel_arrCount - 2];
             $sipChannel = explode(' ', $sipChannel_string);
 
             return $sipChannel[0];
         } elseif ($channelType == 'IAX2') {
             $iax2Channel_arr = $channel_arr;
-            $iax2Channel_arrCount = count($iax2Channel_arr);
+            $iax2Channel_arrCount = a2b_count($iax2Channel_arr);
             $iax2Channel_string = $iax2Channel_arr[$iax2Channel_arrCount - 2];
             $iax2Channel = explode(' ', $iax2Channel_string);
 
@@ -296,13 +296,13 @@ function getRegistration($registration, $channelType = 'SIP')
 {
     if ($channelType == NULL || $channelType == 'SIP') {
         $sipRegistration_arr = $registration;
-        $sipRegistration_count = count($sipRegistration_arr);
+        $sipRegistration_count = a2b_count($sipRegistration_arr);
 
         return $sipRegistration_count-3;
 
     } elseif ($channelType == 'IAX2') {
         $iax2Registration_arr = $registration;
-        $iax2Registration_count = count($iax2Registration_arr);
+        $iax2Registration_count = a2b_count($iax2Registration_arr);
 
         return $iax2Registration_count-3;
     }
@@ -312,10 +312,10 @@ function getPeer($peer, $channelType = NULL)
 {
     global $astver_major, $astver_minor;
     global $astver;
-    if (count($peer) > 1) {
+    if (a2b_count($peer) > 1) {
         if ($channelType == NULL || $channelType == 'SIP') {
             $sipPeer = $peer;
-            $sipPeer_count = count($sipPeer);
+            $sipPeer_count = a2b_count($sipPeer);
             $sipPeerInfo_arr['sipPeer_count'] = $sipPeer_count -3;
             $sipPeerInfo_string = $sipPeer[$sipPeer_count -2];
             $sipPeerInfo_arr2 = explode('[',$sipPeerInfo_string);
@@ -332,7 +332,7 @@ function getPeer($peer, $channelType = NULL)
 
         } elseif ($channelType == 'IAX2') {
             $iax2Peer = $peer;
-            $iax2Peer_count = count($iax2Peer);
+            $iax2Peer_count = a2b_count($iax2Peer);
             $iax2PeerInfo_arr['iax2Peer_count'] = $iax2Peer_count -3;
             $iax2PeerInfo_string = $iax2Peer[$iax2Peer_count -2];
             $iax2PeerInfo_arr2 = explode('[',$iax2PeerInfo_string);

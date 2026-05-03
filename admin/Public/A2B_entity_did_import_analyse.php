@@ -99,7 +99,7 @@ if ($task=='upload') {
     $the_file_type = $_FILES['the_file']['type'];
     $the_file = $_FILES['the_file']['tmp_name'];
 
-    if (count($_FILES) > 0) {
+    if (a2b_count($_FILES) > 0) {
         $errortext = validate_upload($the_file, $the_file_type);
         if ($errortext != "" || $errortext  != false) {
             echo $errortext;
@@ -167,7 +167,7 @@ if ($task=='upload') {
                 $FG_ADITION_SECOND_ADD_FIELDS = 'id_cc_didgroup, id_cc_country, did, fixrate, creationdate'; //$fieldtoimport_sql
                 $FG_ADITION_SECOND_ADD_VALUE  = "'".$didgroupval[0]."', '".$countryIDval[0]."', '".$val[0]."', '".$val[1]."', now()";
             }
-            for ($k=0;$k<count($fieldtoimport);$k++) {
+            for ($k=0;$k<a2b_count($fieldtoimport);$k++) {
                 if (!empty($val[$k+2]) || $val[$k+2]=='0') {
                     $val[$k+2]=str_replace('"', '', $val[$k+2]); //DH
                     $val[$k+2]=str_replace("'", '', $val[$k+2]); //DH
@@ -291,13 +291,13 @@ function sendtoupload(form)
                  <td class="tableBody" align="left" valign="top"><font class="fontstyle_005" ><?php echo strtoupper($fixfield[1])?></b></font></td>
                  <td class="tableBody" align="center" valign="top"><font class="fontstyle_005" ><?php echo $countryIDval[1]?> (<?php echo $countryIDval[0]?>)</font></td>
                 </tr>
-                <?php  for ($i=0;$i<count($field);$i++) { ?>
+                <?php  for ($i=0;$i<a2b_count($field);$i++) { ?>
                    <tr bgcolor="<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i+1)%2]?>"  onMouseOver="bgColor='#C4FFD7'" onMouseOut="bgColor='<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i+1)%2]?>'">
                  <td class="tableBody" align="left" valign="top"><b><?php echo strtoupper($field[$i])?></b></td>
                  <td class="tableBody" align="center" valign="top"><?php echo $val[$i]?></td>
                 </tr>
                 <?php  } ?>
-                <?php  for ($i=0;$i<count($fieldtoimport);$i++) { ?>
+                <?php  for ($i=0;$i<a2b_count($fieldtoimport);$i++) { ?>
                    <tr bgcolor="<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i)%2]?>"  onMouseOver="bgColor='#C4FFD7'" onMouseOut="bgColor='<?php echo $FG_TABLE_ALTERNATE_ROW_COLOR[($i)%2]?>'">
                  <td class="tableBody" align="left" valign="top"><b><?php echo strtoupper($fieldtoimport[$i])?></b></td>
                  <td class="tableBody" align="center" valign="top"><?php echo $val[$i+2]?></td>
@@ -342,7 +342,7 @@ function sendtoupload(form)
 
                 <tr>
                   <td class="bgcolor_014" colspan="2"><b>
-                    <?php echo $translate[P34_9]?>
+                    <?php echo $translate['P34_9']?>
                     </b></td>
                 </tr>
 

@@ -35,6 +35,10 @@
 
 getpost_ifset(array('id', 'speeddial', 'id_cc_card', 'name', 'phone','popup_select','popup_formname','popup_fieldname'));
 
+
+$form_action = $form_action ?? '';
+$value = $value ?? '';
+$filterprefix = $filterprefix ?? '';
 if (!isset($form_action) || $form_action=="list") {
 	$HD_Form = new FormHandler("cc_speeddial LEFT JOIN cc_card ON cc_card.id = cc_speeddial.id_cc_card","speed dial");
 }else{

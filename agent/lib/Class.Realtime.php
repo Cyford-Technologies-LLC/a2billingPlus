@@ -99,7 +99,7 @@ class Realtime
                         echo "Impossible to write to the file ($buddyfile)";
                         break;
                     } else {
-                        for ($i = 1; $i < count($data) - 1; $i++) {
+                        for ($i = 1; $i < a2b_count($data) - 1; $i++) {
                             if (isset($data[$i +1]) && strlen($data[$i +1]) > 0) {
                                 if (trim($list_names[$i]) == 'allow') {
                                     $codecs = explode(",", $data[$i +1]);

@@ -34,6 +34,9 @@
 
 getpost_ifset(array('id', 'calledstation', 'id_cc_card'));
 
+
+$value = $value ?? '';
+$filterprefix = $filterprefix ?? '';
 $HD_Form = new FormHandler("cc_call", "Call");
 
 $HD_Form -> FG_DEBUG = 0;

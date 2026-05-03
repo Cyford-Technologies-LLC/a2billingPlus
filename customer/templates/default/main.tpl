@@ -9,27 +9,27 @@
 
 <ul id="nav">
 
-	<div class="toggle_menu"><li><a href="userinfo.php"><strong>{php} echo gettext("ACCOUNT INFO");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="userinfo.php"><strong>{"ACCOUNT INFO"|gettext}</strong></a></li></div>
 
 	{if $ACXVOICEMAIL>0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_voicemail.php"><strong>{php} echo gettext("VOICEMAIL");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_voicemail.php"><strong>{"VOICEMAIL"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXSIP_IAX>0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_sipiax_info.php"><strong>{php} echo gettext("SIP/IAX INFO");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_sipiax_info.php"><strong>{"SIP/IAX INFO"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXCALL_HISTORY >0 }
-	<div class="toggle_menu"><li><a href="call-history.php"><strong>{php} echo gettext("CALL HISTORY");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="call-history.php"><strong>{"CALL HISTORY"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXPAYMENT_HISTORY >0 }
-	<div class="toggle_menu"><li><a href="payment-history.php"><strong>{php} echo gettext("PAYMENT HISTORY");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="payment-history.php"><strong>{"PAYMENT HISTORY"|gettext}</strong></a></li></div>
 	{/if}
 
 
 	{if $ACXVOUCHER >0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_voucher.php?form_action=list"><strong>{php} echo gettext("VOUCHERS");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_voucher.php?form_action=list"><strong>{"VOUCHERS"|gettext}</strong></a></li></div>
 	{/if}
 
 
@@ -40,7 +40,7 @@
 	src="templates/{$SKIN_NAME}/images/minus.gif"
 	{else}
 	src="templates/{$SKIN_NAME}/images/plus.gif"
-	{/if} onmouseover="this.style.cursor='hand';" ></div> <div id="menutitlesection"><strong>{php} echo gettext("INVOICES");{/php}</strong></div></div></a></li></div>
+	{/if} onmouseover="this.style.cursor='hand';" ></div> <div id="menutitlesection"><strong>{"INVOICES"|gettext}</strong></div></div></a></li></div>
 		<div class="tohide"
 	{if ($section =="5")}
 		style="">
@@ -50,9 +50,9 @@
 	<ul>
 		<li>
 			<ul>
-				<li><a href="A2B_entity_receipt.php?section=5"><strong>{php} echo gettext("View Receipts");{/php}</strong></a></li>
-				<li><a href="A2B_entity_invoice.php?section=5"><strong>{php} echo gettext("View Invoices");{/php}</strong></a></li>
-				<li><a href="A2B_billing_preview.php?section=5"><strong>{php} echo gettext("Preview Next Billing");{/php}</strong></a></li>
+				<li><a href="A2B_entity_receipt.php?section=5"><strong>{"View Receipts"|gettext}</strong></a></li>
+				<li><a href="A2B_entity_invoice.php?section=5"><strong>{"View Invoices"|gettext}</strong></a></li>
+				<li><a href="A2B_billing_preview.php?section=5"><strong>{"Preview Next Billing"|gettext}</strong></a></li>
 			</ul>
 		</li>
 	</ul>
@@ -61,39 +61,39 @@
 
 
 	{if $ACXDID >0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_did.php?form_action=list"><strong>{php} echo gettext("DID");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_did.php?form_action=list"><strong>{"DID"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXSPEED_DIAL >0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_speeddial.php?atmenu=speeddial&stitle=Speed+Dial"><strong>{php} echo gettext("SPEED DIAL");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_speeddial.php?atmenu=speeddial&stitle=Speed+Dial"><strong>{"SPEED DIAL"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXRATECARD >0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_ratecard.php?form_action=list"><strong>{php} echo gettext("RATECARD");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_ratecard.php?form_action=list"><strong>{"RATECARD"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXSIMULATOR >0 }
-	<div class="toggle_menu"><li><a href="simulator.php"><strong>{php} echo gettext("SIMULATOR");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="simulator.php"><strong>{"SIMULATOR"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXCALL_BACK >0 }
-	<div class="toggle_menu"><li><a href="callback.php"><strong>{php} echo gettext("CALLBACK");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="callback.php"><strong>{"CALLBACK"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXCALLER_ID >0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_callerid.php?atmenu=callerid&stitle=CallerID"><strong>{php} echo gettext("ADD CALLER ID");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_callerid.php?atmenu=callerid&stitle=CallerID"><strong>{"ADD CALLER ID"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXPASSWORD>0 }
-	<div class="toggle_menu"><li><a href="A2B_entity_password.php?atmenu=password&form_action=ask-edit&stitle=Password"><strong>{php} echo gettext("PASSWORD");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_entity_password.php?atmenu=password&form_action=ask-edit&stitle=Password"><strong>{"PASSWORD"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXSUPPORT >0 }
-	<div class="toggle_menu"><li><a href="A2B_support.php"><strong>{php} echo gettext("SUPPORT");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_support.php"><strong>{"SUPPORT"|gettext}</strong></a></li></div>
 	{/if}
 
 	{if $ACXNOTIFICATION >0 }
-	<div class="toggle_menu"><li><a href="A2B_notification.php?form_action=ask-edit"><strong>{php} echo gettext("NOTIFICATION");{/php}</strong></a></li></div>
+	<div class="toggle_menu"><li><a href="A2B_notification.php?form_action=ask-edit"><strong>{"NOTIFICATION"|gettext}</strong></a></li></div>
 	{/if}
 
 
@@ -101,7 +101,7 @@
 
 <br/>
 <ul id="nav"><li>
-	<ul><li><a href="logout.php?logout=true" target="_top"><img style="vertical-align:bottom;" src="templates/{$SKIN_NAME}/images/logout.png"> <font color="#DD0000"><STRONG>&nbsp;&nbsp;{php} echo gettext("LOGOUT");{/php}</STRONG></font> </a></li></ul>
+	<ul><li><a href="logout.php?logout=true" target="_top"><img style="vertical-align:bottom;" src="templates/{$SKIN_NAME}/images/logout.png"> <font color="#DD0000"><STRONG>&nbsp;&nbsp;{"LOGOUT"|gettext}</STRONG></font> </a></li></ul>
 </li></ul>
 
 </div>

@@ -68,7 +68,7 @@ $FG_COL_QUERY = 't1.starttime, t1.sessiontime';
 $FG_COL_QUERY_GRAPH = 't1.starttime, t1.sessiontime';
 
 $FG_LIMITE_DISPLAY = 100;
-$FG_NB_TABLE_COL = count($FG_TABLE_COL);
+$FG_NB_TABLE_COL = a2b_count($FG_TABLE_COL);
 
 $instance_table_graph = new Table($FG_TABLE_NAME, $FG_COL_QUERY_GRAPH);
 
@@ -282,8 +282,8 @@ while ($tableau_value[$nbday][$i] == 0) {
 //print_r($tableau_value);
 //print_r($tableau_hours);
 
-/*echo "<br>nb tableau_value:".count($tableau_value);
-echo "<br>nb tableau_hours:".count($tableau_hours);
+/*echo "<br>nb tableau_value:".a2b_count($tableau_value);
+echo "<br>nb tableau_hours:".a2b_count($tableau_hours);
 print_r($tableau_value[0]);
 echo "<br><br>";
 print_r($tableau_hours[0]);
@@ -296,8 +296,8 @@ foreach ($datay1 as $tkey => $data) {
 
 }
 /*$datay1 = array(2,6,7,12,13,18);
-echo "<br>nb x1:".count($datax1);
-echo "<br>nb z1:".count($dataz1);
+echo "<br>nb x1:".a2b_count($datax1);
+echo "<br>nb z1:".a2b_count($dataz1);
 print_r($datax1);
 echo "<br><br>";
 print_r($dataz1);

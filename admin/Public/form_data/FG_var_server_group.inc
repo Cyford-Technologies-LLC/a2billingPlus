@@ -36,6 +36,8 @@
 getpost_ifset(array('id', 'name', 'description'));
 
 
+
+$filterprefix = $filterprefix ?? '';
 $HD_Form = new FormHandler("cc_server_group","Server Group");
 
 $HD_Form -> FG_DEBUG = 0;

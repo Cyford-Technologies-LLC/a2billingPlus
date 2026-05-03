@@ -34,6 +34,8 @@
 
 getpost_ifset(array('id', 'config_title', 'config_key', 'config_value', 'config_description', 'config_group_title', 'groupselect', 'filterKey', 'rbKey', 'filterDescription', 'rbDesc', 'filterValue', 'rbValue', 'posted','agi_conf'));
 
+
+$form_action = $form_action ?? '';
 // This will generate agi-confx
 // agi-confx is duplication of Global configuration and list of configurations of : agi-conf1
 if ($agi_conf) {

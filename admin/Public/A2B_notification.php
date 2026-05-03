@@ -119,6 +119,7 @@ $nb_by_page = 15;
 $nb_total = NotificationsDAO::getNbNotifications();
 $nb_page = ceil($nb_total/$nb_by_page);
 $list_notifications = NotificationsDAO::getNotifications($_SESSION['admin_id'],(($page-1)*$nb_by_page),$nb_by_page);
+$list_notifications = is_array($list_notifications) ? $list_notifications : array();
 
 ?>
 

@@ -20,10 +20,10 @@ function recursive_filter($arr)
         if (is_array($value)) {
             $newArr[ $key ] = recursive_filter( $value );
         } else {
-            if (filter_var($value, FILTER_SANITIZE_STRING) !== false) {
+            if (filter_var($value, FILTER_UNSAFE_RAW) !== false) {
                 $newArr[ $key ] = $value;
             } else {
-                $newArr[ $key ] = filter_var($value, FILTER_SANITIZE_STRING);
+                $newArr[ $key ] = filter_var($value, FILTER_UNSAFE_RAW);
             }
         }
     }

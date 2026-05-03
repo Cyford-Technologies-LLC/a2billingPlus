@@ -51,6 +51,9 @@ define ("ACX_GENERATE_CUSTOMER",		512);
 define ("ACX_SIGNUP",					1024);
 define ("ACX_VOIPCONF",					2048);
 define ("ACX_SEE_CUSTOMERS_CALLERID",	4096);
+define ("ACX_ACCESS",					ACX_MYACCOUNT);
+define ("ACX_SIPCONF",					ACX_VOIPCONF);
+define ("ACX_IAXCONF",					ACX_VOIPCONF);
 
 header("Expires: Sat, Jan 01 2000 01:01:01 GMT");
 
@@ -122,8 +125,8 @@ function login ($user, $pass)
 
     $user = trim($user);
     $pass = trim($pass);
-    $user = filter_var($user, FILTER_SANITIZE_STRING);
-    $pass = filter_var($pass, FILTER_SANITIZE_STRING);
+    $user = filter_var($user, FILTER_UNSAFE_RAW);
+    $pass = filter_var($pass, FILTER_UNSAFE_RAW);
 
     if (strlen($user)==0 || strlen($user)>=50 || strlen($pass)==0 || strlen($pass)>=50) return false;
     $QUERY = "SELECT id, perms, active,currency,vat FROM cc_agent WHERE login = '".$user."' AND passwd = '".$pass."'";

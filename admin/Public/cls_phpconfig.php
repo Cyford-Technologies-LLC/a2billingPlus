@@ -277,13 +277,13 @@ class Open_Conf
         $newSection = preg_split("/\r\n/",$section_text);
 
         // add linefeeds to each row and clean array
-        for ($i = 0; $i < count($newSection); $i++)
+        for ($i = 0; $i < a2b_count($newSection); $i++)
         {
           $newSection[$i] = stripslashes($newSection[$i]) . "\n";
         }
 
         // clean up extra line from html textarea control
-        if (strlen($newSection[count($newSection)-1]) == 1)
+        if (strlen($newSection[a2b_count($newSection)-1]) == 1)
         {
             array_pop($newSection);
         }
@@ -401,7 +401,7 @@ class Open_Conf
             }
         }
 
-        if (count($atemp) == 0)
+        if (a2b_count($atemp) == 0)
         {
             return (false);
         }

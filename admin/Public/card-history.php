@@ -65,7 +65,7 @@ $FG_TABLE_DEFAULT_SENS = "DESC";
 
 $FG_COL_QUERY = 'username, ch.datecreated, ch.description';
 $FG_LIMITE_DISPLAY = 25;
-$FG_NB_TABLE_COL=count($FG_TABLE_COL);
+$FG_NB_TABLE_COL=a2b_count($FG_TABLE_COL);
 $FG_TOTAL_TABLE_COL = $FG_NB_TABLE_COL;
 $FG_HTML_TABLE_TITLE = " - ".gettext("Customer History")." - ";
 $FG_HTML_TABLE_WIDTH = "98%";
@@ -240,7 +240,7 @@ $smarty->display( 'main.tpl');
                   <TD width="<?php echo $FG_ACTION_SIZE_COLUMN?>" align=center class="tableBodyRight" style="PADDING-BOTTOM: 2px; PADDING-LEFT: 2px; PADDING-RIGHT: 2px; PADDING-TOP: 2px;"></TD>
 
                   <?php
-                      if (is_array($list) && count($list)>0) {
+                      if (is_array($list) && a2b_count($list)>0) {
                       for ($i=0;$i<$FG_NB_TABLE_COL;$i++) {
                     ?>
                    <td class="tableBody" style="padding: 2px;" align="center" width="<?php echo $FG_TABLE_COL[$i][2]?>" >

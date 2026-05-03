@@ -109,7 +109,7 @@ $FG_COL_QUERY = 't1.starttime, t1.src, t1.calledstation, t1.destination, t1.sess
 
 
 $FG_LIMITE_DISPLAY = 25;
-$FG_NB_TABLE_COL = count($FG_TABLE_COL);
+$FG_NB_TABLE_COL = a2b_count($FG_TABLE_COL);
 $FG_EDITION = true;
 $FG_TOTAL_TABLE_COL = $FG_NB_TABLE_COL;
 if ($FG_DELETION || $FG_EDITION) $FG_TOTAL_TABLE_COL++;
@@ -364,7 +364,7 @@ echo $CC_help_balance_customer;
 </center>
 
 <!-- ** ** ** ** ** Part to display the CDR ** ** ** ** ** -->
-<center><?php echo gettext("Number of Calls");?> : <?php  if (is_array($list) && count($list)>0) { echo $nb_record; } else {echo "0";}?></center>
+<center><?php echo gettext("Number of Calls");?> : <?php  if (is_array($list) && a2b_count($list)>0) { echo $nb_record; } else {echo "0";}?></center>
      <table width="<?php echo $FG_HTML_TABLE_WIDTH?>" border="0" align="center" cellpadding="0" cellspacing="0">
         <TR bgcolor="#ffffff">
           <TD class="callhistory_td11">
@@ -380,7 +380,7 @@ echo $CC_help_balance_customer;
                   <TD width="<?php echo $FG_ACTION_SIZE_COLUMN?>" align="center" class="tableBodyRight" style="PADDING-BOTTOM: 2px; PADDING-LEFT: 2px; PADDING-RIGHT: 2px; PADDING-TOP: 2px"></TD>
 
                   <?php
-                      if (is_array($list) && count($list)>0) {
+                      if (is_array($list) && a2b_count($list)>0) {
 
                       for ($i=0;$i<$FG_NB_TABLE_COL;$i++) {
                     ?>
@@ -426,7 +426,7 @@ echo $CC_help_balance_customer;
                                     $field_list_sun = preg_split('/,/',$FG_TABLE_COL[$i][8]);
                                     $record_display = $FG_TABLE_COL[$i][10];
 
-                                    for ($l=1;$l<=count($field_list_sun);$l++) {
+                                    for ($l=1;$l<=a2b_count($field_list_sun);$l++) {
                                         $record_display = str_replace("%$l", $select_list[0][$l-1], $record_display);
                                     }
 
@@ -503,7 +503,7 @@ echo $CC_help_balance_customer;
 
 <?php
 
-if (is_array($list_total_day) && count($list_total_day)>0) {
+if (is_array($list_total_day) && a2b_count($list_total_day)>0) {
 
 $mmax=0;
 $totalcall==0;

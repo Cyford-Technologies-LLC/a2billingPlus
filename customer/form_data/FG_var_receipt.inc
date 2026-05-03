@@ -33,7 +33,9 @@
 
 
 
-getpost_ifset(array('id', 'id_card', 'date','title','description'));
+getpost_ifset(array('id', 'id_card', 'date','title','description', 'form_action'));
+
+$form_action = $form_action ?? '';
    
  
 if (!isset($form_action) || $form_action=="list") {

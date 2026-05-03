@@ -36,6 +36,8 @@
 getpost_ifset(array('id', 'customers_id', 'customers_name', 'customers_email_address', 'item_name', 'item_id', 'item_quantity', 'payment_method','cc_type', 'cc_owner','cc_number', 'cc_expires', 'orders_status', 'last_modified', 'date_purchased','orders_date_finished', 'orders_amount', 'currency', 'currency_value'));
 
 
+
+$filterprefix = $filterprefix ?? '';
 $HD_Form = new FormHandler("cc_payments","Transactions");
 
 $HD_Form -> FG_DEBUG = 0;

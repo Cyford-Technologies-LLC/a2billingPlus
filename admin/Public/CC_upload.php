@@ -85,7 +85,7 @@ function getlast($toget)
 function arr_rid_blank($my_arr)
 {
     if (is_array($my_arr)) {
-        for ($i = 0; $i < count($my_arr); $i++) {
+        for ($i = 0; $i < a2b_count($my_arr); $i++) {
             $my_arr[$i] = trim($my_arr[$i]);
         }
 
@@ -117,7 +117,7 @@ if ($method) {
 
                     $fileupload_name = $_FILES['file']['name'][0];
 
-                    for ($i = 0; $i < count($file_ext_allow); $i++) {
+                    for ($i = 0; $i < a2b_count($file_ext_allow); $i++) {
                         //if (getlast($fileupload_name)!=$file_ext_allow[$i]) {
                         if (strcmp(getlast($fileupload_name), $file_ext_allow[$i]) != 0) {
                             $test .= "~~";
@@ -125,7 +125,7 @@ if ($method) {
                         }
                     }
                     $exp = explode("~~", $test);
-                    if (count($exp) == (count($file_ext_allow) + 1)) {
+                    if (a2b_count($exp) == (a2b_count($file_ext_allow) + 1)) {
                         $_SESSION['message'] .= "<br><img src=\"$dir_img/error.gif\" width=\"15\" height=\"15\">&nbsp;<b><font size=\"2\">" . gettext("ERROR: your file type is not allowed") . " (" . getlast($fileupload_name) . ")</font>, " . gettext("or you didn't specify a file to upload") . ".</b><br>";
                     } else {
                         if ($_FILES['file']['size'][0] > $file_size_ind) {
@@ -214,8 +214,8 @@ $smarty->display('main.tpl');
    // print_r($file_ext_allow);
     echo implode(",", $file_ext_allow);
     
-    /*for ($i=0;$i<count($file_ext_allow);$i++) {
-        if (($i<>count($file_ext_allow)-1))$commas=", ";else $commas="";
+    /*for ($i=0;$i<a2b_count($file_ext_allow);$i++) {
+        if (($i<>a2b_count($file_ext_allow)-1))$commas=", ";else $commas="";
         list($key,$value)=each($file_ext_allow);
         echo $value.$commas;
     }*/
@@ -249,7 +249,7 @@ $smarty->display('main.tpl');
 
       <?php
         //When there is a message, after an action, show it
-        if (session_is_registered['message']) {
+        if (isset($_SESSION['message'])) {
           echo "<br></br><font color='red'>" . $_SESSION['message'] . "</font>";
         }
       ?>
@@ -263,12 +263,13 @@ $smarty->display('main.tpl');
 
   <?php
         //Handle for the directory
-        if (!$handle = @opendir($upload_dir)) {
+        $handle = @opendir($upload_dir);
+        if (!$handle) {
           echo "<span style=\"font-size: 11px;\"><strong style=\"color: red;\">".gettext("Error")."!!</strong> ".gettext("Cannot open directory").": <strong>" . $upload_dir . "</strong>. ".gettext("Check if this directory exists and/or the permissions are properly set")."...</span>";
         }
 
         //Walk the directory for the files
-        while ($entry = @readdir($handle)) {
+        while ($handle && ($entry = @readdir($handle))) {
           if ($entry != ".." && $entry != "." && !is_dir($entry)) {
 
             //Set the filesize type (bytes, KiloBytes of MegaBytes)

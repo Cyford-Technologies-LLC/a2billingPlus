@@ -33,6 +33,9 @@
 
 getpost_ifset(array('id', 'IDCust', 'mailtype', 'fromemail', 'fromname', 'subject', 'messagetext', 'languages','id_language'));
 
+$popup_select = $popup_select ?? 0;
+$languages = $languages ?? '';
+$id_language = $id_language ?? '';
 
 // Get Latest id from the table
 $latest_id = mailtemplate_latest_id();

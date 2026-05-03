@@ -271,17 +271,20 @@ if ($form_action == "list" && !$popup_select) {
     $instance_table = new Table("cc_tariffplan", "id, tariffname");
     $FG_TABLE_CLAUSE = "";
     $list_tariffname = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "tariffname", "ASC", null, null, null, null);
-    $nb_tariffname = count($list_tariffname);
+    $list_tariffname = is_array($list_tariffname) ? $list_tariffname : array();
+    $nb_tariffname = a2b_count($list_tariffname);
 
     $instance_table = new Table("cc_trunk", "id_trunk, trunkcode, providerip");
     $FG_TABLE_CLAUSE = "";
     $list_trunk = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "trunkcode", "ASC", null, null, null, null);
-    $nb_trunk = count($list_trunk);
+    $list_trunk = is_array($list_trunk) ? $list_trunk : array();
+    $nb_trunk = a2b_count($list_trunk);
 
     $instance_table = new Table("cc_outbound_cid_group", "id, group_name");
     $FG_TABLE_CLAUSE = "";
     $list_cid_group = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "group_name", "ASC", null, null, null, null);
-    $nb_cid_group = count($list_cid_group);
+    $list_cid_group = is_array($list_cid_group) ? $list_cid_group : array();
+    $nb_cid_group = a2b_count($list_cid_group);
 
     // disable Batch update if LCR Export
     if (empty($_SESSION['def_ratecard_tariffgroup'])) {
@@ -447,22 +450,26 @@ if ($popup_select) {
     $instance_table = new Table("cc_prefix GROUP BY destination", "destination");
     $FG_TABLE_CLAUSE = "";
     $list_destination = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, null, "ASC", null, null, null, null);
-    $destination = $list_destination[0];
+    $list_destination = is_array($list_destination) ? $list_destination : array();
+    $destination = $list_destination[0] ?? null;
 
     $instance_table = new Table("cc_tariffplan", "id, tariffname");
     $FG_TABLE_CLAUSE = "";
     $list_tariffname = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "tariffname", "ASC", null, null, null, null);
-    $nb_tariffname = count($list_tariffname);
+    $list_tariffname = is_array($list_tariffname) ? $list_tariffname : array();
+    $nb_tariffname = a2b_count($list_tariffname);
 
     $instance_table = new Table("cc_trunk", "id_trunk, trunkcode, providerip");
     $FG_TABLE_CLAUSE = "";
     $list_trunk = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "trunkcode", "ASC", null, null, null, null);
-    $nb_trunk = count($list_trunk);
+    $list_trunk = is_array($list_trunk) ? $list_trunk : array();
+    $nb_trunk = a2b_count($list_trunk);
 
     $instance_table = new Table("cc_outbound_cid_group", "id, group_name");
     $FG_TABLE_CLAUSE = "";
     $list_cid_group = $instance_table->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "group_name", "ASC", null, null, null, null);
-    $nb_cid_group = count($list_cid_group);
+    $list_cid_group = is_array($list_cid_group) ? $list_cid_group : array();
+    $nb_cid_group = a2b_count($list_cid_group);
 
 ?>
 

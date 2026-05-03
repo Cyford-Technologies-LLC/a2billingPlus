@@ -52,7 +52,7 @@ $FG_TABLE_COL=array();
 $FG_TABLE_COL[]=array (gettext("DATE"), "daterun", "50%", "center", "sort", "30", "", "", "", "", "", "display_dateformat");
 $FG_TABLE_COL[]=array (gettext("CALCULTED VALUE"), "calcultedvalue", "50%", "center", "sort");
 
-$FG_NB_TABLE_COL=count($FG_TABLE_COL);
+$FG_NB_TABLE_COL=a2b_count($FG_TABLE_COL);
 
 if (!isset ($current_page) || ($current_page == "")) {
     $current_page=0;
@@ -188,7 +188,7 @@ function openURL(theLINK)
                                     $field_list_sun = preg_split('/,/',$FG_TABLE_COL[$i][8]);
                                     $record_display = $FG_TABLE_COL[$i][10];
 
-                                    for ($l=1;$l<=count($field_list_sun);$l++) {
+                                    for ($l=1;$l<=a2b_count($field_list_sun);$l++) {
                                         $record_display = str_replace("%$l", $select_list[0][$l-1], $record_display);
                                     }
 

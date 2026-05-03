@@ -53,7 +53,7 @@ function agi_confx_title($handle=null)
     $result = $instance_table -> SQLExec ($handle, $QUERY);
 
     if (is_array($result)) {
-        $num_cur = count($result);
+        $num_cur = a2b_count($result);
         for ($i=0;$i<$num_cur;$i++) {
             $config_group_id = $result[0][0];
             $group_title[] = $result[$i][1];

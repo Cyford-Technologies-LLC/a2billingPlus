@@ -33,7 +33,13 @@
 
 
 
-getpost_ifset(array('id', 'id_card', 'date','title','description'));
+getpost_ifset(array('id', 'id_card', 'date','title','description', 'form_action'));
+
+
+$filterprefix = $filterprefix ?? '';
+$form_action = $form_action ?? '';
+$value = '$value';
+$comp_date = '';
 
 
 if (!isset($form_action) || $form_action=="list") {

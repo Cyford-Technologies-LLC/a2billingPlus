@@ -35,6 +35,12 @@
 
 getpost_ifset(array('id', 'destination','prefix','popup_select','popup_formname','popup_fieldname' ));
 
+
+$dialprefix = $dialprefix ?? '';
+$filterprefix = $filterprefix ?? '';
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
 $HD_Form = new FormHandler("cc_prefix","prefix");
 
 $HD_Form -> FG_DEBUG = 0;

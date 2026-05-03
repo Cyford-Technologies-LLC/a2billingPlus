@@ -31,7 +31,13 @@
  *
 **/
 
-getpost_ifset(array('id', 'id_card', 'date'));
+getpost_ifset(array('id', 'id_card', 'date', 'form_action'));
+
+
+$filterprefix = $filterprefix ?? '';
+$form_action = $form_action ?? '';
+$value = '$value';
+$comp_date = '';
 
 if (!isset($form_action) || $form_action=="list") {
 	$HD_Form = new FormHandler("cc_billing_customer LEFT JOIN cc_card ON cc_card.id=id_card  ","Billing");

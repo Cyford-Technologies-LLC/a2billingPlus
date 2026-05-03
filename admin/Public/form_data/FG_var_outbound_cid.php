@@ -1,6 +1,11 @@
 <?php
 getpost_ifset(array('id', 'cid', 'outbound_cid_group', 'activated'));
 
+$form_action = $form_action ?? '';
+$value = $value ?? '';
+$comp_date = $comp_date ?? '';
+$comp_date_plus = $comp_date_plus ?? '';
+
 $HD_Form = new FormHandler("cc_outbound_cid_list", "cid");
 
 $HD_Form -> FG_DEBUG = 0;

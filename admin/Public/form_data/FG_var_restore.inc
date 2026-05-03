@@ -36,6 +36,8 @@
 getpost_ifset(array('id', 'name', 'path', 'creationdate'));
 
 
+
+$form_action = $form_action ?? '';
 $HD_Form = new FormHandler("cc_backup","restore");
 
 $HD_Form -> FG_DEBUG = 0;

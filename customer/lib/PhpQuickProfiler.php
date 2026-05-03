@@ -73,7 +73,7 @@ class PhpQuickProfiler
         $files = get_included_files();
         $fileList = array();
         $fileTotals = array(
-            "count" => count($files),
+            "count" => a2b_count($files),
             "size" => 0,
             "largest" => 0,
         );
@@ -143,7 +143,7 @@ class PhpQuickProfiler
             $rs = $this->db->query($sql);
         } catch (Exception $e) {}
         if ($rs) {
-            $row = mysql_fetch_array($rs, MYSQL_ASSOC);
+            $row = mysqli_fetch_array($rs, MYSQLI_ASSOC);
             $query['explain'] = $row;
         }*/
 
@@ -166,7 +166,7 @@ class PhpQuickProfiler
          HELPER FUNCTIONS TO FORMAT DATA
     -------------------------------------------*/
 
-    public function getMicroTime()
+    public static function getMicroTime()
     {
         $time = microtime();
         $time = explode(' ', $time);

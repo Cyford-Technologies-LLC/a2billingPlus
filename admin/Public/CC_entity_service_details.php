@@ -54,7 +54,7 @@ $FG_TABLE_COL[]=array (gettext("DATE"), "date", "30%", "center", "sort", "30", "
 $FG_TABLE_COL[]=array (gettext("ACCOUNT DEDUCTED"), "totalcardperform", "20%", "center", "sort");
 $FG_TABLE_COL[]=array (gettext("TOTAL CREDIT"), "totalcredit", "20%", "center", "sort");
 
-$FG_NB_TABLE_COL = count($FG_TABLE_COL);
+$FG_NB_TABLE_COL = a2b_count($FG_TABLE_COL);
 
 if (!isset ($current_page) || ($current_page == "")) {
     $current_page = 0;
@@ -170,7 +170,7 @@ $smarty->display('main.tpl');
                                     $field_list_sun = preg_split('/,/',$FG_TABLE_COL[$i][8]);
                                     $record_display = $FG_TABLE_COL[$i][10];
 
-                                    for ($l=1;$l<=count($field_list_sun);$l++) {
+                                    for ($l=1;$l<=a2b_count($field_list_sun);$l++) {
                                         $record_display = str_replace("%$l", $select_list[0][$l-1], $record_display);
                                     }
 

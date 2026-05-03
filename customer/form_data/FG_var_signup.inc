@@ -84,12 +84,12 @@ if (!$agent_conf) {
 	$call_table = new Table("cc_tariffgroup", "tariffgroupname,id");
 	$callPlan_list = $call_table->Get_list($HD_Form->DBHandle, "id in ($callPlan_idlist)");
 
-	if (!is_array($callPlan_list) && count($callPlan_list) <= 0) {
+	if (!is_array($callPlan_list) && a2b_count($callPlan_list) <= 0) {
 		exit (gettext("No Call Plan id are defined"));
 	}
 	$flag_callplan = 0;
 	if ($tariff != "" || $tariff != null) {
-		$callPlan_count = count($callPlan_list);
+		$callPlan_count = a2b_count($callPlan_list);
 		for ($i = 0; $i < $callPlan_count; $i++) {
 			if ($callPlan_list[$i][1] == trim($tariff, "\'")) {
 				$flag_callplan = 1;

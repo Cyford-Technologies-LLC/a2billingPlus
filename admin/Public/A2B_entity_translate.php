@@ -80,7 +80,7 @@ echo $CC_help_list_misc;
 $QUERY = "SELECT code, name FROM cc_iso639 ORDER BY code";
 $result = $instance_table->SQLExec($handle, $QUERY);
 if (is_array($result)) {
-    $num_cur = count($result);
+    $num_cur = a2b_count($result);
     for ($i = 0; $i < $num_cur; $i++) {
         $languages_list[$result[$i][0]] = array (
             0 => $result[$i][0],

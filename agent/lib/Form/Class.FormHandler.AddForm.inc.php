@@ -25,14 +25,14 @@ $processed = $this->getProcessed();
     if (!empty($this->FG_QUERY_ADITION_HIDDEN_FIELDS)) {
         $split_hidden_fields = preg_split("/,/",trim($this->FG_QUERY_ADITION_HIDDEN_FIELDS));
         $split_hidden_fields_value = preg_split("/,/",trim($this->FG_QUERY_ADITION_HIDDEN_VALUE));
-        for ($cur_hidden=0;$cur_hidden<count($split_hidden_fields);$cur_hidden++) {
+        for ($cur_hidden=0;$cur_hidden<a2b_count($split_hidden_fields);$cur_hidden++) {
             echo "<INPUT type=\"hidden\" name=\"".trim($split_hidden_fields[$cur_hidden])."\" value=\"".trim($split_hidden_fields_value[$cur_hidden])."\">\n";
         }
     }
     if (!empty($this->FG_ADITION_HIDDEN_PARAM)) {
         $split_hidden_fields = preg_split("/,/",trim($this->FG_ADITION_HIDDEN_PARAM));
         $split_hidden_fields_value = preg_split("/,/",trim($this->FG_ADITION_HIDDEN_PARAM_VALUE));
-        for ($cur_hidden=0;$cur_hidden<count($split_hidden_fields);$cur_hidden++) {
+        for ($cur_hidden=0;$cur_hidden<a2b_count($split_hidden_fields);$cur_hidden++) {
             echo "<INPUT type=\"hidden\" name=\"".trim($split_hidden_fields[$cur_hidden])."\" value=\"".trim($split_hidden_fields_value[$cur_hidden])."\">\n";
         }
     }
@@ -137,13 +137,14 @@ $processed = $this->getProcessed();
     ?>
     <option value="-1"><?php echo $this->FG_TABLE_ADITION[$i][6]?></option>
     <?php  }
-                if (count($select_list)>0) {
+                $select_list = is_array($select_list) ? $select_list : array();
+                if (a2b_count($select_list)>0) {
                     $select_number=0;
                       foreach ($select_list as $select_recordset) {
                         $select_number++;
                            if ($this->FG_TABLE_ADITION[$i][12] != "") {
                             $value_display = $this->FG_TABLE_ADITION[$i][12];
-                            $nb_recor_k = count($select_recordset);
+                            $nb_recor_k = is_countable($select_recordset) ? a2b_count($select_recordset) : 0;
                             for ($k=1;$k<=$nb_recor_k;$k++) {
                                 $value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
                             }

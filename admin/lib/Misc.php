@@ -41,6 +41,11 @@ function a2b_round($number)
     return round($number, $PRECISION);
 }
 
+function a2b_count($value)
+{
+    return is_countable($value) ? \count($value) : 0;
+}
+
 function a2b_encrypt($text, $key)
 {
     $iv_size = mcrypt_get_iv_size(MCRYPT_RIJNDAEL_256, MCRYPT_MODE_ECB);
@@ -119,7 +124,7 @@ function get_currencies($handle = null)
     $result = $instance_table->SQLExec($handle, $QUERY, 1, 300);
 
     if (is_array($result)) {
-        $num_cur = count($result);
+        $num_cur = a2b_count($result);
         for ($i = 0; $i < $num_cur; $i++) {
             $currencies_list[$result[$i][1]] = array (
                 1 => $result[$i][2],
@@ -308,15 +313,15 @@ function sanitize_post_get() {
         foreach ($_POST as $key => $value) {
             $key = filter_var($key, FILTER_CALLBACK, array("options"=>"sanitize_data"));
             $value = filter_var($value, FILTER_CALLBACK, array("options"=>"sanitize_data"));
-            $key = filter_var($key, FILTER_SANITIZE_STRING);
+            $key = filter_var($key, FILTER_UNSAFE_RAW);
             if (is_array($value)) {
                 foreach ($value as $subkey => $subvalue) {
-                    $subkey = filter_var($subkey, FILTER_SANITIZE_STRING);
-                    $subvalue = filter_var($subvalue, FILTER_SANITIZE_STRING);
+                    $subkey = filter_var($subkey, FILTER_UNSAFE_RAW);
+                    $subvalue = filter_var($subvalue, FILTER_UNSAFE_RAW);
                     $value[$subkey] = $subvalue;
                 }
             } else {
-                $value = filter_var($value, FILTER_SANITIZE_STRING);
+                $value = filter_var($value, FILTER_UNSAFE_RAW);
             }
             $_POST[$key] = $value;
         }
@@ -325,15 +330,15 @@ function sanitize_post_get() {
         foreach ($_GET as $key => $value) {
             $key = filter_var($key, FILTER_CALLBACK, array("options"=>"sanitize_data"));
             $value = filter_var($value, FILTER_CALLBACK, array("options"=>"sanitize_data"));
-            $key = filter_var($key, FILTER_SANITIZE_STRING);
+            $key = filter_var($key, FILTER_UNSAFE_RAW);
             if (is_array($value)) {
                 foreach ($value as $subkey => $subvalue) {
-                    $subkey = filter_var($subkey, FILTER_SANITIZE_STRING);
-                    $subvalue = filter_var($subvalue, FILTER_SANITIZE_STRING);
+                    $subkey = filter_var($subkey, FILTER_UNSAFE_RAW);
+                    $subvalue = filter_var($subvalue, FILTER_UNSAFE_RAW);
                     $value[$subkey] = $subvalue;
                 }
             } else {
-                $value = filter_var($value, FILTER_SANITIZE_STRING);
+                $value = filter_var($value, FILTER_UNSAFE_RAW);
             }
             $_GET[$key] = $value;
         }
@@ -986,7 +991,7 @@ function get_timezones($handle = null, $clause = null)
     $result = $instance_table->SQLExec($handle, $QUERY, 1, 300);
 
     if (is_array($result)) {
-        $num_cur = count($result);
+        $num_cur = a2b_count($result);
         for ($i = 0; $i < $num_cur; $i++) {
             $timezone_list[$result[$i][0]] = array (
                 1 => $result[$i][1],
@@ -1046,7 +1051,7 @@ function check_translated($id, $languages, $mailtype)
     $QUERY = "SELECT id FROM cc_templatemail WHERE mailtype = '$mailtype' AND id_language = '$languages'";
     $result = $instance_table->SQLExec($handle, $QUERY);
     if (is_array($result)) {
-        if (count($result) > 0)
+        if (a2b_count($result) > 0)
             return true;
         else
             return false;
@@ -1081,7 +1086,7 @@ function insert_translation($id, $languages, $subject, $mailtext, $mailtype)
     $QUERY = "SELECT fromemail, fromname, mailtype FROM cc_templatemail WHERE mailtype = '$mailtype' AND id_language = 'en'";
     $result = $instance_table->SQLExec($handle, $QUERY);
     if (is_array($result)) {
-        if (count($result) > 0) {
+        if (a2b_count($result) > 0) {
             $fromemail = $result[0][0];
             $fromname = $result[0][1];
             $mailtype = $result[0][2];
@@ -1229,7 +1234,7 @@ function currencies_update_yahoo ($DBHandle, $instance_table)
     // we will retrieve a .CSV file e.g. USD to EUR and USD to CAD with a URL like:
     // http://download.finance.yahoo.com/d/quotes.csv?s=USDEUR=X+USDCAD=X&f=sl1d1t1c1ohgv
     if (is_array($old_currencies)) {
-        $num_cur = count($old_currencies);
+        $num_cur = a2b_count($old_currencies);
         if ($FG_DEBUG >= 1)
             $return .= basename(__FILE__) . ' line:' . __LINE__ . "[CURRENCIES TO UPDATE = $num_cur]\n";
         for ($i = 0; $i < $num_cur; $i++) {
@@ -1274,7 +1279,7 @@ function currencies_update_yahoo ($DBHandle, $instance_table)
 
         // do some simple checks to try to verify we've received exactly one
         // valid response for each currency we requested
-        $num_res = count($currencies);
+        $num_res = a2b_count($currencies);
         // if ($num_res < $num_cur) {
         //     return gettext("The CSV file doesn't contain all the currencies we requested.") . ' ' . gettext('Currency update ABORTED.');
         // }
@@ -1442,7 +1447,7 @@ function normalize_day_of_month(&$day, $year_month, $inplace=0)
         $year_month_ary = preg_split('/-/', $year_month);
         $year = (int) $year_month_ary[0];
         $month = (int) $year_month_ary[1];
-        $normalized_day = min( (int) $day, cal_days_in_month(CAL_GREGORIAN, $month, $year) );
+        $normalized_day = min( (int) $day, (int) date('t', mktime(0, 0, 0, $month, 1, $year)) );
         if($inplace == 1) $day = $normalized_day;
 
         return $normalized_day;
@@ -1529,7 +1534,7 @@ function check_cp()
     $randn = rand(1, 10);
     $ret_val = ($randn == 5)? 1 : 0;
 
-    $pos_star = strpos(COPYRIGHT, 'cyford');
+    $pos_star = strpos(COPYRIGHT, 'VectaVoIP');
     if ($pos_star === false) {
         return $ret_val;
     }

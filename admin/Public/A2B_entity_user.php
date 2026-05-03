@@ -46,8 +46,8 @@ if (! has_rights (ACX_ADMINISTRATOR)) {
 $HD_Form -> setDBHandler (DbConnect());
 $HD_Form -> init();
 
-$HD_Form -> FG_EDITION_LINK= $_SERVER[PHP_SELF]."?form_action=ask-edit&groupID=$groupID&id=";
-$HD_Form -> FG_DELETION_LINK= $_SERVER[PHP_SELF]."?form_action=ask-delete&groupID=$groupID&id=";
+$HD_Form -> FG_EDITION_LINK= $_SERVER['PHP_SELF']."?form_action=ask-edit&groupID=$groupID&id=";
+$HD_Form -> FG_DELETION_LINK= $_SERVER['PHP_SELF']."?form_action=ask-delete&groupID=$groupID&id=";
 
 if ($id!="" || !is_null($id)) {
     $HD_Form -> FG_EDITION_CLAUSE = str_replace("%id", "$id", $HD_Form -> FG_EDITION_CLAUSE);
@@ -66,12 +66,12 @@ $list = $HD_Form -> perform_action($form_action);
 $smarty->display('main.tpl');
 
 // #### HELP SECTION
-if ($popup_select == "") {
+if ((int) $popup_select <= 0) {
     if ($form_action == 'ask-add') echo $CC_help_admin_edit;
     else echo $CC_help_admin_list;
 }
 
-if ($popup_select != "") {
+if ((int) $popup_select > 0) {
 
 ?>
 
@@ -79,7 +79,11 @@ if ($popup_select != "") {
 <!-- Begin
 function sendValue(selvalue)
 {
-    window.opener.document.<?php echo $popup_formname ?>.<?php echo $popup_fieldname ?>.value = selvalue;
+    var formName = <?php echo json_encode($popup_formname ?? ''); ?>;
+    var fieldName = <?php echo json_encode($popup_fieldname ?? ''); ?>;
+    if (window.opener && formName && fieldName && window.opener.document.forms[formName] && window.opener.document.forms[formName].elements[fieldName]) {
+        window.opener.document.forms[formName].elements[fieldName].value = selvalue;
+    }
     window.close();
 }
 // End -->

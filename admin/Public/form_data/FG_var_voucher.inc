@@ -33,7 +33,15 @@
 
 
 
-getpost_ifset(array('id', 'creationdate', 'usedate', 'expirationdate', 'voucher', 'tag', 'credit', 'activated', 'used', 'currency'));
+getpost_ifset(array('id', 'creationdate', 'usedate', 'expirationdate', 'voucher', 'tag', 'credit', 'activated', 'used', 'currency', 'form_action', 'popup_select'));
+
+
+$filterprefix = $filterprefix ?? '';
+$popup_select = isset($popup_select) ? (int) $popup_select : 0;
+$form_action = $form_action ?? '';
+$value = '$value';
+$maxi = '';
+$comp_date_plus = '';
 
 $HD_Form = new FormHandler("cc_voucher","Voucher");
 
@@ -211,7 +219,7 @@ $HD_Form -> FG_INTRO_TEXT_ASK_DELETION = gettext("If you really want remove this
 $HD_Form -> FG_INTRO_TEXT_ADD = gettext("you can add easily a new")." ".$HD_Form->FG_INSTANCE_NAME.".<br>".gettext("Fill the following fields and confirm by clicking on the button add.");
 
 $HD_Form -> FG_INTRO_TEXT_ADITION = '';
-$HD_Form -> FG_TEXT_ADITION_CONFIRMATION = gettext("Your new")." ".$Form->FG_INSTANCE_NAME." ".gettext("has been inserted.")."<br>";
+$HD_Form -> FG_TEXT_ADITION_CONFIRMATION = gettext("Your new")." ".$HD_Form->FG_INSTANCE_NAME." ".gettext("has been inserted.")."<br>";
 
 $HD_Form -> FG_BUTTON_EDITION_SRC = $HD_Form -> FG_BUTTON_ADITION_SRC  = Images_Path . "/cormfirmboton.gif";
 $HD_Form -> FG_BUTTON_EDITION_BOTTOM_TEXT = $HD_Form -> FG_BUTTON_ADITION_BOTTOM_TEXT = gettext("Click 'Confirm Data' to continue.");

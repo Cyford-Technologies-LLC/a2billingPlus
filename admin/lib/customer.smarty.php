@@ -33,7 +33,7 @@
 
 // use Factory\SmartyFactory;
 
-error_reporting(E_ALL ^ (E_NOTICE | E_WARNING));
+error_reporting(E_ALL & ~(E_NOTICE | E_WARNING | E_DEPRECATED | E_USER_DEPRECATED));
 
 define( 'FULL_PATH', dirname(__FILE__) . '/' );
 define( 'SMARTY_DIR', FULL_PATH . '../../vendor/smarty/smarty/libs/' );
@@ -43,8 +43,16 @@ define( 'TEMPLATE_C_DIR', './templates_c/' );
 // $smarty = SmartyFactory::getInstance();
 #Remove the factory, for some reasons it doesnt work on PHP 5.3 / CentOs 6
 
-require_once SMARTY_DIR . 'SmartyBC.class.php';
-$smarty = new SmartyBC();
+$smarty = new Smarty();
+$smarty->registerPlugin('modifier', 'gettext', 'gettext');
+
+$profilerOutput = '';
+if (isset($profiler, $G_instance_Query_trace) && !empty($profiler->installed) && !empty($profiler->modedebug)) {
+    ob_start();
+    $profiler->display($G_instance_Query_trace);
+    $profilerOutput = ob_get_clean();
+}
+$smarty->assign('PROFILER_OUTPUT', $profilerOutput);
 
 $skin_name = $_SESSION["stylefile"];
 
@@ -56,7 +64,7 @@ $smarty->assign("TEXTCONTACT", TEXTCONTACT);
 $smarty->assign("EMAILCONTACT", EMAILCONTACT);
 $smarty->assign("COPYRIGHT", COPYRIGHT);
 $smarty->assign("CCMAINTITLE", CCMAINTITLE);
-$smarty->assign("SIGNUPLINK", SIGNUP_LINK);
+$smarty->assign("SIGNUPLINK", defined('SIGNUP_LINK') ? SIGNUP_LINK : '');
 
 $smarty->assign("ACXPASSWORD", $ACXPASSWORD);
 $smarty->assign("ACXSIP_IAX", $ACXSIP_IAX);

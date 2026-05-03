@@ -44,7 +44,7 @@ $HD_Form -> FG_VIEW_TABLE_WITDH = "65%";
 
 $HD_Form -> AddViewElement(gettext("VOUCHER"), "voucher", "13%", "center", "sort");
 $HD_Form -> AddViewElement(gettext("CREDIT"), "credit", "7%", "center", "sort");
-$HD_Form -> AddViewElement(gettext(CURRENCY), "currency", "7%", "center", "sort");
+$HD_Form -> AddViewElement(gettext("CURRENCY"), "currency", "7%", "center", "sort");
 
 
 $HD_Form -> FieldViewElement ('voucher, credit, currency');

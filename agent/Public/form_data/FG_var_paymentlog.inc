@@ -35,6 +35,21 @@
 
 getpost_ifset(array('id', 'status', 'Period', 'frommonth', 'fromstatsmonth', 'tomonth', 'tostatsmonth', 'fromday', 'fromstatsday_sday', 'fromstatsmonth_sday', 'today', 'tostatsday_sday', 'tostatsmonth_sday', 'stitle', 'atmenu', 'current_page', 'order', 'sens','popup_select'));
 
+$enteradmin = $enteradmin ?? '';
+$loglevel = $loglevel ?? '';
+$status = $status ?? '';
+$Period = $Period ?? '';
+$frommonth = $frommonth ?? '';
+$fromstatsmonth = $fromstatsmonth ?? '';
+$tomonth = $tomonth ?? '';
+$tostatsmonth = $tostatsmonth ?? date('Y-m');
+$fromday = $fromday ?? '';
+$fromstatsday_sday = $fromstatsday_sday ?? null;
+$fromstatsmonth_sday = $fromstatsmonth_sday ?? date('Y-m');
+$today = $today ?? '';
+$tostatsday_sday = $tostatsday_sday ?? null;
+$tostatsmonth_sday = $tostatsmonth_sday ?? date('Y-m');
+
 $HD_Form = new FormHandler("cc_epayment_log,cc_card LEFT JOIN cc_card_group ON cc_card.id_group=cc_card_group.id","Payment");
 
 $HD_Form -> FG_DEBUG = 0;

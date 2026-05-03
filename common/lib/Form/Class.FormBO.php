@@ -541,7 +541,7 @@ class FormBO
 
         $result_did = $instance_table -> SQLExec($FormHandler->DBHandle, $QUERY_DID);
 
-        if (is_array($result_did) && count($result_did)>0) {
+        if (is_array($result_did) && a2b_count($result_did)>0) {
 
             // check the id_cc_card, if id_cc_card is null it means it has been released
             if ((isset($result_did[0]['id_cc_card'])) && (strlen($result_did[0]['id_cc_card']) > 0)) {

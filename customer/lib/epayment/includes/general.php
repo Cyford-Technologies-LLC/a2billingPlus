@@ -632,7 +632,7 @@ include_once (dirname(__FILE__)."/sessions.php");
     $tmpstring = '';
     $flag = '';
 
-    for ($k=0; $k<count($pieces); $k++) {
+    for ($k=0; $k<a2b_count($pieces); $k++) {
       while (substr($pieces[$k], 0, 1) == '(') {
         $objects[] = '(';
         if (strlen($pieces[$k]) > 1) {
@@ -658,7 +658,7 @@ include_once (dirname(__FILE__)."/sessions.php");
       if ( (substr($pieces[$k], -1) != '"') && (substr($pieces[$k], 0, 1) != '"') ) {
         $objects[] = trim($pieces[$k]);
 
-        for ($j=0; $j<count($post_objects); $j++) {
+        for ($j=0; $j<a2b_count($post_objects); $j++) {
           $objects[] = $post_objects[$j];
         }
       } else {
@@ -677,7 +677,7 @@ include_once (dirname(__FILE__)."/sessions.php");
 
           $objects[] = trim($pieces[$k]);
 
-          for ($j=0; $j<count($post_objects); $j++) {
+          for ($j=0; $j<a2b_count($post_objects); $j++) {
             $objects[] = $post_objects[$j];
           }
 
@@ -695,7 +695,7 @@ include_once (dirname(__FILE__)."/sessions.php");
 
 // Keep reading until the end of the string as long as the $flag is on
 
-        while ( ($flag == 'on') && ($k < count($pieces)) ) {
+        while ( ($flag == 'on') && ($k < a2b_count($pieces)) ) {
           while (substr($pieces[$k], -1) == ')') {
             $post_objects[] = ')';
             if (strlen($pieces[$k]) > 1) {
@@ -723,7 +723,7 @@ include_once (dirname(__FILE__)."/sessions.php");
 // Push the $tmpstring onto the array of stuff to search for
             $objects[] = trim($tmpstring);
 
-            for ($j=0; $j<count($post_objects); $j++) {
+            for ($j=0; $j<a2b_count($post_objects); $j++) {
               $objects[] = $post_objects[$j];
             }
 
@@ -738,7 +738,7 @@ include_once (dirname(__FILE__)."/sessions.php");
 
 // add default logical operators if needed
     $temp = array();
-    for ($i=0; $i<(count($objects)-1); $i++) {
+    for ($i=0; $i<(a2b_count($objects)-1); $i++) {
       $temp[] = $objects[$i];
       if ( ($objects[$i] != 'and') &&
            ($objects[$i] != 'or') &&
@@ -755,7 +755,7 @@ include_once (dirname(__FILE__)."/sessions.php");
     $keyword_count = 0;
     $operator_count = 0;
     $balance = 0;
-    for ($i=0; $i<count($objects); $i++) {
+    for ($i=0; $i<a2b_count($objects); $i++) {
       if ($objects[$i] == '(') $balance --;
       if ($objects[$i] == ')') $balance ++;
       if ( ($objects[$i] == 'and') || ($objects[$i] == 'or') ) {

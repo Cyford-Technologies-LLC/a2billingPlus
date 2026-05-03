@@ -87,6 +87,7 @@ class Table
     public $end_message_debug     = "\n</td></tr></table><br><br><br>";
     public $alert_query_time      = 0.1;
     public $alert_query_long_time = 2;
+    public $mytopg                = null;
 
     public $writelog              = null;
 
@@ -108,7 +109,7 @@ class Table
         $this->fields = $liste_fields;
         $this->mytopg = new MytoPg(0); // debug level 0 logs only >30ms CPU hogs
 
-       // if ((count($fk_Tables) == count($fk_Fields)) && (count($fk_Fields) > 0)) {
+       // if ((a2b_count($fk_Tables) == a2b_count($fk_Fields)) && (a2b_count($fk_Fields) > 0)) {
             if(!empty($fk_Tables)){
             $this->FK_TABLES         = $fk_Tables;
             $this->FK_EDITION_CLAUSE = $fk_Fields;
@@ -287,7 +288,7 @@ class Table
 
         $QUERY = $sql . $sql_clause;
 
-        if (preg_replace("/[ ]+group[ ]+by[ ]+/i", $sql_clause)) $QUERY = "SELECT count(*) FROM (" . $QUERY . ") as tmp";
+        if (preg_match("/[ ]+group[ ]+by[ ]+/i", $sql_clause)) $QUERY = "SELECT count(*) FROM (" . $QUERY . ") as tmp";
 
         $res = $this->ExecuteQuery($DBHandle, $QUERY, $cache);
         if (!$res) return false;

@@ -32,7 +32,7 @@ if( !($popup_select>=1) &&($this->FG_LIST_ADDING_BUTTON1 || $this->FG_LIST_ADDIN
 <br>
 <?php
 
-if ((count($list)>0) && is_array($list)){
+if (is_array($list) && a2b_count($list)>0){
     $ligne_number=0;
 ?>
 
@@ -197,7 +197,7 @@ function openURLFilter(theLINK) {
                 </TR>
         <?php
             /**********************   START BUILDING THE TABLE WITH BROWSING VALUES ************************/
-            for ($ligne_number=0;$ligne_number<count($list);$ligne_number++){
+            for ($ligne_number=0;$ligne_number<a2b_count($list);$ligne_number++){
         ?>
 
                 <TR bgcolor="<?php echo $this->FG_TABLE_ALTERNATE_ROW_COLOR[$ligne_number%2]?>"  onmouseover="bgColor='#FFDEA6'" onMouseOut="bgColor='<?php echo $this->FG_TABLE_ALTERNATE_ROW_COLOR[$ligne_number%2]?>'">
@@ -214,7 +214,7 @@ function openURLFilter(theLINK) {
                         $field_list_sun = preg_split('/,/', $this->FG_TABLE_COL[$i][8]);
                         $record_display = $this->FG_TABLE_COL[$i][10];
 
-                        for ($l=1;$l<=count($field_list_sun);$l++){
+                        for ($l=1;$l<=a2b_count($field_list_sun);$l++){
                             $record_display = str_replace("%$l", $select_list[0][$l-1], $record_display);
                         }
 
@@ -231,7 +231,7 @@ function openURLFilter(theLINK) {
                             if (stripos($this->FG_TABLE_COL[$i][12],'form_action')===false) $link .= "?form_action=ask-edit&";
                             else $link .= "?";
                             $link.= "id=".$select_list[0][1];
-                            for ($l=1;$l<=count($field_list_sun);$l++){
+                            for ($l=1;$l<=a2b_count($field_list_sun);$l++){
                                 $val = str_replace("%$l", $select_list[0][$l-1], $record_display);
                                 $record_display = "<a href='$link'>$val</a>";
                             }
@@ -748,7 +748,7 @@ function openURLFilter(theLINK) {
 
                     </TR>
                 <?php
-                    } //  for (ligne_number=0;ligne_number<count($list);$ligne_number++)
+                    } //  for (ligne_number=0;ligne_number<a2b_count($list);$ligne_number++)
                     while ($ligne_number < 7){
                 ?>
                     <TR bgcolor="<?php echo $this->FG_TABLE_ALTERNATE_ROW_COLOR[$ligne_number%2]?>">

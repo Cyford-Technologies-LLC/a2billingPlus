@@ -173,15 +173,15 @@ class RateEngine
         $result = $A2B->instance_table->SQLExec($A2B->DBHandle, $QUERY);
 
 
-        if (!is_array($result) || count($result) == 0) return 0; // NO RATE FOR THIS NUMBER
+        if (!is_array($result) || a2b_count($result) == 0) return 0; // NO RATE FOR THIS NUMBER
 
-        if ($this->debug_st) echo "::> Count Total result " . count($result) . "\n\n";
-        if ($this->webui) $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Count Total result " . count($result) . "]");
+        if ($this->debug_st) echo "::> Count Total result " . a2b_count($result) . "\n\n";
+        if ($this->webui) $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Count Total result " . a2b_count($result) . "]");
 
         // CHECK IF THERE IS OTHER RATE THAT 'DEFAULT', IF YES REMOVE THE DEFAULT RATES
         // NOT NOT REMOVE SHIFT THEM TO THE END :P
         $ind_stop_default = -1;
-        for ($i = 0; $i < count($result); $i++) {
+        for ($i = 0; $i < a2b_count($result); $i++) {
             if ($result[$i][7] != 'defaultprefix') {
                 $ind_stop_default = $i;
                 break;
@@ -192,14 +192,14 @@ class RateEngine
         // DEFAULPERFIX IS AN ESCAPE IN CASE OF NO RATE IS DEFINED, NOT BE COUNT WITH OTHER DURING THE SORT OF RATE
         if ($ind_stop_default > 0) {
             $result_defaultprefix = array_slice($result, 0, $ind_stop_default);
-            $result = array_slice($result, $ind_stop_default, count($result) - $ind_stop_default);
+            $result = array_slice($result, $ind_stop_default, a2b_count($result) - $ind_stop_default);
         }
 
 
         if ($A2B->agiconfig['lcr_mode'] == 0) {
             //1) REMOVE THOSE THAT HAVE A SMALLER DIALPREFIX
             $max_len_prefix = strlen($result[0][7]);
-            for ($i = 1; $i < count($result); $i++) {
+            for ($i = 1; $i < a2b_count($result); $i++) {
                 if (strlen($result[$i][7]) < $max_len_prefix) break;
             }
             $result = array_slice($result, 0, $i);
@@ -215,13 +215,13 @@ class RateEngine
             $countdelete = 0;
             $resultcount = 0;
             $mysearchvalue[$resultcount] = $myresult[0];
-            for ($ii = 0; $ii < count($result) - 1; $ii++) {
+            for ($ii = 0; $ii < a2b_count($result) - 1; $ii++) {
                 $mysearchvalue[$resultcount] = $myresult[$ii];
                 if ($this->webui) {
                     $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Begin for ii value " . $ii . "]");
                     $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: MYSEARCHCVALUE \n" . print_r($mysearchvalue, true) . "]");
                 };
-                if (count($myresult) > 0) {
+                if (a2b_count($myresult) > 0) {
                     foreach ($myresult as $j=>$i) {
                         if ($this->webui) {
                             $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: foreach J=" . print_r($j, true));
@@ -238,7 +238,7 @@ class RateEngine
                                 $countdelete = $countdelete + 1;
                                 if ($this->webui) {
                                     $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: foreach: COUNTDELETE: " . $countdelete . "]");
-                                    $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: foreach: MYRESULT count after delete: " . count($myresult) . "]");
+                                    $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: foreach: MYRESULT count after delete: " . a2b_count($myresult) . "]");
                                 };
                             };
                         }
@@ -247,7 +247,7 @@ class RateEngine
                     $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: MYRESULT  after foreach \n" . print_r($myresult, true));
                     $resultcount++;
                     if ($this->webui) {
-                        $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Count MYRESULT after foreach=" . count($myresult) . "]");
+                        $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Count MYRESULT after foreach=" . a2b_count($myresult) . "]");
                         $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: RESULTCOUNT=" . $resultcount . "]");
                     };
                 }
@@ -257,7 +257,7 @@ class RateEngine
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: COUNTDELETE=" . $countdelete . "]");
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: MYRESULT  before unset \n" . print_r($myresult, true));
             };
-            if (count($result) > 1 and $countdelete != 0) {
+            if (a2b_count($result) > 1 and $countdelete != 0) {
                 if ($this->webui) $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: LAST UNSET");
                 unset($mysearchvalue[$resultcount]);
                 foreach ($mysearchvalue as $key => $value) {
@@ -272,9 +272,9 @@ class RateEngine
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: RESULTCOUNT" . $resultcount . "]");
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: MYRESULT  after delete \n" . print_r($myresult, true));
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: MYSEARCHVALUE after delete \n" . print_r($mysearchvalue, true));
-                $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Count Total result after 4 " . count($myresult) . "]");
+                $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[rate-engine: Count Total result after 4 " . a2b_count($myresult) . "]");
             };
-            if (count($result) > 1 and $countdelete != 0) {
+            if (a2b_count($result) > 1 and $countdelete != 0) {
                 $result = $mysearchvalue;
             };
             unset($mysearchvalue);
@@ -304,7 +304,7 @@ class RateEngine
         // 3) REMOVE THOSE THAT USE THE SAME TRUNK - MAKE A DISTINCT
         //    AND THOSE THAT ARE DISABLED.
         $mylistoftrunk = array();
-        for ($i = 0; $i < count($result); $i++) {
+        for ($i = 0; $i < a2b_count($result); $i++) {
 
             if ($result[$i][34] == -1) {
                 $status = $result[$i][46];
@@ -324,7 +324,7 @@ class RateEngine
         }
 
         $this->ratecard_obj = $distinct_result;
-        $this->number_trunk = count($distinct_result);
+        $this->number_trunk = a2b_count($distinct_result);
 
         // if an extracharge DID number was called increase rates with the extracharge fee
         if (strlen($A2B->dnid) > 1 && is_array($A2B->agiconfig['extracharge_did']) && in_array($A2B->dnid, $A2B->agiconfig['extracharge_did'])) {
@@ -340,8 +340,8 @@ class RateEngine
             }
         }
 
-        if ($this->debug_st) echo "::> Count Total distinct_result " . count($distinct_result) . "\n\n";
-        if ($this->webui) $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[CC_asterisk_rate-engine: Count Total result " . count($distinct_result) . "]");
+        if ($this->debug_st) echo "::> Count Total distinct_result " . a2b_count($distinct_result) . "\n\n";
+        if ($this->webui) $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[CC_asterisk_rate-engine: Count Total result " . a2b_count($distinct_result) . "]");
         if ($this->webui) $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[CC_asterisk_rate-engine: number_trunk " . $this->number_trunk . "]");
         return 1;
     }
@@ -423,7 +423,7 @@ class RateEngine
             if (!empty($result_packages)) {
                 $package_selected = false;
 
-                while (!$package_selected && $idx_pack < count($result_packages)) {
+                while (!$package_selected && $idx_pack < a2b_count($result_packages)) {
 
                     $freetimetocall      = $result_packages[$idx_pack]["freetimetocall"];
                     $packagetype         = $result_packages[$idx_pack]["packagetype"];
@@ -1317,7 +1317,7 @@ class RateEngine
             $A2B->instance_table = new Table();
             $cidresult = $A2B->instance_table->SQLExec($A2B->DBHandle, $QUERY);
             $outcid = 0;
-            if (is_array($cidresult) && count($cidresult) > 0) {
+            if (is_array($cidresult) && a2b_count($cidresult) > 0) {
                 $outcid = $cidresult[0][0];
                 # Uncomment this line if you want to save the outbound_cid in the CDR
                 //$A2B->CallerID = $outcid;
@@ -1377,7 +1377,7 @@ class RateEngine
                 $A2B->instance_table = new Table();
                 $result = $A2B->instance_table->SQLExec($A2B->DBHandle, $QUERY);
 
-                if (is_array($result) && count($result) > 0) {
+                if (is_array($result) && a2b_count($result) > 0) {
 
                     //DO SELECT WITH THE FAILOVER_TRUNKID
                     $prefix              = $result[0][0];

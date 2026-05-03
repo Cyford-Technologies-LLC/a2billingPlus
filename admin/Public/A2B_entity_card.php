@@ -193,7 +193,8 @@ if ( $form_action == "list" && (!($popup_select>=1)) ) {
     $instance_table_tariff = new Table("cc_tariffgroup", "id, tariffgroupname");
     $FG_TABLE_CLAUSE = "";
     $list_tariff = $instance_table_tariff -> Get_list ($HD_Form -> DBHandle, $FG_TABLE_CLAUSE, "tariffgroupname", "ASC", null, null, null, null);
-    $nb_tariff = count($list_tariff);
+    $list_tariff = is_array($list_tariff) ? $list_tariff : array();
+    $nb_tariff = a2b_count($list_tariff);
 
     $instance_table_group=  new Table("cc_card_group"," id, name ");
     $list_group = $instance_table_group  -> Get_list ($HD_Form ->DBHandle, $FG_TABLE_CLAUSE, "name", "ASC", null, null, null, null);
@@ -337,9 +338,9 @@ if ( $form_action == "list" && (!($popup_select>=1)) ) {
             8)&nbsp;<?php echo gettext("Credit limit");?>&nbsp;:
                  <input class="form_input_text" name="upd_creditlimit" size="10" maxlength="10"  value="<?php if (isset($upd_creditlimit)) echo $upd_creditlimit; else echo '0';?>" >
             <font class="version">
-            <input type="radio" NAME="type[upd_creditlimit]" value="1" <?php if ((!isset($type[upd_creditlimit]))|| ($type[upd_creditlimit]==1) ) {?>checked<?php }?>> <?php echo gettext("Equals");?>
-            <input type="radio" NAME="type[upd_creditlimit]" value="2" <?php if ($type[upd_creditlimit]==2) {?>checked<?php }?>><?php echo gettext("Add");?>
-            <input type="radio" NAME="type[upd_creditlimit]" value="3" <?php if ($type[upd_creditlimit]==3) {?>checked<?php }?>> <?php echo gettext("Subtract");?>
+            <input type="radio" NAME="type[upd_creditlimit]" value="1" <?php if ((!isset($type['upd_creditlimit']))|| ($type['upd_creditlimit']==1) ) {?>checked<?php }?>> <?php echo gettext("Equals");?>
+            <input type="radio" NAME="type[upd_creditlimit]" value="2" <?php if (($type['upd_creditlimit'] ?? null)==2) {?>checked<?php }?>><?php echo gettext("Add");?>
+            <input type="radio" NAME="type[upd_creditlimit]" value="3" <?php if (($type['upd_creditlimit'] ?? null)==3) {?>checked<?php }?>> <?php echo gettext("Subtract");?>
             </font>
       </td>
     </tr>
@@ -390,8 +391,8 @@ if ( $form_action == "list" && (!($popup_select>=1)) ) {
       <td align="left"  class="bgcolor_001">
              12)&nbsp;<?php echo gettext("Run service");?>&nbsp;:
             <font class="version">
-            <input type="radio" NAME="type[upd_runservice]" value="1" <?php if ((!isset($type[upd_runservice]))|| ($type[upd_runservice]=='1') ) {?>checked<?php }?>>
-            <?php echo gettext("Yes");?> <input type="radio" NAME="type[upd_runservice]" value="0" <?php if ($type[upd_runservice]=='0') {?>checked<?php }?>><?php echo gettext("No");?>
+            <input type="radio" NAME="type[upd_runservice]" value="1" <?php if ((!isset($type['upd_runservice']))|| ($type['upd_runservice']=='1') ) {?>checked<?php }?>>
+            <?php echo gettext("Yes");?> <input type="radio" NAME="type[upd_runservice]" value="0" <?php if (($type['upd_runservice'] ?? null)=='0') {?>checked<?php }?>><?php echo gettext("No");?>
             </font>
       </td>
     </tr>

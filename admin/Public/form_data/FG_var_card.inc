@@ -39,7 +39,23 @@ getpost_ifset(array('id', 'username', 'useralias', 'uipass', 'credit', 'language
     'iax_buddy','popup_select', 'vat', 'autorefill', 'initialbalance', 'mac_addr', 'cardnumberlenght_list',
     'status', 'block', 'lock_pin', 'template_invoice', 'template_outstanding', 'description', 'voicemail_activated',
     'voicemail_permitted','email_notification','credit_notification','notify_email', 'id_seria',
-    'company_name' , 'company_website' , 'vat_rn' , 'traffic' , 'traffic_target','discount','restriction' ));
+    'company_name' , 'company_website' , 'vat_rn' , 'traffic' , 'traffic_target','discount','restriction',
+    'form_action', 'popup_formname', 'popup_fieldname' ));
+
+
+$filterprefix = $filterprefix ?? '';
+$myusername = $myusername ?? '';
+$popup_select = isset($popup_select) ? (int) $popup_select : 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$form_action = $form_action ?? '';
+$cardnumberlenght_list = $cardnumberlenght_list ?? LEN_CARDNUMBER;
+$country_default_val = '';
+$timezone_default_val = '';
+$lockpin_default = '';
+$default_initbalance = '';
+$vat_init = '';
+$update_field_typepaid = '';
 
 $HD_Form = new FormHandler("cc_card", gettext("Card"));
 
@@ -167,8 +183,7 @@ $FG_COL_QUERY_FIELD = '';
 $index = 0;
 foreach ($show_list as $i => $value) {
     if (array_key_exists($i,$show_fields)) {
-        $param = $show_fields[$i];
-        $param = $param + array("","","","","","");#expand array to max length
+        $param = array_pad($show_fields[$i], 13, "");
         $size = "*";
         $param7 = $param[7];
         if ($param[6]=="eval"){

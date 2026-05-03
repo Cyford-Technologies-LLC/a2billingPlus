@@ -35,6 +35,21 @@
 
 getpost_ifset(array('id', 'loglevel', 'enteradmin', 'Period', 'frommonth', 'fromstatsmonth', 'tomonth', 'tostatsmonth', 'fromday', 'fromstatsday_sday', 'fromstatsmonth_sday', 'today', 'tostatsday_sday', 'tostatsmonth_sday', 'stitle', 'atmenu', 'current_page', 'order', 'sens','popup_select'));
 
+$loglevel = $loglevel ?? '';
+$enteradmin = $enteradmin ?? '';
+$Period = $Period ?? '';
+$frommonth = $frommonth ?? '';
+$fromstatsmonth = $fromstatsmonth ?? '';
+$tomonth = $tomonth ?? '';
+$tostatsmonth = $tostatsmonth ?? date('Y-m');
+$fromday = $fromday ?? '';
+$fromstatsday_sday = $fromstatsday_sday ?? null;
+$fromstatsmonth_sday = $fromstatsmonth_sday ?? date('Y-m');
+$today = $today ?? '';
+$tostatsday_sday = $tostatsday_sday ?? null;
+$tostatsmonth_sday = $tostatsmonth_sday ?? date('Y-m');
+$popup_select = $popup_select ?? 0;
+
 $HD_Form = new FormHandler("cc_system_log csl LEFT JOIN cc_ui_authen cua ON csl.iduser = cua.userid", "Log");
 
 $HD_Form -> FG_DEBUG = 0;

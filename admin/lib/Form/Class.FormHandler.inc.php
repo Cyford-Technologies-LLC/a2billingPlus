@@ -558,9 +558,12 @@ class FormHandler
             // echo "<br/>-------_SESSION------<br/>";
             // print_r($_SESSION);
 
-            $this -> FG_FORM_RECEIVED_UNIQID = $_POST[$this->FG_FORM_UNIQID_FIELD];
-            $this -> FG_FORM_RECEIVED_TOKEN = $_POST[$this->FG_CSRF_FIELD];
-            $this -> FG_CSRF_RECEIVED_TOKEN = $_SESSION['CSRF_TOKEN'][$this->FG_FORM_RECEIVED_UNIQID];
+            $this -> FG_FORM_RECEIVED_UNIQID = $_POST[$this->FG_FORM_UNIQID_FIELD] ?? null;
+            $this -> FG_FORM_RECEIVED_TOKEN = $_POST[$this->FG_CSRF_FIELD] ?? null;
+            $_SESSION['CSRF_TOKEN'] = $_SESSION['CSRF_TOKEN'] ?? array();
+            $this -> FG_CSRF_RECEIVED_TOKEN = isset($_SESSION['CSRF_TOKEN'][$this->FG_FORM_RECEIVED_UNIQID])
+                ? $_SESSION['CSRF_TOKEN'][$this->FG_FORM_RECEIVED_UNIQID]
+                : null;
             $_SESSION['CSRF_TOKEN'][$this->FG_FORM_UNIQID] = $this->FG_CSRF_TOKEN;
             // echo "<br/>------_SESSION::-------<br/>";
             // print_r($_SESSION);
@@ -919,7 +922,8 @@ class FormHandler
 	function AddEditElement($displayname, $fieldname, $defaultvalue, $fieldtype, $fieldproperty, $regexpr_nb, $error_message, $type_selectfield,
 		$lie_tablename, $lie_tablefield, $lie_clause, $listname, $displayformat_selectfield, $check_emptyvalue , $comment, $custom_query = null,
 		$displayinput_defaultselect = null, $comment_above = null, $field_enabled = true){
-		if( strtoupper($fieldtype)=="LABEL" && (strtoupper($_GET['form_action']) == "EDIT" ||strtoupper($_POST['form_action'])== "EDIT") ){
+		$requestFormAction = strtoupper($_GET['form_action'] ?? $_POST['form_action'] ?? '');
+		if( strtoupper($fieldtype)=="LABEL" && $requestFormAction == "EDIT" ){
 		 return;
 		}
 		if($field_enabled==true)
@@ -1067,7 +1071,8 @@ class FormHandler
 		$this -> FG_regular[]  = array(    "^(\+|[0-9]{1})[0-9]+$"   ,
 		                        "Phone Number format");
 		// 19 - CAPTCHAIMAGE - Alpahnumeric
-		$this -> FG_regular[]  = array("^(".strtoupper($_SESSION["captcha_code"]).")|(".strtolower($_SESSION["captcha_code"]).")$",
+		$captchaCode = $_SESSION["captcha_code"] ?? '';
+		$this -> FG_regular[]  = array("^(".strtoupper($captchaCode).")|(".strtolower($captchaCode).")$",
 						gettext("(at least 6 Alphanumeric characters)"));
 		//20 TIME
 		$this -> FG_regular[]  = array(    "^([0-9]{2}):([0-9]{2}):([0-9]{2})$"   ,
@@ -1162,6 +1167,9 @@ class FormHandler
      * @public
      */
 	function perform_action (&$form_action){
+		if ($form_action === null || $form_action === '') {
+			$form_action = 'list';
+		}
 		//security check
 
 		switch ($form_action) {
@@ -1303,7 +1311,7 @@ class FormHandler
 				//PATCH TO CLEAN THE IMPORT OF PASSWORD FROM THE DATABASE
 				if ( substr_count($this->FG_QUERY_EDITION,"pwd_encoded")>0 ) {
 					$tab_field = explode(',',  $this->FG_QUERY_EDITION ) ;
-					for ($i=0;$i< count($tab_field);$i++){
+					for ($i=0;$i< a2b_count($tab_field);$i++){
 						if(trim($tab_field[$i])=="pwd_encoded") {
 							$list[0][$i]="";
 						}
@@ -1364,21 +1372,30 @@ class FormHandler
 			// Search Form On
 			if (($processed['posted_search'] == 1 )) {
 
-				$this->_processed[fromstatsday_sday] = normalize_day_of_month($processed[fromstatsday_sday], $processed[fromstatsmonth_sday],1);
-				$this->_processed[tostatsday_sday] = normalize_day_of_month($processed[tostatsday_sday], $processed[tostatsmonth_sday],1);
-				$this->_processed[fromstatsday_sday_bis] = normalize_day_of_month($processed[fromstatsday_sday_bis], $processed[fromstatsmonth_sday_bis],1);
-				$this->_processed[tostatsday_sday_bis] = normalize_day_of_month($processed[tostatsday_sday_bis], $processed[tostatsmonth_sday_bis],1);
+				$fromstatsday_sday = $processed['fromstatsday_sday'] ?? null;
+				$fromstatsmonth_sday = $processed['fromstatsmonth_sday'] ?? null;
+				$tostatsday_sday = $processed['tostatsday_sday'] ?? null;
+				$tostatsmonth_sday = $processed['tostatsmonth_sday'] ?? null;
+				$fromstatsday_sday_bis = $processed['fromstatsday_sday_bis'] ?? null;
+				$fromstatsmonth_sday_bis = $processed['fromstatsmonth_sday_bis'] ?? null;
+				$tostatsday_sday_bis = $processed['tostatsday_sday_bis'] ?? null;
+				$tostatsmonth_sday_bis = $processed['tostatsmonth_sday_bis'] ?? null;
+
+				$processed['fromstatsday_sday'] = $this->_processed['fromstatsday_sday'] = normalize_day_of_month($fromstatsday_sday, $fromstatsmonth_sday, 1);
+				$processed['tostatsday_sday'] = $this->_processed['tostatsday_sday'] = normalize_day_of_month($tostatsday_sday, $tostatsmonth_sday, 1);
+				$processed['fromstatsday_sday_bis'] = $this->_processed['fromstatsday_sday_bis'] = normalize_day_of_month($fromstatsday_sday_bis, $fromstatsmonth_sday_bis, 1);
+				$processed['tostatsday_sday_bis'] = $this->_processed['tostatsday_sday_bis'] = normalize_day_of_month($tostatsday_sday_bis, $tostatsmonth_sday_bis, 1);
 
 				$SQLcmd = '';
 
-				$search_parameters = "Period=$processed[Period]|frommonth=$processed[frommonth]|fromstatsmonth=$processed[fromstatsmonth]|tomonth=$processed[tomonth]";
-				$search_parameters .= "|tostatsmonth=$processed[tostatsmonth]|fromday=$processed[fromday]|fromstatsday_sday=$processed[fromstatsday_sday]";
-				$search_parameters .= "|fromstatsmonth_sday=$processed[fromstatsmonth_sday]|today=$processed[today]|tostatsday_sday=$processed[tostatsday_sday]";
-				$search_parameters .= "|tostatsmonth_sday=$processed[tostatsmonth_sday]";
-				$search_parameters .= "|Period_bis=$processed[Period_bis]|frommonth_bis=$processed[frommonth_bis]|fromstatsmonth_bis=$processed[fromstatsmonth_bis]|tomonth_bis=$processed[tomonth_bis]";
-				$search_parameters .= "|tostatsmonth_bis=$processed[tostatsmonth_bis]|fromday_bis=$processed[fromday_bis]|fromstatsday_sday_bis=$processed[fromstatsday_sday_bis]";
-				$search_parameters .= "|fromstatsmonth_sday_bis=$processed[fromstatsmonth_sday_bis]|today_bis=$processed[today_bis]|tostatsday_sday_bis=$processed[tostatsday_sday_bis]";
-				$search_parameters .= "|tostatsmonth_sday_bis=$processed[tostatsmonth_sday_bis]";
+				$search_parameters = "Period=".($processed['Period'] ?? '')."|frommonth=".($processed['frommonth'] ?? '')."|fromstatsmonth=".($processed['fromstatsmonth'] ?? '')."|tomonth=".($processed['tomonth'] ?? '');
+				$search_parameters .= "|tostatsmonth=".($processed['tostatsmonth'] ?? '')."|fromday=".($processed['fromday'] ?? '')."|fromstatsday_sday=".($processed['fromstatsday_sday'] ?? '');
+				$search_parameters .= "|fromstatsmonth_sday=".($processed['fromstatsmonth_sday'] ?? '')."|today=".($processed['today'] ?? '')."|tostatsday_sday=".($processed['tostatsday_sday'] ?? '');
+				$search_parameters .= "|tostatsmonth_sday=".($processed['tostatsmonth_sday'] ?? '');
+				$search_parameters .= "|Period_bis=".($processed['Period_bis'] ?? '')."|frommonth_bis=".($processed['frommonth_bis'] ?? '')."|fromstatsmonth_bis=".($processed['fromstatsmonth_bis'] ?? '')."|tomonth_bis=".($processed['tomonth_bis'] ?? '');
+				$search_parameters .= "|tostatsmonth_bis=".($processed['tostatsmonth_bis'] ?? '')."|fromday_bis=".($processed['fromday_bis'] ?? '')."|fromstatsday_sday_bis=".($processed['fromstatsday_sday_bis'] ?? '');
+				$search_parameters .= "|fromstatsmonth_sday_bis=".($processed['fromstatsmonth_sday_bis'] ?? '')."|today_bis=".($processed['today_bis'] ?? '')."|tostatsday_sday_bis=".($processed['tostatsday_sday_bis'] ?? '');
+				$search_parameters .= "|tostatsmonth_sday_bis=".($processed['tostatsmonth_sday_bis'] ?? '');
 
 				foreach ($this->FG_FILTER_SEARCH_FORM_1C as $r){
 					$search_parameters .= "|$r[1]=".$processed[$r[1]]."|$r[2]=".$processed[$r[2]];
@@ -1401,26 +1418,26 @@ class FormHandler
 
 				$date_clause = '';
 
-				if ($processed[fromday] && isset($processed[fromstatsday_sday]) && isset($processed[fromstatsmonth_sday]))
-					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD." >= TIMESTAMP('$processed[fromstatsmonth_sday]-$processed[fromstatsday_sday]')";
-				if ($processed[today] && isset($processed[tostatsday_sday]) && isset($processed[tostatsmonth_sday]))
-					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD." <= TIMESTAMP('$processed[tostatsmonth_sday]-".sprintf("%02d",intval($processed[tostatsday_sday])/*+1*/)." 23:59:59')";
+				if (!empty($processed['fromday']) && isset($processed['fromstatsday_sday'], $processed['fromstatsmonth_sday']))
+					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD." >= TIMESTAMP('".$processed['fromstatsmonth_sday']."-".$processed['fromstatsday_sday']."')";
+				if (!empty($processed['today']) && isset($processed['tostatsday_sday'], $processed['tostatsmonth_sday']))
+					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD." <= TIMESTAMP('".$processed['tostatsmonth_sday']."-".sprintf("%02d",intval($processed['tostatsday_sday'])/*+1*/)." 23:59:59')";
 
 
-				if ($processed[Period]=="month_older_rad"){
-					$from_month = $processed[month_earlier];
+				if (($processed['Period'] ?? '')=="month_older_rad"){
+					$from_month = $processed['month_earlier'] ?? 0;
 					$date_clause .= " AND DATE_SUB(NOW(),INTERVAL $from_month MONTH) > ".$this->FG_FILTER_SEARCH_3_TIME_FIELD."";
 				}
 
 				//BIS FIELD
-				if ($processed[fromday_bis] && isset($processed[fromstatsday_sday_bis]) && isset($processed[fromstatsmonth_sday_bis]))
-					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD_BIS." >= TIMESTAMP('$processed[fromstatsmonth_sday_bis]-$processed[fromstatsday_sday_bis]')";
-				if ($processed[today_bis] && isset($processed[tostatsday_sday_bis]) && isset($processed[tostatsmonth_sday_bis]))
-					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD_BIS." <= TIMESTAMP('$processed[tostatsmonth_sday_bis]-".sprintf("%02d",intval($processed[tostatsday_sday_bis])/*+1*/)." 23:59:59')";
+				if (!empty($processed['fromday_bis']) && isset($processed['fromstatsday_sday_bis'], $processed['fromstatsmonth_sday_bis']))
+					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD_BIS." >= TIMESTAMP('".$processed['fromstatsmonth_sday_bis']."-".$processed['fromstatsday_sday_bis']."')";
+				if (!empty($processed['today_bis']) && isset($processed['tostatsday_sday_bis'], $processed['tostatsmonth_sday_bis']))
+					$date_clause.=" AND ".$this->FG_FILTER_SEARCH_1_TIME_FIELD_BIS." <= TIMESTAMP('".$processed['tostatsmonth_sday_bis']."-".sprintf("%02d",intval($processed['tostatsday_sday_bis'])/*+1*/)." 23:59:59')";
 
 
-				if ($processed[Period_bis]=="month_older_rad") {
-					$from_month = $processed[month_earlier_bis];
+				if (($processed['Period_bis'] ?? '')=="month_older_rad") {
+					$from_month = $processed['month_earlier_bis'] ?? 0;
 					$date_clause .= " AND DATE_SUB(NOW(),INTERVAL $from_month MONTH) > ".$this->FG_FILTER_SEARCH_3_TIME_FIELD_BIS."";
 				}
 
@@ -1511,7 +1528,7 @@ class FormHandler
 						foreach ($arr_splitable_value as $arr_value) {
 							$arr_value = trim ($arr_value);
 							$arr_value_explode = explode("-", $arr_value,2);
-							if (count($arr_value_explode)>1) {
+							if (a2b_count($arr_value_explode)>1) {
 								if (is_numeric($arr_value_explode[0]) && is_numeric($arr_value_explode[1]) && $arr_value_explode[0] < $arr_value_explode[1] ){
 									$kk=strlen($arr_value_explode[0])-strlen(ltrim($arr_value_explode[0],'0'));
 									$prefix=substr($arr_value_explode[0],0,$kk);
@@ -1555,9 +1572,9 @@ class FormHandler
 			$param_add_fields .= $this->FG_QUERY_ADITION_HIDDEN_FIELDS;
 			if ($i>0) $param_add_value .= ", ";
 			$split_hidden_fields_value = preg_split("/,/",trim($this->FG_QUERY_ADITION_HIDDEN_VALUE));
-			for ($cur_hidden=0;$cur_hidden<count($split_hidden_fields_value);$cur_hidden++){
+			for ($cur_hidden=0;$cur_hidden<a2b_count($split_hidden_fields_value);$cur_hidden++){
 				$param_add_value .= "'".trim($split_hidden_fields_value[$cur_hidden])."'" ;
-				if($cur_hidden<count($split_hidden_fields_value)-1)$param_add_value.=",";
+				if($cur_hidden<a2b_count($split_hidden_fields_value)-1)$param_add_value.=",";
 			}
 		}
 
@@ -1702,7 +1719,7 @@ class FormHandler
 			$table_split_field = preg_split("/,/",$this->FG_QUERY_EDITION_HIDDEN_FIELDS);
 			$table_split_value = preg_split("/,/",$this->FG_QUERY_EDITION_HIDDEN_VALUE);
 
-			for($k=0;$k<count($table_split_field);$k++){
+			for($k=0;$k<a2b_count($table_split_field);$k++){
 				$param_update .= ", ";
 				$param_update .= "$table_split_field[$k] = '".addslashes(trim($table_split_value[$k]))."'";
 			}
@@ -2164,6 +2181,9 @@ class FormHandler
      */
 	function create_form ($form_action, $list, $id=null)
 	{
+		if ($form_action === null || $form_action === '') {
+			$form_action = 'list';
+		}
 		Console::logSpeed('Time taken to get to line '.__LINE__);
 		include_once (FSROOT."lib/Class.Table.php");
 		$processed = $this->getProcessed();

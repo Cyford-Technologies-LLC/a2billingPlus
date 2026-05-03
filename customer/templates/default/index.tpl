@@ -43,7 +43,7 @@
 	<table border="0" cellpadding="3" cellspacing="12">
 	<tr>
 		<td class="login-title" colspan="2">
-			 {php} echo gettext("AUTHENTICATION");{/php}
+			 {"AUTHENTICATION"|gettext}
 		</td>
 	</tr>
 	<tr>
@@ -51,11 +51,11 @@
 		<td align="center" style="padding-right: 10px">
 			<table width="90%">
 			<tr align="center">
-				<td align="left"><font size="2" face="Arial, Helvetica, Sans-Serif"><b>{php} echo gettext("User");{/php}:</b></font></td>
+				<td align="left"><font size="2" face="Arial, Helvetica, Sans-Serif"><b>{"User"|gettext}:</b></font></td>
 				<td><input class="form_input_text" type="text" name="pr_login" size="15" value="{$username}"></td>
 			</tr>
 			<tr align="center">
-				<td align="left"><font face="Arial, Helvetica, Sans-Serif" size="2"><b>{php} echo gettext("Password");{/php}:</b></font></td>
+				<td align="left"><font face="Arial, Helvetica, Sans-Serif" size="2"><b>{"Password"|gettext}:</b></font></td>
 				<td><input class="form_input_text" type="password" name="pr_password" size="15" value="{$password}"></td>
 			</tr>
 			</tr><tr >
@@ -64,34 +64,34 @@
 			<tr align="right" >
                 <td>
                     <select name="ui_language"  id="ui_language" class="icon-menu form_input_select">
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/gb.gif);" value="english" {php} if(LANGUAGE=="english") echo "selected";{/php} >English</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/es.gif);" value="spanish" {php} if(LANGUAGE=="spanish") echo "selected";{/php} >Spanish</option>Român
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/fr.gif);" value="french" {php} if(LANGUAGE=="french") echo "selected";{/php} >French</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/de.gif);" value="german" {php} if(LANGUAGE=="german") echo "selected";{/php} >German</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/pt.gif);" value="portuguese" {php} if(LANGUAGE=="portuguese") echo "selected";{/php} >Portuguese</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/br.gif);" value="brazilian" {php} if(LANGUAGE=="brazilian") echo "selected";{/php}>Brazilian</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/it.gif);" value="italian" {php} if(LANGUAGE=="italian") echo "selected";{/php} >Italian</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/cn.gif);" value="chinese" {php} if(LANGUAGE=="chinese") echo "selected";{/php} >Chinese</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/ro.gif);" value="romanian" {php} if(LANGUAGE=="romanian") echo "selected";{/php} >Romanian</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/pl.gif);" value="polish" {php} if(LANGUAGE=="polish") echo "selected";{/php} >Polish</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/ru.gif);" value="russian" {php} if(LANGUAGE=="russian") echo "selected";{/php} >Russian</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/tr.gif);" value="turkish" {php} if(LANGUAGE=="turkish") echo "selected";{/php} >Turkish</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/pk.gif);" value="urdu" {php} if(LANGUAGE=="urdu") echo "selected";{/php} >Urdu</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/ua.gif);" value="ukrainian" {php} if(LANGUAGE=="ukrainian") echo "selected";{/php} >Ukrainian</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/gr.gif);" value="greek" {php} if(LANGUAGE=="greek") echo "selected";{/php} >Greek</option>
-                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/id.gif);" value="indonesian" {php} if(LANGUAGE=="indonesian") echo "selected";{/php} >Indonesian</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/gb.gif);" value="english" {if $smarty.const.LANGUAGE == "english"}selected{/if} >English</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/es.gif);" value="spanish" {if $smarty.const.LANGUAGE == "spanish"}selected{/if} >Spanish</option>Român
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/fr.gif);" value="french" {if $smarty.const.LANGUAGE == "french"}selected{/if} >French</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/de.gif);" value="german" {if $smarty.const.LANGUAGE == "german"}selected{/if} >German</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/pt.gif);" value="portuguese" {if $smarty.const.LANGUAGE == "portuguese"}selected{/if} >Portuguese</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/br.gif);" value="brazilian" {if $smarty.const.LANGUAGE == "brazilian"}selected{/if}>Brazilian</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/it.gif);" value="italian" {if $smarty.const.LANGUAGE == "italian"}selected{/if} >Italian</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/cn.gif);" value="chinese" {if $smarty.const.LANGUAGE == "chinese"}selected{/if} >Chinese</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/ro.gif);" value="romanian" {if $smarty.const.LANGUAGE == "romanian"}selected{/if} >Romanian</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/pl.gif);" value="polish" {if $smarty.const.LANGUAGE == "polish"}selected{/if} >Polish</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/ru.gif);" value="russian" {if $smarty.const.LANGUAGE == "russian"}selected{/if} >Russian</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/tr.gif);" value="turkish" {if $smarty.const.LANGUAGE == "turkish"}selected{/if} >Turkish</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/pk.gif);" value="urdu" {if $smarty.const.LANGUAGE == "urdu"}selected{/if} >Urdu</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/ua.gif);" value="ukrainian" {if $smarty.const.LANGUAGE == "ukrainian"}selected{/if} >Ukrainian</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/gr.gif);" value="greek" {if $smarty.const.LANGUAGE == "greek"}selected{/if} >Greek</option>
+                        <option style="background-image:url(templates/{$SKIN_NAME}/images/flags/id.gif);" value="indonesian" {if $smarty.const.LANGUAGE == "indonesian"}selected{/if} >Indonesian</option>
                     </select>
                 </td>
-				<td><input type="submit" name="submit" value="{php} echo gettext("LOGIN");{/php}" class="form_input_button"></td>
+				<td><input type="submit" name="submit" value="{"LOGIN"|gettext}" class="form_input_button"></td>
 			</tr>
 			</table>
 		</td>
 	</tr>
 	<tr align="center">
-		<td colspan="2"><font class="fontstyle_007">{php} echo gettext("Forgot your password ?");{/php} <a href="forgotpassword.php">{php} echo gettext("Click here");{/php}</a></font>.</td>
+		<td colspan="2"><font class="fontstyle_007">{"Forgot your password ?"|gettext} <a href="forgotpassword.php">{"Click here"|gettext}</a></font>.</td>
     </tr>
 	<tr align="center">
-        <td colspan="2"><font class="fontstyle_007">{php} echo gettext("To sign up");{/php} <a href="signup.php">{php} echo gettext("Click here");{/php}</a></font>.</td>
+        <td colspan="2"><font class="fontstyle_007">{"To sign up"|gettext} <a href="signup.php">{"Click here"|gettext}</a></font>.</td>
     </tr>
   	</table>
   	</center>
@@ -100,13 +100,13 @@
 
   	<div style="color:#BC2222;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;padding-left:10px;" >
   	{if ($error == 1)}
-		{php} echo gettext("AUTHENTICATION REFUSED : please check your user/password!");{/php}
+		{"AUTHENTICATION REFUSED : please check your user/password!"|gettext}
     {elseif ($error==2)}
-		{php} echo gettext("INACTIVE ACCOUNT : Your account need to be activated!");{/php}
+		{"INACTIVE ACCOUNT : Your account need to be activated!"|gettext}
     {elseif ($error==3)}
-		{php} echo gettext("BLOCKED ACCOUNT : Please contact the administrator!");{/php}
+		{"BLOCKED ACCOUNT : Please contact the administrator!"|gettext}
     {elseif ($error==4)}
-		{php} echo gettext("NEW ACCOUNT : Your account has not been validate yet!");{/php}
+		{"NEW ACCOUNT : Your account has not been validate yet!"|gettext}
     {/if}
     </div>
     <div id="footer_index"><div style=" border: solid 1px #F4F4F4; text-align:center;">{$COPYRIGHT}</div></div>

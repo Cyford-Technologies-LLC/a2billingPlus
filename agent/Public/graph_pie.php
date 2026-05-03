@@ -75,7 +75,7 @@ $FG_TABLE_NAME = "cc_call t1 LEFT OUTER JOIN cc_trunk t3 ON t1.id_trunk = t3.id_
 $DBHandle = DbConnect();
 $FG_TABLE_COL = array ();
 $FG_LIMITE_DISPLAY = 100;
-$FG_NB_TABLE_COL = count($FG_TABLE_COL);
+$FG_NB_TABLE_COL = a2b_count($FG_TABLE_COL);
 
 $FG_COL_QUERY = ' sum(sessiontime), sum(sessionbill-buycost), sum(sessionbill), sum(buycost) ';
 
@@ -175,7 +175,7 @@ for ($i = 0; $i < $months_compare +1; $i++) {
 }
 
 $at_least_one_data = false;
-for ($i=0 ; $i<count($data) ; $i++) {
+for ($i=0 ; $i<a2b_count($data) ; $i++) {
     if (!empty($data[$i]) && ($data[$i]<0 || $data[$i]>0))
         $at_least_one_data = true;
 

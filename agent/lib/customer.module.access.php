@@ -150,8 +150,8 @@ function login ($user, $pass)
     $pass = trim($pass);
     if (strlen($user)==0 || strlen($user)>=50 || strlen($pass)==0 || strlen($pass)>=50) return false;
 
-    $user = filter_var($user, FILTER_SANITIZE_STRING);
-    $pass = filter_var($pass, FILTER_SANITIZE_STRING);
+    $user = filter_var($user, FILTER_UNSAFE_RAW);
+    $pass = filter_var($pass, FILTER_UNSAFE_RAW);
 
     $QUERY = "SELECT cc.username, cc.credit, cc.status, cc.id, cc.id_didgroup, cc.tariff, cc.vat, ct.gmtoffset, cc.voicemail_permitted, " .
              "cc.voicemail_activated, cc_card_group.users_perms, cc.currency " .

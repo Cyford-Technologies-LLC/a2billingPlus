@@ -108,8 +108,8 @@ function Service_Create_TrunkConfig($activation_code)
     $Config_output .= "context=".$sip_data[0][7]."\n";
     $Config_output .= "disallow=all\n";
     $Config_output .= "allow=".SIP_IAX_INFO_ALLOWCODEC."\n";
-    if (count($additional_sip) > 0) {
-        for ($i = 0; $i< count($additional_sip); $i++) {
+    if (a2b_count($additional_sip) > 0) {
+        for ($i = 0; $i< a2b_count($additional_sip); $i++) {
             $Config_output .= trim($additional_sip[$i]).chr(10);
         }
     }
@@ -124,8 +124,8 @@ function Service_Create_TrunkConfig($activation_code)
     $Config_output .= "context=".$iax_data[0][7]."\n";
     $Config_output .= "disallow=all\n";
     $Config_output .= "allow=".SIP_IAX_INFO_ALLOWCODEC."\n";
-    if (count($additional_iax) > 0) {
-        for ($i = 0; $i< count($additional_iax); $i++) {
+    if (a2b_count($additional_iax) > 0) {
+        for ($i = 0; $i< a2b_count($additional_iax); $i++) {
             $Config_output .= trim($additional_iax[$i]).chr(10);
         }
     }

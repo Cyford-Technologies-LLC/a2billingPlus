@@ -1,0 +1,153 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: docker/php-apache/Dockerfile
+      args:
+        PHP_VERSION: "8.2"
+    env_file:
+      - .env
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html
+      A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
+      A2BP_SOURCE_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
+      A2BP_SOURCE_USER: ${A2BP_DB_USER:-a2billinguser}
+      A2BP_SOURCE_PASSWORD: ${A2BP_DB_PASSWORD:-a2billing}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${A2BP_HTTP_PORT:-8080}:80"
+    volumes:
+      - .:/var/www/html
+      - composer-cache:/tmp/composer-cache
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/health.php"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  app84:
+    build:
+      context: .
+      dockerfile: docker/php-apache/Dockerfile
+      args:
+        PHP_VERSION: "8.4"
+    env_file:
+      - .env
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html
+      A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
+      A2BP_SOURCE_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
+      A2BP_SOURCE_USER: ${A2BP_DB_USER:-a2billinguser}
+      A2BP_SOURCE_PASSWORD: ${A2BP_DB_PASSWORD:-a2billing}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "${A2BP_HTTP_84_PORT:-8084}:80"
+    volumes:
+      - .:/var/www/html
+      - composer-cache-php84:/tmp/composer-cache
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/health.php"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    profiles:
+      - php84
+
+  worker:
+    build:
+      context: .
+      dockerfile: docker/php-apache/Dockerfile
+      args:
+        PHP_VERSION: "8.2"
+    env_file:
+      - .env
+    command: ["php", "-v"]
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    volumes:
+      - .:/var/www/html
+      - composer-cache:/tmp/composer-cache
+    profiles:
+      - worker
+
+  db:
+    image: mariadb:11
+    env_file:
+      - .env
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-allowed-packet=128M
+    ports:
+      - "${A2BP_DB_PORT:-3307}:3306"
+    volumes:
+      - db-data:/var/lib/mysql
+      - ./DataBase/mariadb/11/mariadb-11.sql:/docker-entrypoint-initdb.d/01-a2billingplus.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "${A2BP_REDIS_PORT:-6379}:6379"
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 10
+
+  asterisk:
+    build:
+      context: .
+      dockerfile: docker/asterisk/Dockerfile
+    env_file:
+      - .env
+    ports:
+      - "${A2BP_ASTERISK_AMI_PORT:-5038}:5038"
+      - "${A2BP_ASTERISK_ARI_PORT:-8088}:8088"
+      - "${A2BP_ASTERISK_SIP_PORT:-5060}:5060/udp"
+      - "${A2BP_ASTERISK_RTP_START:-10000}-${A2BP_ASTERISK_RTP_END:-10020}:10000-10020/udp"
+    volumes:
+      - ./AGI:/usr/share/asterisk/agi-bin/a2billing:ro
+      - asterisk-spool:/var/spool/asterisk
+      - asterisk-logs:/var/log/asterisk
+    healthcheck:
+      test: ["CMD", "asterisk", "-rx", "core show version"]
+      interval: 20s
+      timeout: 5s
+      retries: 8
+      start_period: 30s
+    profiles:
+      - asterisk
+
+  mailpit:
+    image: axllent/mailpit:latest
+    ports:
+      - "8025:8025"
+      - "1025:1025"
+    profiles:
+      - tools
+
+volumes:
+  db-data:
+  composer-cache:
+  composer-cache-php84:
+  asterisk-spool:
+  asterisk-logs:

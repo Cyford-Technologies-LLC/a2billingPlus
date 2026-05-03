@@ -80,11 +80,13 @@ if (isset($_GET["logout"]) && $_GET["logout"]=="true") {
 
 getpost_ifset (array('pr_login', 'pr_password'));
 
-if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset($_SESSION['rights']) || (isset($_POST["done"]) && $_POST["done"]=="submit_log") )) {
+$done = $_POST["done"] ?? '';
+
+if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset($_SESSION['rights']) || $done=="submit_log" )) {
 
     if ($FG_DEBUG == 1) echo "<br>0. HERE WE ARE";
 
-    if ($_POST["done"]=="submit_log") {
+    if ($done=="submit_log") {
 
         $DBHandle  = DbConnect();
 
@@ -152,8 +154,8 @@ function login ($user, $pass)
 
     $user = trim($user);
     $pass = trim($pass);
-    $user = filter_var($user, FILTER_SANITIZE_STRING);
-    $pass = filter_var($pass, FILTER_SANITIZE_STRING);
+    $user = filter_var($user, FILTER_UNSAFE_RAW);
+    $pass = filter_var($pass, FILTER_UNSAFE_RAW);
 
     $pass_encoded= hash( 'whirlpool',$pass);
     if (strlen($user)==0 || strlen($user)>=50 || strlen($pass)==0 || strlen($pass)>=50) return false;
@@ -174,10 +176,10 @@ function login ($user, $pass)
 
 function has_rights ($condition)
 {
-    return ($_SESSION["rights"] & $condition);
+    return ((int) ($_SESSION["rights"] ?? 0) & $condition);
 }
 
-$ACXACCESS 				= ($_SESSION["rights"] > 0) ? true : false;
+$ACXACCESS 				= ((int) ($_SESSION["rights"] ?? 0) > 0) ? true : false;
 $ACXDASHBOARD			= has_rights (ACX_DASHBOARD);
 $ACXCUSTOMER 			= has_rights (ACX_CUSTOMER);
 $ACXBILLING 			= has_rights (ACX_BILLING);

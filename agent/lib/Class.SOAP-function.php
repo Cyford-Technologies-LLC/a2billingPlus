@@ -1015,13 +1015,13 @@ class SOAP_A2Billing
             $content_exp_val= trim($content_exp_val);
             if (strlen($content_exp_val) > 1) {
                 $content_exp_val_arr = explode("|", $content_exp_val);
-                if (is_array($content_exp_val_arr) && count($content_exp_val_arr) > 1) {
+                if (is_array($content_exp_val_arr) && a2b_count($content_exp_val_arr) > 1) {
                     $arr_provisioning[] = $content_exp_val_arr;
                 }
             }
         }
 
-        if (!is_array($arr_provisioning) && count($arr_provisioning) == 0) {
+        if (!is_array($arr_provisioning) && a2b_count($arr_provisioning) == 0) {
             return array(false, "ERROR NO PROVISIONING LIST FOUND");
         }
 
@@ -1203,7 +1203,7 @@ class SOAP_A2Billing
             $content_exp_val = trim($content_exp_val);
             if (strlen($content_exp_val) > 1) {
                 $content_exp_val_arr = explode(",", $content_exp_val);
-                if (is_array($content_exp_val_arr) && count($content_exp_val_arr) >= 3) {
+                if (is_array($content_exp_val_arr) && a2b_count($content_exp_val_arr) >= 3) {
                     $rate_margin = $content_exp_val_arr[2] + $content_exp_val_arr[2] * $margin;
 
                     $arr_rates[] = array( $content_exp_val_arr[1], $content_exp_val_arr[0], $content_exp_val_arr[2], $rate_margin);

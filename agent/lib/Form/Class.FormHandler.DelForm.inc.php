@@ -109,7 +109,7 @@ else
 		$split_hidden_fields = preg_split("/,/",trim($this->FG_QUERY_EDITION_HIDDEN_FIELDS));
 		$split_hidden_fields_value = preg_split("/,/",trim($this->FG_QUERY_EDITION_HIDDEN_VALUE));
 
-		for ($cur_hidden=0;$cur_hidden<count($split_hidden_fields);$cur_hidden++){
+		for ($cur_hidden=0;$cur_hidden<a2b_count($split_hidden_fields);$cur_hidden++){
 			echo "<INPUT type=\"hidden\" name=\"".trim($split_hidden_fields[$cur_hidden])."\" value=\"".trim($split_hidden_fields_value[$cur_hidden])."\">\n";
 		}
 	}
@@ -145,14 +145,14 @@ else
 					?>
 					<SELECT class="form_input_select" disabled name=<?php echo $this->FG_TABLE_EDITION[$i][1]?>>
 						<?php
-						if (count($select_list)>0){
+						if (a2b_count($select_list)>0){
 							$select_number=0;
 							foreach ($select_list as $select_recordset){
 								$select_number++;
 								//%1 : (%2)
 								if (!is_null($this->FG_TABLE_EDITION[$i][12]) && strlen($this->FG_TABLE_EDITION[$i][12])){
 									$value_display =  $this->FG_TABLE_EDITION[$i][12];
-									$nb_recor_k = count($select_recordset);
+									$nb_recor_k = a2b_count($select_recordset);
 									for ($k=1;$k<=$nb_recor_k;$k++){
 										$value_display  = str_replace("%$k", $select_recordset[$k-1], $value_display );
 									}

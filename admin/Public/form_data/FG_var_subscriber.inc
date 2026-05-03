@@ -35,6 +35,8 @@
 
 getpost_ifset(array('id', 'id_cc_card', 'id_subscription_fee', 'datestart', 'datestop', 'product_name'));
 
+
+$form_action = $form_action ?? '';
 $HD_Form = new FormHandler("cc_card_subscription","Subscriber");
 $HD_Form -> FG_DEBUG = 0;
 

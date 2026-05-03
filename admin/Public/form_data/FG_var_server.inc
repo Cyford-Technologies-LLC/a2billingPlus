@@ -36,6 +36,8 @@
 getpost_ifset(array('id', 'id_group', 'server_ip', 'manager_host', 'manager_username', 'manager_secret'));
 
 
+
+$filterprefix = $filterprefix ?? '';
 $HD_Form = new FormHandler("cc_server_manager","Server");
 
 $HD_Form -> FG_DEBUG = 0;

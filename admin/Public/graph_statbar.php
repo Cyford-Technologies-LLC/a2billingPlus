@@ -67,7 +67,7 @@ $FG_TABLE_DEFAULT_SENS = "DESC";
 $FG_COL_QUERY_GRAPH = 't1.starttime, t1.sessiontime';
 
 $FG_LIMITE_DISPLAY = 100;
-$FG_NB_TABLE_COL = count($FG_TABLE_COL);
+$FG_NB_TABLE_COL = a2b_count($FG_TABLE_COL);
 
 $instance_table_graph = new Table($FG_TABLE_NAME, $FG_COL_QUERY_GRAPH);
 
@@ -279,8 +279,8 @@ foreach ($datay1 as $tkey => $data) {
 
 }
 /*$datay1 = array(2,6,7,12,13,18);
-echo "<br>nb x1:".count($datax1);
-echo "<br>nb z1:".count($dataz1);
+echo "<br>nb x1:".a2b_count($datax1);
+echo "<br>nb z1:".a2b_count($dataz1);
 print_r($datax1);
 echo "<br><br>";
 print_r($dataz1);

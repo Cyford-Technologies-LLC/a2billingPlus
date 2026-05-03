@@ -128,8 +128,8 @@ disallow=all
 context=<?php echo $sip_iax_data[0][7]?> ; change for proper context
 allow=<?php echo SIP_IAX_INFO_ALLOWCODEC?> ; we support ulaw,alaw,ilbc,gsm,g723.1,g726,g729a
 <?php
-if (count($additional_iax) > 0) {
-    for ($i = 0; $i< count($additional_iax); $i++) {
+if (a2b_count($additional_iax) > 0) {
+    for ($i = 0; $i< a2b_count($additional_iax); $i++) {
         echo trim($additional_iax[$i]).chr(10);
     }
 }
@@ -147,8 +147,8 @@ fromuser=<?php echo $sip_iax_data[0][1]?>
 context=<?php echo $sip_iax_data[0][7]?> ; change for proper context
 allow=<?php echo SIP_IAX_INFO_ALLOWCODEC?> ; we support ulaw,alaw,ilbc,gsm,g723.1,g726,g729a
 <?php
-if (count($additional_sip) > 0) {
-    for ($i = 0; $i< count($additional_sip); $i++) {
+if (a2b_count($additional_sip) > 0) {
+    for ($i = 0; $i< a2b_count($additional_sip); $i++) {
         echo trim($additional_sip[$i]).chr(10);
     }
 }

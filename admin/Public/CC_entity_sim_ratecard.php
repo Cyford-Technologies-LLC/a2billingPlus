@@ -267,7 +267,7 @@ $FG_TABLE_ALTERNATE_ROW_COLOR[1]='#EEE9E9';
                                 </td>
                         </tr>
             <?php }?>
-            <?php for ($i=0;$i<count($arr_ratecard);$i++) {
+            <?php for ($i=0;$i<a2b_count($arr_ratecard);$i++) {
                 if ($arr_ratecard[$i]=='destination') {
                     $instance_table_cardnum = new Table("cc_prefix", "destination");
                     $list_prefix = $instance_table_cardnum -> Get_list ($A2B -> DBHandle, "prefix=".$RateEngine->ratecard_obj[$j][$arr_ratecard_i[$i]], null, null, null, null, null, null);

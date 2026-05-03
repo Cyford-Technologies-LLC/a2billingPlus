@@ -35,7 +35,15 @@
 
 getpost_ifset(array('id', 'login', 'passwd', 'active', 'location', 'id_tariffgroup', 'options', 'credit',
 'currency', 'locale', 'commission', 'vat', 'banner', 'language', 'perms', 'lastname', 'firstname', 'address', 'city', 'state',
-'country', 'zipcode', 'phone', 'email', 'fax'));
+'country', 'zipcode', 'phone', 'email', 'fax', 'form_action', 'popup_select', 'popup_formname', 'popup_fieldname'));
+
+$FG_TABLE_CLAUSE = $FG_TABLE_CLAUSE ?? '';
+$popup_select = isset($popup_select) ? (int) $popup_select : 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$form_action = $form_action ?? '';
+$balance_access = '';
+$default_label_value = '';
 
 
 $FG_INSTANCE_NAME = gettext("Agent");
@@ -83,7 +91,7 @@ $right_list["11"] = array( gettext("SIGNUP"), "1024");
 $right_list["12"] = array( gettext("VOIP CONF"), "2048");
 $right_list["13"] = array( gettext("SEE CUSTOMERS CALLERID"), "4096");
 
-$len_right_list = count($right_list);
+$len_right_list = a2b_count($right_list);
 
 $yesno = $cnts->getYesNoList();
 

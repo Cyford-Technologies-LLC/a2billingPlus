@@ -208,7 +208,7 @@ echo $CC_help_generate_customer;
 $instance_table_tariff = new Table("cc_tariffgroup", "id, tariffgroupname");
 $FG_TABLE_CLAUSE = "";
 $list_tariff = $instance_table_tariff->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "tariffgroupname", "ASC", null, null, null, null);
-$nb_tariff = count($list_tariff);
+$nb_tariff = a2b_count($list_tariff);
 $instance_table_group = new Table("cc_card_group", " id, name ");
 $list_group = $instance_table_group->Get_list($HD_Form->DBHandle, $FG_TABLE_CLAUSE, "name", "ASC", null, null, null, null);
 

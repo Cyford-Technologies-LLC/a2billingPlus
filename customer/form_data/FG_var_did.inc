@@ -35,6 +35,21 @@
 
 getpost_ifset(array('id', 'billingtype', 'did', 'startingdate', 'expirationdate', 'id_cc_didgroup', 'id_cc_country', 'activated', 'fixrate', 'id_trunk', 'choose_country', 'choose_did', 'assign', 'countrycode', 'arecode', 'phonenumber', 'voip_call', 'destination', 'choose_did_rate', 'new_did_page', 'confirm_buy_did', 'action_release'));
 
+$form_action = $form_action ?? '';
+$did = $did ?? '';
+$fixrate = $fixrate ?? '';
+$choose_country = $choose_country ?? '';
+$choose_did = $choose_did ?? '';
+$assign = $assign ?? '';
+$countrycode = $countrycode ?? '';
+$arecode = $arecode ?? '';
+$phonenumber = $phonenumber ?? '';
+$voip_call = $voip_call ?? '';
+$destination = $destination ?? '';
+$choose_did_rate = $choose_did_rate ?? '';
+$new_did_page = $new_did_page ?? '';
+$confirm_buy_did = $confirm_buy_did ?? '';
+$action_release = $action_release ?? '';
 
 $HD_Form = new FormHandler("cc_did_destination","destination");
 

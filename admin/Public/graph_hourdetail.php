@@ -161,7 +161,7 @@ $list_total = $instance_table_graph->Get_list($DBHandle, $FG_TABLE_CLAUSE, 't1.s
 
 /**************************************/
 
-$nbcall = count($list_total);
+$nbcall = a2b_count($list_total);
 
 $mycall_min[0] = 0;
 $mycall_dur[0] = 0;
@@ -195,7 +195,7 @@ for ($i = 1; $i <= $nbcall; $i++) {
     //if ($i==10) break;
 }
 
-for ($k = 0; $k <= count($mycall_minsec_start); $k++) {
+for ($k = 0; $k <= a2b_count($mycall_minsec_start); $k++) {
 
     if (is_numeric($fluctuation[$mycall_minsec_start[$k][0]])) {
         $fluctuation[$mycall_minsec_start[$k][0]]++;
@@ -233,7 +233,7 @@ function recursif_count_load($ind, $table, $load)
     $current_start = $table[$ind][0];
     $current_end = $table[$ind][1];
 
-    for ($k = $ind +1; $k <= count($table); $k++) {
+    for ($k = $ind +1; $k <= a2b_count($table); $k++) {
         if ($table[$k][0] <= $current_end) {
             $load = recursif_count_load($k, $table, $load +1);
             if ($load > $maxload)
@@ -242,7 +242,7 @@ function recursif_count_load($ind, $table, $load)
             break;
         }
     }
-    if ($k < count($table))
+    if ($k < a2b_count($table))
         $load = recursif_count_load($k, $table, $load);
     if ($load > $maxload)
         $maxload = $load;
@@ -299,8 +299,8 @@ if ($typegraph == 'fluctuation') {
 
     $width_graph = 750;
 
-    if (count($fluctuation_load) > 200) {
-        $multi_width = intval(count($fluctuation_load) / 90);
+    if (a2b_count($fluctuation_load) > 200) {
+        $multi_width = intval(a2b_count($fluctuation_load) / 90);
         $width_graph = $width_graph * $multi_width;
     }
     $graph = new Graph($width_graph, 450);
@@ -419,7 +419,7 @@ if ($typegraph == 'fluctuation') {
     $graph->legend->SetMarkAbsSize(1);
     $graph->legend->SetFont(FF_FONT1, FS_BOLD);
 
-    for ($i = 1; $i <= count($datay); $i++) {
+    for ($i = 1; $i <= a2b_count($datay); $i++) {
 
         // Create the first line
         $p1[$i] = new LinePlot($datay[$i]);

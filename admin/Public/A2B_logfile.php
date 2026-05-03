@@ -63,7 +63,7 @@ echo $CC_help_logfile;
 function array2drop_down($name, $currentvalue, $arr_value)
 {
     echo '<SELECT name="' . $name . '" class="form_enter">';
-    if (is_array($arr_value) && count($arr_value) >= 1) {
+    if (is_array($arr_value) && a2b_count($arr_value) >= 1) {
         foreach ($arr_value as $ind => $value) {
             if ($ind != $currentvalue) {
                 echo '<option value="' . $ind . '">' . $value . '</option>';

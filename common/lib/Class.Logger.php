@@ -54,7 +54,7 @@ class Logger
         $description = str_replace("'", "", $description);
         $str_submitted_fields = explode(',', $param_add_fields);
         $str_submitted_values = explode(',', $param_add_value);
-        $num_records = count($str_submitted_fields);
+        $num_records = a2b_count($str_submitted_fields);
         for ($num = 0; $num < $num_records; $num++) {
             $str_name_value_pair .= $str_submitted_fields[$num]." = ".str_replace("'",'',$str_submitted_values[$num]);
             if ($num != $num_records -1) {
@@ -77,7 +77,7 @@ class Logger
         $pageName = array_shift($interName);
         $description = str_replace("'", "", $description);
         $str_submitted_fields = explode(',', $param_update);
-        $num_records = count($str_submitted_fields);
+        $num_records = a2b_count($str_submitted_fields);
         for ($num = 0; $num < $num_records; $num++) {
             $str_name_value_pair .= str_replace("'","",$str_submitted_fields[$num]);
             if ($num != $num_records -1) {

@@ -35,6 +35,12 @@
 
 getpost_ifset(array('id', 'tariffname', 'startingdate', 'expirationdate', 'id_trunk', 'description', 'dnidprefix', 'calleridprefix'));
 
+$form_action = $form_action ?? '';
+$comp_date = $comp_date ?? '';
+$comp_date_plus = $comp_date_plus ?? '';
+$val_dnidprefix = $val_dnidprefix ?? '';
+$val_calleridprefix = $val_calleridprefix ?? '';
+
 $HD_Form = new FormHandler("cc_tariffplan","Ratecard");
 
 $HD_Form -> FG_DEBUG = 0;

@@ -10,3 +10,9 @@
 .idea/
 *.iml
 /vendor/
+.env
+.phpunit.result.cache
+
+# Local migration outputs can contain customer data.
+/development/
+

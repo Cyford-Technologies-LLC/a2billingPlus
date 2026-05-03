@@ -113,6 +113,7 @@ if (!empty($HD_Form -> FG_TABLE_CLAUSE)) {
     $list_customer = $instance_cus_table -> Get_list ($HD_Form -> DBHandle, $sql_clause, null, null, null, null, $limit_massmail, 0);
 }
 
+$list_customer = is_array($list_customer) ? $list_customer : array();
 $nb_customer = sizeof($list_customer);
 $DBHandle  = DbConnect();
 $instance_table = new Table();

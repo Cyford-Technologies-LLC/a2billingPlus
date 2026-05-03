@@ -35,6 +35,13 @@
 
 getpost_ifset(array('id', 'trunkcode', 'trunkprefix', 'removeprefix', 'providertech', 'providerip', 'addparameter','failover_trunk', 'id_provider', 'popup_select', 'inuse', 'maxuse', 'status', 'if_max_use'));
 
+
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$form_action = $form_action ?? '';
+$value = $value ?? '';
+$provider_list_result = $provider_list_result ?? array();
 $DBHandle  = DbConnect();
 $instance_table = new Table();
 

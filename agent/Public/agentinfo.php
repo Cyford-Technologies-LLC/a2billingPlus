@@ -173,7 +173,7 @@ if ($A2B->config["epayment_method"]['enable']) { ?>
             } else {
                 if ($two_currency) {
                 $purchase_amounts_convert= array();
-                for ($i=0;$i<count($arr_purchase_amount);$i++) {
+                for ($i=0;$i<a2b_count($arr_purchase_amount);$i++) {
                     $purchase_amounts_convert[$i]=round($arr_purchase_amount[$i]/$mycur,2);
                 }
                 $to_echo = join(" - ", $purchase_amounts_convert);

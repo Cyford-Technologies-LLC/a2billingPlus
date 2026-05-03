@@ -35,6 +35,9 @@
 
 getpost_ifset(array('id', 'label', 'fee', 'status', 'emailreport'));
 
+
+$form_action = $form_action ?? '';
+$value = $value ?? '';
 $HD_Form = new FormHandler("cc_subscription_service","Subscription Service");
 
 $HD_Form -> FG_DEBUG = 0;

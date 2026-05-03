@@ -79,7 +79,7 @@ $QUERY = "UPDATE cc_epayment_log_agent SET status = 2 WHERE id = ".$transactionI
 write_log(LOGFILE_EPAYMENT, basename(__FILE__).' line:'.__LINE__."- QUERY = $QUERY");
 $paymentTable->SQLExec ($DBHandle_max, $QUERY);
 
-if (!is_array($transaction_data) && count($transaction_data) == 0) {
+if (!is_array($transaction_data) && a2b_count($transaction_data) == 0) {
     write_log(LOGFILE_EPAYMENT, basename(__FILE__).
         ' line:'.__LINE__."- transactionID=$transactionID"." ERROR INVALID TRANSACTION ID PROVIDED, TRANSACTION ID =".$transactionID);
     exit();

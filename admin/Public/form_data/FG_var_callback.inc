@@ -36,6 +36,9 @@
 getpost_ifset(array('id', 'uniqueid', 'entry_time', 'status', 'server_ip', 'num_attempt', 'last_attempt_time', 'manager_result', 'agi_result', 'callback_time', 'channel', 'exten', 'context', 'priority', 'application', 'data', 'timeout', 'callerid', 'variable', 'account', 'async', 'actionid'));
 
 
+
+$form_action = $form_action ?? '';
+$filterprefix = $filterprefix ?? '';
 $HD_Form = new FormHandler("cc_callback_spool", gettext("Callback"));
 
 $HD_Form -> FG_DEBUG = 0;

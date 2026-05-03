@@ -36,6 +36,13 @@
 getpost_ifset(array('id', 'id_card', 'date','title','description'));
 
 
+
+$form_action = $form_action ?? '';
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$value = $value ?? '';
+$filterprefix = $filterprefix ?? '';
 if (!isset($form_action) || $form_action=="list") {
 	$list_query = "cc_invoice LEFT JOIN cc_card ON cc_card.id=id_card ";
 	$list_query .= "LEFT JOIN (SELECT st1.id_invoice, TRUNCATE(SUM(st1.price*(1+(st1.vat/100))),2) as total_price " .

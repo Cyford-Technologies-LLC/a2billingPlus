@@ -474,8 +474,8 @@ if ($form_action == "list" && (!($popup_select>=1))) {
           <td align="left"  class="bgcolor_001">
                  9)&nbsp;<?php echo gettext("Run service");?>&nbsp;:
                 <font class="version">
-                <input type="radio" NAME="type[upd_runservice]" value="1" <?php if ((!isset($type[upd_runservice]))|| ($type[upd_runservice]=='1') ) {?>checked<?php }?>>
-                <?php echo gettext("Yes");?> <input type="radio" NAME="type[upd_runservice]" value="0" <?php if ($type[upd_runservice]=='0') {?>checked<?php }?>><?php echo gettext("No");?>
+                <input type="radio" NAME="type[upd_runservice]" value="1" <?php if ((!isset($type["upd_runservice"]))|| ($type["upd_runservice"]=='1') ) {?>checked<?php }?>>
+                <?php echo gettext("Yes");?> <input type="radio" NAME="type[upd_runservice]" value="0" <?php if (($type["upd_runservice"] ?? null)=='0') {?>checked<?php }?>><?php echo gettext("No");?>
                 </font>
           </td>
         </tr>

@@ -62,13 +62,13 @@ class iam_csvdump
     $ret = array();
     reset($array);
     if (is_array(current($array))) {
-      while (list(,$lineArr) = each($array)) {
+      foreach ($array as $lineArr) {
         if (!is_array($lineArr)) {
           //Could issue a warning ...
           $ret[] = array();
         } else {
           $subArr = array();
-          while (list(,$val) = each($lineArr)) {
+          foreach ($lineArr as $val) {
             $val      = $this->_valToCsvHelper($val, $separator, $trimFunction);
             $subArr[] = $val;
           }
@@ -78,7 +78,7 @@ class iam_csvdump
 
       return join("\n", $ret);
     } else {
-      while (list(,$val) = each($array)) {
+      foreach ($array as $val) {
         $val   = $this->_valToCsvHelper($val, $separator, $trimFunction);
         $ret[] = $val;
       }
@@ -135,9 +135,11 @@ class iam_csvdump
     {
          $unewline = "\r\n";
 
-         if (strstr(strtolower($_SERVER["HTTP_USER_AGENT"]), 'win')) {
+         $httpUserAgent = $_SERVER["HTTP_USER_AGENT"] ?? '';
+
+         if (strstr(strtolower($httpUserAgent), 'win')) {
             $unewline = "\r\n";
-         } elseif (strstr(strtolower($_SERVER["HTTP_USER_AGENT"]), 'mac')) {
+         } elseif (strstr(strtolower($httpUserAgent), 'mac')) {
             $unewline = "\r";
          } else {
             // $unewline = "\n";
@@ -155,19 +157,21 @@ class iam_csvdump
     {
         $USER_BROWSER_AGENT="";
 
-        if (preg_match('/OPERA/i', strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        $httpUserAgent = strtoupper($_SERVER["HTTP_USER_AGENT"] ?? '');
+
+        if (preg_match('/OPERA/i', $httpUserAgent)) {
             $USER_BROWSER_AGENT='OPERA';
-        } elseif (preg_match('/MSIE/i',strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        } elseif (preg_match('/MSIE/i',$httpUserAgent)) {
             $USER_BROWSER_AGENT='IE';
-        } elseif (preg_match('/OMNIWEB/i', strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        } elseif (preg_match('/OMNIWEB/i', $httpUserAgent)) {
             $USER_BROWSER_AGENT='OMNIWEB';
-        } elseif (preg_match('/MOZILLA/i', strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        } elseif (preg_match('/MOZILLA/i', $httpUserAgent)) {
             $USER_BROWSER_AGENT='MOZILLA';
-        } elseif (preg_match('/FIREFOX/i', strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        } elseif (preg_match('/FIREFOX/i', $httpUserAgent)) {
             $USER_BROWSER_AGENT='FIREFOX';
-        } elseif (preg_match('/KONQUEROR/i', strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        } elseif (preg_match('/KONQUEROR/i', $httpUserAgent)) {
             $USER_BROWSER_AGENT='KONQUEROR';
-        } elseif (preg_match('/CHROME/i', strtoupper($_SERVER["HTTP_USER_AGENT"]))) {
+        } elseif (preg_match('/CHROME/i', $httpUserAgent)) {
             $USER_BROWSER_AGENT='CHROME';
         } else {
             $USER_BROWSER_AGENT='OTHER';
@@ -215,16 +219,12 @@ class iam_csvdump
 
     public function _db_connect_mysql($dbname="mysql", $user="root", $password="", $host="localhost")
     {
-      $result = @mysql_pconnect($host, $user, $password);
+      $result = @mysqli_connect($host, $user, $password, $dbname);
       if (!$result) {     // If no connection, return 0
 
        return false;
       }
 
-      if (!@mysql_select_db($dbname)) {  // If db not set, return 0
-
-       return false;
-      }
 
       return $result;
     }
@@ -272,13 +272,13 @@ class iam_csvdump
       if(!$conn= $this->_db_connect_mysql($dbname, $user , $password, $host))
           die("Error. Cannot connect to Database.");
       else {
-        $result = @mysql_query($query_string, $conn);
+        $result = @mysqli_query($conn, $query_string);
         if(!$result)
-            die("Could not perform the Query: ".mysql_error());
+            die("Could not perform the Query: ".mysqli_error($conn));
         else {
             $file = "";
             $crlf = $this->_define_newline();
-            while ($str= @mysql_fetch_array($result, MYSQL_NUM)) {
+            while ($str= @mysqli_fetch_array($result, MYSQLI_NUM)) {
                 $file .= $this->arrayToCsvString($str,",").$crlf;
             }
             echo $file;
@@ -366,9 +366,9 @@ class iam_csvdump
         if (!$conn= $this->_db_connect_mysql($dbname, $user , $password, $host)) {
             die("Error. Cannot connect to Database.");
         } else {
-            $result = @mysql_query($query_string, $conn);
+            $result = @mysqli_query($conn, $query_string);
             if (!$result) {
-              die("Could not perform the Query: ".mysql_error());
+              die("Could not perform the Query: ".mysqli_error($conn));
             } else {
                 $file = "";
                 $crlf = $this->_define_newline();
@@ -391,22 +391,23 @@ class iam_csvdump
         // Output header row
         $j = 0;
         echo "\t<header>\n";
-        $totalFields = @mysql_num_fields($result);
+        $totalFields = @mysqli_num_fields($result);
         for ($i=0; $i<$totalFields; $i++) {
-            $name = htmlspecialchars(@mysql_field_name($result, $i));
-            $type = htmlspecialchars(@mysql_field_type($result, $i));
+            $fields = @mysqli_fetch_fields($result);
+            $name = htmlspecialchars($fields[$i]->name ?? '');
+            $type = htmlspecialchars((string)($fields[$i]->type ?? ''));
             echo "\t\t<column name=\"{$name}\" type=\"{$type}\" />\n";
         }
         echo "\t</header>\n";
 
         echo "\t<records>\n";
-        $totalRows = @mysql_num_rows($result);
-        while ($row = @mysql_fetch_array($result, MYSQL_NUM)) {
+        $totalRows = @mysqli_num_rows($result);
+        while ($row = @mysqli_fetch_array($result, MYSQLI_NUM)) {
             $j = 0;
             echo "\t\t<row>\n";
 
             for ($l = 0; $l < $totalFields; $l++) {
-                $name = htmlspecialchars(@mysql_field_name($result, $l));
+                $name = htmlspecialchars($fields[$l]->name ?? '');
                 $v =  $row[$l];
                 if ($v != null) {
                     $v = htmlspecialchars($v);

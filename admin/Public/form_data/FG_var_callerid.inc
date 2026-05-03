@@ -34,6 +34,9 @@
 
 getpost_ifset(array('IDCust', 'id', 'cid', 'activated'));
 
+
+$value = $value ?? '';
+$filterprefix = $filterprefix ?? '';
 $HD_Form = new FormHandler("cc_callerid","CallerID");
 
 $HD_Form -> FG_DEBUG = 0;

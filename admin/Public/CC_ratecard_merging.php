@@ -100,9 +100,9 @@ if ($posted == 1) {
         $result  = $instance_table->SQLExec ($HD_Form -> DBHandle, $sql);
         $q = "";
         $q_update = "";
-        for ($i=0; $i<count($result); $i++) {
+        for ($i=0; $i<a2b_count($result); $i++) {
             $Update = "";
-            for ($k=0; $k<count($fields_array); $k++) {
+            for ($k=0; $k<a2b_count($fields_array); $k++) {
                 $val = $result[$i][$k];
                 if ($k == 0) {
                     $dialprefix = $result[$i][$k];
@@ -157,7 +157,8 @@ $con = "";
 
 $list_tariffname = $instance_table_tariffname  -> Get_list ($HD_Form -> DBHandle, $con, "tariffname", "ASC", null, null, null, null);
 
-$nb_tariffname = count($list_tariffname);
+$list_tariffname = is_array($list_tariffname) ? $list_tariffname : array();
+$nb_tariffname = a2b_count($list_tariffname);
 
 ?>
 <?php

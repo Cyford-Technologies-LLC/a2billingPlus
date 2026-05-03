@@ -36,6 +36,10 @@
 getpost_ifset(array('card', 'invoice'));
 
 
+
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
 $HD_Form = new FormHandler("cc_logpayment","Payment");
 
 $HD_Form -> FG_TABLE_ID = 'cc_logpayment.id';

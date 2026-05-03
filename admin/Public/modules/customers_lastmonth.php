@@ -101,7 +101,7 @@ if (!empty($type)) {
     $max = 0;
     $data = array();
     if (is_array($result_graph)) {
-        for ($i = 0; $i < count($result_graph); $i++) {
+        for ($i = 0; $i < a2b_count($result_graph); $i++) {
             $max = max($max,$result_graph[$i][1]);
             $data[]= array($result_graph[$i][0],(int) $result_graph[$i][1]);
         }

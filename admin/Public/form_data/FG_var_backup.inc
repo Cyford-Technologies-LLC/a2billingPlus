@@ -35,6 +35,11 @@
 
 getpost_ifset(array('name','path','creationdate'));
 
+
+$form_action = $form_action ?? '';
+$output = $output ?? array();
+$error = $error ?? 0;
+$error_zip = $error_zip ?? 0;
 $HD_Form = new FormHandler("cc_backup","Backup");
 
 $HD_Form -> FG_DEBUG = 0;

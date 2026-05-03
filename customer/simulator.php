@@ -81,7 +81,7 @@ if ($called && $id_cc_card) {
         $num = 0;
 
         $result = $A2B->instance_table->SQLExec($A2B->DBHandle, "SELECT username, tariff FROM cc_card where id='$customer_info[15]'");
-        if (!is_array($result) || count($result) == 0) {
+        if (!is_array($result) || a2b_count($result) == 0) {
             echo gettext("Error card !!!");
             exit ();
         }
@@ -126,7 +126,7 @@ if ($called && $id_cc_card) {
 $instance_table_tariffname = new Table("cc_tariffplan", "id, tariffname");
 $FG_TABLE_CLAUSE = "";
 $list_tariffname = $instance_table_tariffname->Get_list($DBHandle, $FG_TABLE_CLAUSE, "tariffname", "ASC", null, null, null, null);
-$nb_tariffname = count($list_tariffname);
+$nb_tariffname = a2b_count($list_tariffname);
 
 $smarty->display('main.tpl');
 

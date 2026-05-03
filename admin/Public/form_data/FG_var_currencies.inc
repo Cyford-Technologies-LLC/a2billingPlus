@@ -33,6 +33,10 @@
 
 
 getpost_ifset(array('id'));
+
+
+$filterprefix = $filterprefix ?? '';
+$value = '$value';
 $HD_Form = new FormHandler("cc_currencies","Currencies");
 
 $HD_Form -> FG_DEBUG = 0;

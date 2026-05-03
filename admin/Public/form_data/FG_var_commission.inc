@@ -34,6 +34,12 @@
 
 getpost_ifset(array('id', 'card_id', 'date', 'payment','description','added_refill','refill_type'));
 
+
+$form_action = $form_action ?? '';
+$id_card = $id_card ?? '';
+$value = $value ?? '';
+$id_val = $id_val ?? '';
+$comp_date = $comp_date ?? '';
 $HD_Form = new FormHandler("cc_agent_commission","Commission Agent");
 
 $HD_Form -> FG_TABLE_ID = 'cc_agent_commission.id';

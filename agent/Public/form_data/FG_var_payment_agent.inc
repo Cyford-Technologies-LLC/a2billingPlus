@@ -33,7 +33,10 @@
 
 
 
-getpost_ifset(array('id', 'agent_id', 'date', 'payment','description','added_refill','refill_type'));
+getpost_ifset(array('id', 'agent_id', 'date', 'payment','description','added_refill','refill_type', 'form_action', 'popup_select'));
+
+$form_action = $form_action ?? '';
+$popup_select = isset($popup_select) ? (int) $popup_select : 0;
 
 
 if (!isset($form_action) || $form_action=="list"){

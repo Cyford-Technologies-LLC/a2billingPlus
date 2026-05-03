@@ -33,6 +33,8 @@
 
 getpost_ifset(array('id', 'agent_id', 'date', 'credit','description'));
 
+$form_action = $form_action ?? '';
+$popup_select = $popup_select ?? 0;
 
 if (!isset($form_action) || $form_action=="list") {
 	$HD_Form = new FormHandler("cc_logrefill_agent LEFT JOIN cc_agent ON cc_agent.id=agent_id","Refill Agent");

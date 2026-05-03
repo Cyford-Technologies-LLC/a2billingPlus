@@ -36,6 +36,9 @@
 getpost_ifset(array('id', 'card_id', 'date', 'payment','description','added_refill','refill_type'));
 
 
+$form_action = $form_action ?? '';
+$popup_select = $popup_select ?? 0;
+$filterprefix = $filterprefix ?? '';
 
 if (!isset($form_action) || $form_action=="list"){
 	$HD_Form = new FormHandler("cc_logpayment LEFT JOIN cc_card ON cc_card.id=cc_logpayment.card_id LEFT JOIN cc_card_group ON cc_card.id_group=cc_card_group.id","payment");

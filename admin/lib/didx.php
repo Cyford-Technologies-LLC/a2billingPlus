@@ -41,7 +41,7 @@ class didx
             $ret = $client->getAvailableDIDS(DIDX_ID, DIDX_PASS, $country, $area, $vendor, $VRatingFrom, $VRatingTo, $CountryID);
             $ret = $ret['Array'];
             @sort($ret);
-            for ($i=1; $i<count($ret); $i++) {
+            for ($i=1; $i<a2b_count($ret); $i++) {
                 $ret[$i][1]=$this->setupcost($ret[$i][1]);
                 $ret[$i][2]=$this->monthly($ret[$i][2]);
                 $ret[$i][3]=$this->minutecharge($ret[$i][3]);
@@ -66,7 +66,7 @@ class didx
             $ret = $client->getAvailableRatedDIDSbyCountryCode(DIDX_ID, DIDX_PASS, $country, $VRatingFrom, $VRatingTo, $limit, $vendors, $ratefrom, $rateto, $CountryID);
             $ret = $ret['Array'];
             sort($ret);
-            for ($i=1; $i<count($ret); $i++) {
+            for ($i=1; $i<a2b_count($ret); $i++) {
                 $ret[$i][1]=$this->setupcost($ret[$i][1]);
                 $ret[$i][2]=$this->monthly($ret[$i][2]);
                 $ret[$i][3]=$this->minutecharge($ret[$i][3]);

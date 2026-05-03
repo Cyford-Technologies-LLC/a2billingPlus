@@ -110,6 +110,10 @@ if ($batchupdate == 1 && is_array($check)) {
 /********************************* ADD SIP / IAX FRIEND ***********************************/
 getpost_ifset(array("id_cc_card", "cardnumber", "useralias"));
 
+if (($form_action == "add_sip" || $form_action == "add_iax") && (!isset($id_cc_card) || !is_numeric($id_cc_card))) {
+    $form_action = "ask-add";
+}
+
 if ( (isset ($id_cc_card) && (is_numeric($id_cc_card)  != "")) && ( $form_action == "add_sip" || $form_action == "add_iax") ) {
 
     $HD_Form -> FG_GO_LINK_AFTER_ACTION = "A2B_entity_card.php?atmenu=card&stitle=Customers_Card&id=";
@@ -143,7 +147,7 @@ if ( (isset ($id_cc_card) && (is_numeric($id_cc_card)  != "")) && ( $form_action
     $instance_table_friend = new Table($TABLE_BUDDY,'*');
     $list_friend = $instance_table_friend -> Get_list ($HD_Form -> DBHandle, "id_cc_card='$id_cc_card'", null, null, null, null);
 
-    if (is_array($list_friend) && count($list_friend)>0) { Header ("Location: ".$HD_Form->FG_GO_LINK_AFTER_ACTION); exit();}
+    if (is_array($list_friend) && a2b_count($list_friend)>0) { Header ("Location: ".$HD_Form->FG_GO_LINK_AFTER_ACTION); exit();}
 
     $form_action = "add";
 

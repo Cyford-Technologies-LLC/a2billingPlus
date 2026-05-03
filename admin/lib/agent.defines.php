@@ -33,8 +33,8 @@
 require_once __DIR__ . '/../../vendor/autoload.php';
 
 /* prevent XSS */
-$_GET   = filter_input_array(INPUT_GET, FILTER_SANITIZE_STRING);
-$_POST  = filter_input_array(INPUT_POST, FILTER_SANITIZE_STRING);
+$_GET   = filter_input_array(INPUT_GET, FILTER_UNSAFE_RAW);
+$_POST  = filter_input_array(INPUT_POST, FILTER_UNSAFE_RAW);
 // $PHPSELF = filter_input(INPUT_SERVER, 'PHP_SELF', FILTER_SANITIZE_URL);
 
 define ("WRITELOG_QUERY", false);

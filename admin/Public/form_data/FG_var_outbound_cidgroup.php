@@ -2,6 +2,8 @@
 
 getpost_ifset(array('id', 'didgroupname'));
 
+$value = $value ?? '';
+
 $HD_Form = new FormHandler("cc_outbound_cid_group","Outbound CID Group");
 
 $HD_Form -> FG_DEBUG = 0;

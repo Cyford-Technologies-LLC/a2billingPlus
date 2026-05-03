@@ -36,6 +36,17 @@
 getpost_ifset(array('id', 'groupID', 'userid', 'login','country','city', 'pwd_encoded', 'perms', 'name', 'direction', 'zipcode', 'state', 'phone', 'fax', 'popup_select', 'popup_formname', 'popup_fieldname', 'email'));
 
 
+
+$form_action = $form_action ?? '';
+$groupID = $groupID ?? '0';
+$popup_select = $popup_select ?? 0;
+$popup_formname = $popup_formname ?? '';
+$popup_fieldname = $popup_fieldname ?? '';
+$FG_TABLE_CLAUSE = $FG_TABLE_CLAUSE ?? '';
+$FG_QUERY_EDITION = $FG_QUERY_EDITION ?? '';
+$ADDING_BUTTON_LINK1 = $ADDING_BUTTON_LINK1 ?? "A2B_entity_user.php?form_action=ask-add&groupID=0&section=".$_SESSION["menu_section"];
+$ADDING_BUTTON_ALT1 = $ADDING_BUTTON_ALT1 ?? gettext("Add ADMINISTRATOR");
+$ADDING_BUTTON_IMG1 = $ADDING_BUTTON_IMG1 ?? Images_Path ."/user_gray.png";
 if ($groupID=="0") {
 	$FG_INSTANCE_NAME="Administrator";
 	$ADDING_BUTTON_LINK1 = "A2B_entity_user.php?form_action=ask-add&groupID=0&section=".$_SESSION["menu_section"];
@@ -98,7 +109,7 @@ $right_list["23"] = array( gettext("DELETE CDR"), "4194304");
 $right_list["24"] = array( gettext("EDIT/DELETE ADMIN"), "8388608");
 $right_list["25"] = array( gettext("EDIT/DELETE AGENT"), "16777216");
 
-$len_right_list = count($right_list);
+$len_right_list = a2b_count($right_list);
 
 
 $HD_Form -> AddViewElement(gettext("USERID"), "UserID", "14%", "center", "sort");

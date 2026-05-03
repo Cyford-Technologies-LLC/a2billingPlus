@@ -35,6 +35,7 @@
 
 getpost_ifset(array('id', 'name', 'amount', 'period', 'rule', 'daynumber', 'stopmode', 'maxnumbercycle', 'status', 'emailreport'));
 
+$value = '$value';
 
 $HD_Form = new FormHandler("cc_service","Service");
 

@@ -68,7 +68,7 @@ $FG_COL_QUERY = 't1.starttime, t1.calledstation, t1.destination AS dest, t1.sess
 $FG_COL_QUERY_GRAPH = 't1.starttime, t1.sessiontime, t1.sessionbill-t1.buycost as profit, t1.sessionbill, t1.buycost';
 
 $FG_LIMITE_DISPLAY = 100;
-$FG_NB_TABLE_COL = count($FG_TABLE_COL);
+$FG_NB_TABLE_COL = a2b_count($FG_TABLE_COL);
 
 $instance_table_graph = new Table($FG_TABLE_NAME, $FG_COL_QUERY_GRAPH);
 

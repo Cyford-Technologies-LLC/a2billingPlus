@@ -98,7 +98,7 @@ if ($grouped) {
 
 $FG_TABLE_DEFAULT_SENS = "DESC";
 
-$FG_NB_TABLE_COL=count($FG_TABLE_COL);
+$FG_NB_TABLE_COL=a2b_count($FG_TABLE_COL);
 $FG_TOTAL_TABLE_COL = $FG_NB_TABLE_COL;
 $FG_HTML_TABLE_TITLE = gettext(" - Call Report - ");
 $FG_HTML_TABLE_WIDTH="96%";
@@ -338,7 +338,7 @@ $smarty->display('main.tpl');
                 <TR class="bgcolor_008">
 
                   <?php
-                      if (is_array($list) && count($list)>0) {
+                      if (is_array($list) && a2b_count($list)>0) {
 
                       for ($i=0;$i<$FG_NB_TABLE_COL;$i++) {
                     ?>
