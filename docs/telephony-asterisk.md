@@ -13,6 +13,42 @@ fully supported until 2028-10-16 and security-maintained until 2029-10-16:
 Asterisk 23 is a Standard release, not the launch target. Keep it for lab work
 until the A2BillingPlus test matrix explicitly includes it.
 
+## Docker Sandbox Baseline
+
+Last verified: 2026-05-03.
+
+The Compose `asterisk` service now builds from Ubuntu 24.04 and installs
+Asterisk 20.6.0 from the distribution package repository. The module path in
+`docker/asterisk/config/asterisk.conf` is set to Ubuntu's packaged module
+directory:
+
+```text
+/usr/lib/x86_64-linux-gnu/asterisk/modules
+```
+
+Observed checks:
+
+```text
+docker compose build asterisk
+docker compose up -d asterisk
+docker compose exec -T asterisk asterisk -rx "core show version"
+docker compose exec -T asterisk asterisk -rx "pjsip show endpoints"
+docker compose exec -T asterisk asterisk -rx "channel originate Local/1000@a2billingplus-sandbox application Wait 1"
+```
+
+Result:
+
+```text
+Asterisk 20.6.0~dfsg+~cs6.13.40431414-2build5
+PJSIP sandbox endpoint loaded: sandbox-endpoint
+Local sandbox dialplan answered extension 1000 and played hello-world.gsm
+```
+
+The beta gate still requires a registered PJSIP client/trunk call path against
+Asterisk 20 or 22. The current check proves the correct Asterisk major version,
+PJSIP configuration load, and dialplan execution, but not a full external PJSIP
+registration/media path.
+
 ## Required Runtime Checks
 
 `AsteriskConfigCheckService` validates the operator-facing telephony baseline:
