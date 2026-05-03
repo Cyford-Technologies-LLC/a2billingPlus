@@ -61,6 +61,37 @@ final class CustomerMigrationServiceTest extends TestCase
         $this->assertSame('iax-secret', $target->query('SELECT secret FROM cc_iax_buddies WHERE name = "1001-iax"')->fetchColumn());
     }
 
+    public function testMigratesCdrsByDateWindow(): void
+    {
+        $source = $this->pdoWithCardTable();
+        $target = $this->pdoWithCardTable();
+        $this->createCdrTable($source);
+        $this->createCdrTable($target);
+
+        $source->exec("INSERT INTO cc_call (id, uniqueid, starttime, sessiontime, calledstation, sessionbill) VALUES (1, 'old', '2026-04-30 23:00:00', 10, '100', '0.01')");
+        $source->exec("INSERT INTO cc_call (id, uniqueid, starttime, sessiontime, calledstation, sessionbill) VALUES (2, 'in-window', '2026-05-01 12:00:00', 60, '18005551212', '0.10')");
+        $source->exec("INSERT INTO cc_call (id, uniqueid, starttime, sessiontime, calledstation, sessionbill) VALUES (3, 'new', '2026-05-03 00:00:00', 20, '101', '0.02')");
+
+        $summary = (new CustomerMigrationService($source, $target))->migrateCdrs(false, 0, '2026-05-01 00:00:00', '2026-05-03 00:00:00');
+
+        $this->assertTrue($summary->isSuccessful());
+        $this->assertSame(1, $summary->getScannedRows());
+        $this->assertSame(1, $summary->getInsertedRows());
+        $this->assertSame('in-window', $target->query('SELECT uniqueid FROM cc_call')->fetchColumn());
+    }
+
+    public function testFormatsOperatorDryRunReport(): void
+    {
+        $summary = new \A2BillingPlus\Module\Migration\MigrationSummary(true, 10, 7, 2, 1, 'ok');
+        $payload = (new \A2BillingPlus\Module\Migration\MigrationReportFormatter())->jsonPayload(['customers' => $summary], true, 'customers');
+
+        $this->assertTrue($payload['success']);
+        $this->assertTrue($payload['dry_run']);
+        $this->assertSame(10, $payload['scanned_rows']);
+        $this->assertSame(7, $payload['inserted_rows']);
+        $this->assertSame('ok', $payload['results']['customers']['message']);
+    }
+
     private function pdoWithCardTable(): PDO
     {
         $pdo = new PDO('sqlite::memory:');
@@ -90,5 +121,19 @@ final class CustomerMigrationServiceTest extends TestCase
                 )'
             );
         }
+    }
+
+    private function createCdrTable(PDO $pdo): void
+    {
+        $pdo->exec(
+            'CREATE TABLE cc_call (
+                id INTEGER PRIMARY KEY,
+                uniqueid TEXT NOT NULL,
+                starttime TEXT NOT NULL,
+                sessiontime INTEGER NOT NULL,
+                calledstation TEXT NOT NULL,
+                sessionbill TEXT NOT NULL
+            )'
+        );
     }
 }

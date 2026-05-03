@@ -174,6 +174,7 @@ Choose a scope when needed:
 docker compose exec app php bin/migrate-a2billing.php --scope=customers
 docker compose exec app php bin/migrate-a2billing.php --scope=voip
 docker compose exec app php bin/migrate-a2billing.php --scope=all
+docker compose exec app php bin/migrate-a2billing.php --scope=cdrs --from=2026-05-01 --to=2026-06-01
 ```
 
 The migration foundation copies/upserts `cc_card`, `cc_sip_buddies`, and
@@ -181,3 +182,6 @@ The migration foundation copies/upserts `cc_card`, `cc_sip_buddies`, and
 schemas. It preserves source `id` where possible and updates an existing target
 row when the same `id` or natural key already exists. For customers the natural
 key is `username`; for SIP/IAX settings it is `name`.
+
+CDR migration copies/upserts `cc_call` by `id` or `uniqueid` and supports
+date-windowed runs with `--from` and `--to`.

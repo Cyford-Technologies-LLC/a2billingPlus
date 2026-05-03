@@ -24,6 +24,9 @@ legacy gateway status.
 See [docs/ui-admin-plan.md](docs/ui-admin-plan.md) for the admin/customer portal
 launch scope and UI replacement order.
 
+See [docs/migration.md](docs/migration.md) for source-to-target migration
+scopes, CDR windows, dry-run reports, and rollback guidance.
+
 Use the web installer at:
 
 ```text

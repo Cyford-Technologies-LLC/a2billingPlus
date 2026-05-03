@@ -32,19 +32,26 @@ final class CustomerMigrationService
         );
     }
 
+    public function migrateCdrs(bool $dryRun = true, int $limit = 0, string $from = '', string $to = ''): MigrationSummary
+    {
+        return $this->migrateTable('cc_call', 'uniqueid', $dryRun, $limit, 'CDR migration', $from, $to);
+    }
+
     private function migrateTable(
         string $tableName,
         string $uniqueColumn,
         bool $dryRun,
         int $limit,
-        string $label
+        string $label,
+        string $from = '',
+        string $to = ''
     ): MigrationSummary {
         $columns = $this->commonColumns($tableName);
         if (!in_array('id', $columns, true) || !in_array($uniqueColumn, $columns, true)) {
             return new MigrationSummary(false, 0, 0, 0, 0, $tableName . ' must have id and ' . $uniqueColumn . ' columns in both databases.');
         }
 
-        $rows = $this->sourceRows($tableName, $columns, $limit);
+        $rows = $this->sourceRows($tableName, $columns, $limit, $from, $to);
         $insertedRows = 0;
         $updatedRows = 0;
         $skippedRows = 0;
@@ -124,15 +131,37 @@ final class CustomerMigrationService
      * @param list<string> $columns
      * @return array<int, array<string, mixed>>
      */
-    private function sourceRows(string $tableName, array $columns, int $limit): array
+    private function sourceRows(string $tableName, array $columns, int $limit, string $from = '', string $to = ''): array
     {
         $sql = 'SELECT ' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns))
             . ' FROM ' . $this->quoteIdentifier($tableName) . ' ORDER BY id ASC';
+        $params = [];
+        if (in_array('starttime', $columns, true) && ($from !== '' || $to !== '')) {
+            $clauses = [];
+            if ($from !== '') {
+                $clauses[] = 'starttime >= :from_date';
+                $params['from_date'] = $from;
+            }
+            if ($to !== '') {
+                $clauses[] = 'starttime < :to_date';
+                $params['to_date'] = $to;
+            }
+
+            $sql = 'SELECT ' . implode(', ', array_map([$this, 'quoteIdentifier'], $columns))
+                . ' FROM ' . $this->quoteIdentifier($tableName)
+                . ' WHERE ' . implode(' AND ', $clauses)
+                . ' ORDER BY id ASC';
+        }
+
         if ($limit > 0) {
             $sql .= ' LIMIT ' . $limit;
         }
 
-        $statement = $this->source->query($sql);
+        $statement = $params === [] ? $this->source->query($sql) : $this->source->prepare($sql);
+        if ($statement && $params !== []) {
+            $statement->execute($params);
+        }
+
         return $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
     }
 
