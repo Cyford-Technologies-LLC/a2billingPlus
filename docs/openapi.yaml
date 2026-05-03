@@ -21,6 +21,14 @@ components:
       type: apiKey
       in: header
       name: X-A2BP-Customer-Signature
+    AgentIdHeader:
+      type: apiKey
+      in: header
+      name: X-A2BP-Agent-Id
+    AgentSignatureHeader:
+      type: apiKey
+      in: header
+      name: X-A2BP-Agent-Signature
   schemas:
     ApiSuccess:
       type: object
@@ -1404,6 +1412,57 @@ paths:
           $ref: '#/components/responses/Forbidden'
         '422':
           $ref: '#/components/responses/ValidationError'
+  /agents.php:
+    get:
+      summary: List agents or load one agent with commission history
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+        - name: active
+          in: query
+          schema:
+            type: string
+            enum: [t, f]
+      responses:
+        '200':
+          description: Safe agent fields with password omitted.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          description: Agent was not found.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiError'
+  /agent-customers.php:
+    get:
+      summary: List customers owned by the signed agent
+      security:
+        - AgentIdHeader: []
+          AgentSignatureHeader: []
+      parameters:
+        - $ref: '#/components/parameters/Limit'
+        - $ref: '#/components/parameters/Offset'
+      responses:
+        '200':
+          description: Customers whose cc_card_group.id_agent matches the signed agent.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
   /telephony-accounts.php:
     get:
       summary: List SIP/IAX realtime accounts or load one account
