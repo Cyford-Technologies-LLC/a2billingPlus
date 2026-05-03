@@ -1,0 +1,2 @@
+RewriteEngine On
+RewriteRule ^preview$ preview.php [L]

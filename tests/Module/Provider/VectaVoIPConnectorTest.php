@@ -33,10 +33,52 @@ final class VectaVoIPConnectorTest extends TestCase
     {
         $connector = new VectaVoIPConnector();
         $importer = $connector->getRateImporter(new ProviderCredentials('https://api.VectaVoIP.com', 'test-key'));
-        $preview = $importer->preview(new RateImportRequest('usd'));
 
         $this->assertInstanceOf(VectaVoIPRateImporter::class, $importer);
+    }
+
+    public function testRatePreviewFetchesProviderRows(): void
+    {
+        $importer = new VectaVoIPRateImporter(
+            new ProviderCredentials('http://localhost/api/sandbox', 'test-key'),
+            function (string $url, ProviderCredentials $credentials): array {
+                $this->assertSame('http://localhost/api/sandbox/v1/rates/preview?rate_deck=retail&currency=USD&destination=US', $url);
+                $this->assertSame('test-key', $credentials->getApiKey());
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'message' => 'preview ok',
+                        'total_rows' => 2,
+                        'sample_rows' => [
+                            ['destination' => 'United States', 'prefix' => '1', 'rate' => '0.0100'],
+                            ['destination' => 'Canada', 'prefix' => '1', 'rate' => '0.0125'],
+                        ],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            }
+        );
+
+        $preview = $importer->preview(new RateImportRequest('usd', 'retail', ['destination' => 'US']));
+
+        $this->assertSame(2, $preview->getTotalRows());
+        $this->assertSame('preview ok', $preview->getMessage());
+        $this->assertSame('United States', $preview->getSampleRows()[0]['destination']);
+    }
+
+    public function testRatePreviewReportsProviderFailure(): void
+    {
+        $importer = new VectaVoIPRateImporter(
+            new ProviderCredentials('http://localhost/api/sandbox', 'test-key'),
+            fn (): array => [
+                'status' => 422,
+                'body' => '{"message":"invalid deck"}',
+            ]
+        );
+
+        $preview = $importer->preview(new RateImportRequest('usd'));
+
         $this->assertSame(0, $preview->getTotalRows());
-        $this->assertStringContainsString('VectaVoIP rate preview', $preview->getMessage());
+        $this->assertSame('invalid deck', $preview->getMessage());
     }
 }

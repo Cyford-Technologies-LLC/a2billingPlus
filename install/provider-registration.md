@@ -113,3 +113,25 @@ Register install:
 ```
 
 If `install_key` is omitted, the API generates one.
+
+Preview provider rates through the local API:
+
+```json
+{
+  "action": "preview_rates",
+  "provider": "vectavoip",
+  "base_url": "http://localhost/api/sandbox",
+  "api_key": "sandbox_key",
+  "rate_deck": "retail",
+  "currency": "USD",
+  "filters": {
+    "destination": "US"
+  }
+}
+```
+
+The sandbox provider endpoint behind this action is:
+
+```text
+GET /api/sandbox/v1/rates/preview?rate_deck=retail&currency=USD
+```
