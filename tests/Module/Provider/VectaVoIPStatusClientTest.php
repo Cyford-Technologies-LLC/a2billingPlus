@@ -43,4 +43,29 @@ final class VectaVoIPStatusClientTest extends TestCase
         $this->assertFalse($result->isSuccessful());
         $this->assertSame('Invalid credentials.', $result->getMessage());
     }
+
+    public function testRetriesTransientStatusFailure(): void
+    {
+        $attempts = 0;
+        $client = new VectaVoIPStatusClient(function () use (&$attempts): array {
+            $attempts++;
+            if ($attempts === 1) {
+                return ['status' => 502, 'body' => '{"message":"bad gateway"}'];
+            }
+
+            return [
+                'status' => 200,
+                'body' => json_encode([
+                    'message' => 'active',
+                    'installation_id' => 'inst_123',
+                    'status' => 'active',
+                ], JSON_THROW_ON_ERROR),
+            ];
+        }, 2);
+
+        $result = $client->check(new ProviderCredentials('https://api.vectavoip.com', 'vvp_key', 'vvs_secret'));
+
+        $this->assertTrue($result->isSuccessful());
+        $this->assertSame(2, $attempts);
+    }
 }

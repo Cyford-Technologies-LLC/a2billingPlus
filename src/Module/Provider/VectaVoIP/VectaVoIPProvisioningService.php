@@ -16,9 +16,16 @@ final class VectaVoIPProvisioningService
      */
     public function provisionDefaults(): array
     {
-        $providerId = $this->ensureProvider();
-        $trunkId = $this->ensureTrunk($providerId);
-        $ratecardId = $this->ensureRatecard($trunkId);
+        $this->pdo->beginTransaction();
+        try {
+            $providerId = $this->ensureProvider();
+            $trunkId = $this->ensureTrunk($providerId);
+            $ratecardId = $this->ensureRatecard($trunkId);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
 
         return [
             'success' => true,

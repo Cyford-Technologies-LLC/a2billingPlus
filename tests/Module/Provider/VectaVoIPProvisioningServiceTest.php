@@ -43,6 +43,21 @@ final class VectaVoIPProvisioningServiceTest extends TestCase
         $this->assertSame('reserved', $pdo->query("SELECT status FROM cc_vectavoip_did_inventory WHERE did = '+15551234567'")->fetchColumn());
     }
 
+    public function testRollsBackPartialDefaultProvisioningFailure(): void
+    {
+        $pdo = $this->pdo();
+        $pdo->exec('DROP TABLE cc_tariffplan');
+        $service = new VectaVoIPProvisioningService($pdo);
+
+        try {
+            $service->provisionDefaults();
+            $this->fail('Expected provisioning to fail.');
+        } catch (Throwable) {
+            $this->assertSame(0, (int)$pdo->query('SELECT COUNT(*) FROM cc_provider')->fetchColumn());
+            $this->assertSame(0, (int)$pdo->query('SELECT COUNT(*) FROM cc_trunk')->fetchColumn());
+        }
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

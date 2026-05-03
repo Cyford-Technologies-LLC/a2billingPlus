@@ -13,7 +13,8 @@ final class VectaVoIPRegistrationClient
      */
     public function __construct(
         private readonly string $baseUrl = VectaVoIPConnector::API_BASE_URL,
-        private $transport = null
+        private $transport = null,
+        private readonly int $maxAttempts = 1
     ) {
     }
 
@@ -22,10 +23,21 @@ final class VectaVoIPRegistrationClient
         $url = rtrim($this->baseUrl, '/') . self::REGISTER_PATH;
         $payload = $request->toPayload();
 
-        try {
-            $response = $this->postJson($url, $payload);
-        } catch (\Throwable $exception) {
-            return new VectaVoIPRegistrationResult(false, 'VectaVoIP registration failed: ' . $exception->getMessage());
+        $response = null;
+        $lastError = '';
+        for ($attempt = 1; $attempt <= max(1, $this->maxAttempts); $attempt++) {
+            try {
+                $response = $this->postJson($url, $payload);
+                if ($response['status'] < 500) {
+                    break;
+                }
+                $lastError = 'HTTP ' . $response['status'];
+            } catch (\Throwable $exception) {
+                $lastError = $exception->getMessage();
+            }
+        }
+        if ($response === null) {
+            return new VectaVoIPRegistrationResult(false, 'VectaVoIP registration failed: ' . $lastError);
         }
 
         $decoded = json_decode($response['body'], true);

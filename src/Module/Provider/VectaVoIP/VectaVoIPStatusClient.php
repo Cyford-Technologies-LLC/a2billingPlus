@@ -14,16 +14,27 @@ final class VectaVoIPStatusClient
     /**
      * @param null|callable(string, ProviderCredentials): array{status:int, body:string} $transport
      */
-    public function __construct(private $transport = null)
+    public function __construct(private $transport = null, private readonly int $maxAttempts = 1)
     {
     }
 
     public function check(ProviderCredentials $credentials): ProviderConnectionResult
     {
-        try {
-            $response = $this->getJson($credentials->getBaseUrl() . self::STATUS_PATH, $credentials);
-        } catch (\Throwable $exception) {
-            return new ProviderConnectionResult(false, 'VectaVoIP status check failed: ' . $exception->getMessage());
+        $response = null;
+        $lastError = '';
+        for ($attempt = 1; $attempt <= max(1, $this->maxAttempts); $attempt++) {
+            try {
+                $response = $this->getJson($credentials->getBaseUrl() . self::STATUS_PATH, $credentials);
+                if ($response['status'] < 500) {
+                    break;
+                }
+                $lastError = 'HTTP ' . $response['status'];
+            } catch (\Throwable $exception) {
+                $lastError = $exception->getMessage();
+            }
+        }
+        if ($response === null) {
+            return new ProviderConnectionResult(false, 'VectaVoIP status check failed: ' . $lastError);
         }
 
         $decoded = json_decode($response['body'], true);

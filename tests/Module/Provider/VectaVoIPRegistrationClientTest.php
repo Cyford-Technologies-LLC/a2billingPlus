@@ -69,4 +69,35 @@ final class VectaVoIPRegistrationClientTest extends TestCase
         $this->assertFalse($result->isSuccessful());
         $this->assertSame('VectaVoIP registration did not return an API key.', $result->getMessage());
     }
+
+    public function testRetriesTransientRegistrationFailure(): void
+    {
+        $attempts = 0;
+        $client = new VectaVoIPRegistrationClient('https://api.vectavoip.com', function () use (&$attempts): array {
+            $attempts++;
+            if ($attempts === 1) {
+                return ['status' => 503, 'body' => '{"message":"try again"}'];
+            }
+
+            return [
+                'status' => 201,
+                'body' => json_encode(['api_key' => 'key_123', 'api_secret' => 'secret_123'], JSON_THROW_ON_ERROR),
+            ];
+        }, 2);
+
+        $result = $client->register(new VectaVoIPRegistrationRequest(
+            'install-key',
+            'VectaVoIP',
+            'VectaVoIP.com',
+            'Jane Admin',
+            'jane@example.test',
+            '+15551234567',
+            'Sandbox install',
+            'A2BillingPlus',
+            '0.1.0-alpha'
+        ));
+
+        $this->assertTrue($result->isSuccessful());
+        $this->assertSame(2, $attempts);
+    }
 }
