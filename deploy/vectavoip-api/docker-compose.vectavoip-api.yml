@@ -1,0 +1,51 @@
+services:
+  app:
+    build:
+      context: ../..
+      dockerfile: docker/php-apache/Dockerfile
+      args:
+        PHP_VERSION: "8.2"
+    env_file:
+      - .env.production
+    environment:
+      APACHE_DOCUMENT_ROOT: /var/www/html
+      A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "${A2BP_HTTP_PORT:-8080}:80"
+    volumes:
+      - ../..:/var/www/html
+      - ./apache-vhost.conf:/etc/apache2/sites-available/000-default.conf:ro
+      - composer-cache:/tmp/composer-cache
+      - secret-files:/run/secrets/a2billingplus
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost/health.php"]
+      interval: 20s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+
+  db:
+    image: mariadb:11
+    env_file:
+      - .env.production
+    command:
+      - --character-set-server=utf8mb4
+      - --collation-server=utf8mb4_unicode_ci
+      - --max-allowed-packet=128M
+    volumes:
+      - db-data:/var/lib/mysql
+      - ../../DataBase/mariadb/11/mariadb-11.sql:/docker-entrypoint-initdb.d/01-a2billingplus.sql:ro
+    healthcheck:
+      test: ["CMD-SHELL", "mariadb-admin ping -h 127.0.0.1 -uroot -p$${MYSQL_ROOT_PASSWORD} --silent"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 30s
+
+volumes:
+  db-data:
+  composer-cache:
+  secret-files:

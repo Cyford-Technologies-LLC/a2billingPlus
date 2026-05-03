@@ -37,6 +37,12 @@ Use separate hosts or managed services where possible:
 
 For a single-host production deployment, keep MariaDB and app data on durable volumes and back them up regularly.
 
+## VectaVoIP API Domain
+
+Use [../deploy/vectavoip-api/README.md](../deploy/vectavoip-api/README.md) to
+deploy the provider API for `https://api.vectavoip.com`. That deployment serves
+only `/api/vectavoip/*` and `/health.php`.
+
 ## Start Production Containers
 
 For the base web and database stack:

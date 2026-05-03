@@ -28,6 +28,7 @@ Invoke-Step 'PHP syntax: core changed entrypoints' {
     docker compose exec -T app php -l api/vectavoip/v1/rates/preview.php
     docker compose exec -T app php -l admin/Public/A2B_provider_setup.php
     docker compose exec -T app php -l bin/migrate-a2billing.php
+    docker compose exec -T app php -l bin/apply-install-migrations.php
 }
 
 Invoke-Step 'PHPUnit on PHP 8.2' {
