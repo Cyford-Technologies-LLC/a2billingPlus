@@ -21,6 +21,9 @@ PJSIP, trunk, and DID launch baseline.
 See [docs/payments.md](docs/payments.md) for the modern payment module plan and
 legacy gateway status.
 
+See [docs/ui-admin-plan.md](docs/ui-admin-plan.md) for the admin/customer portal
+launch scope and UI replacement order.
+
 Use the web installer at:
 
 ```text
