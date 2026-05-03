@@ -73,6 +73,29 @@ final class PaymentLedgerRepository
     }
 
     /**
+     * @return null|array<string, mixed>
+     */
+    public function find(int $id): ?array
+    {
+        $columns = $this->availableColumns(self::TABLE, self::COLUMNS);
+        if ($columns === [] || !in_array('id', $columns, true)) {
+            throw new \RuntimeException('No supported payment ledger id column was found.');
+        }
+
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s WHERE %s = :id',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier(self::TABLE),
+            $this->quoteIdentifier('id')
+        ));
+        $statement->bindValue(':id', $id, \PDO::PARAM_INT);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
      * @param list<string> $preferred
      * @return list<string>
      */

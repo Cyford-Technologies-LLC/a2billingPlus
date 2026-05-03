@@ -245,10 +245,16 @@ paths:
                 $ref: '#/components/schemas/ApiSuccess'
   /payments.php:
     get:
-      summary: List payment ledger rows with module-backed filters
+      summary: List payment ledger rows or load one payment by id
       parameters:
         - $ref: '#/components/parameters/Limit'
         - $ref: '#/components/parameters/Offset'
+        - name: id
+          in: query
+          description: When present, return one payment ledger row.
+          schema:
+            type: integer
+            minimum: 1
         - $ref: '#/components/parameters/DateFrom'
         - $ref: '#/components/parameters/DateTo'
         - $ref: '#/components/parameters/CustomerId'
@@ -259,6 +265,35 @@ paths:
             application/json:
               schema:
                 $ref: '#/components/schemas/ApiSuccess'
+  /payment-reconciliation.php:
+    get:
+      summary: Summarize paid amount versus refilled balance
+      parameters:
+        - name: from
+          in: query
+          required: true
+          description: Inclusive UTC date/time filter, YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.
+          schema:
+            type: string
+        - name: to
+          in: query
+          required: true
+          description: Exclusive UTC date/time filter, YYYY-MM-DD or YYYY-MM-DD HH:MM:SS.
+          schema:
+            type: string
+      responses:
+        '200':
+          description: Payment reconciliation totals from cc_logpayment.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ApiSuccess'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/ValidationError'
   /cdrs.php:
     get:
       summary: List call detail records with module-backed filters

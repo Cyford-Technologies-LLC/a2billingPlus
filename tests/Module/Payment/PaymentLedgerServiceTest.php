@@ -30,6 +30,24 @@ final class PaymentLedgerServiceTest extends TestCase
         $this->assertSame('20.00', $result['items'][0]['payment']);
     }
 
+    public function testLoadsPaymentDetailById(): void
+    {
+        $service = new PaymentLedgerService(new PaymentLedgerRepository($this->pdo()));
+
+        $payment = $service->detail(1);
+
+        $this->assertIsArray($payment);
+        $this->assertSame('Stripe test', $payment['description']);
+        $this->assertSame('10.00', $payment['payment']);
+    }
+
+    public function testReturnsNullForMissingPaymentDetail(): void
+    {
+        $service = new PaymentLedgerService(new PaymentLedgerRepository($this->pdo()));
+
+        $this->assertNull($service->detail(999));
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

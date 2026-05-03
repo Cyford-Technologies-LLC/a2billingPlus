@@ -17,4 +17,12 @@ final class PaymentLedgerService
     {
         return $this->repository->search($criteria);
     }
+
+    /**
+     * @return null|array<string, mixed>
+     */
+    public function detail(int $id): ?array
+    {
+        return $this->repository->find($id);
+    }
 }

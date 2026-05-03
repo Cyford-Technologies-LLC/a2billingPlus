@@ -239,6 +239,31 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame(1, $payload['meta']['filters']['customer_id']);
     }
 
+    public function testLoadsPaymentDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('payments', new JsonRequest('GET', ['id' => '1'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame('10.00', $payload['data']['payment']['payment']);
+        $this->assertSame(1, $payload['meta']['id']);
+    }
+
+    public function testReturnsNotFoundForMissingPaymentDetail(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo());
+        $response = $controller->handle('payments', new JsonRequest('GET', ['id' => '999'], [], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(404, $response->getStatusCode());
+        $this->assertSame('payment_not_found', $response->getPayload()['error']['code']);
+    }
+
     public function testRejectsInvalidPaymentCustomerFilter(): void
     {
         $controller = $this->controller('secret-key', $this->pdo());

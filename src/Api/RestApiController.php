@@ -300,6 +300,11 @@ final class RestApiController
 
     private function handlePayments(JsonRequest $request, int $limit, int $offset): JsonResponse
     {
+        $id = $this->positiveIntFilter($request, 'id');
+        if ($id === false) {
+            return ApiResponder::error('invalid_payment_id', 'Payment id must be a positive integer.', 422, ['field' => 'id']);
+        }
+
         $from = trim($request->getString('from'));
         $to = trim($request->getString('to'));
         foreach (['from' => $from, 'to' => $to] as $field => $value) {
@@ -319,6 +324,20 @@ final class RestApiController
 
         try {
             $service = new PaymentLedgerService(new PaymentLedgerRepository(($this->pdoFactory)()));
+            if ($id !== null) {
+                $payment = $service->detail($id);
+                if ($payment === null) {
+                    return ApiResponder::error('payment_not_found', 'Payment was not found.', 404, ['id' => $id]);
+                }
+
+                return ApiResponder::ok([
+                    'payment' => $payment,
+                ], [
+                    'resource' => 'payments',
+                    'id' => $id,
+                ]);
+            }
+
             $result = $service->search(new PaymentSearchCriteria($limit, $offset, $from, $to, $customerId));
         } catch (\Throwable $exception) {
             return ApiResponder::error('payment_query_failed', $exception->getMessage(), 500);
