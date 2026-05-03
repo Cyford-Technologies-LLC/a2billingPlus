@@ -7,6 +7,7 @@ namespace A2BillingPlus\Api;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
+use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
 use A2BillingPlus\Module\Provider\RateImportRequest;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
@@ -146,13 +147,15 @@ final class ProviderApiController
         }
 
         try {
-            $service = new RatecardImportService($this->pdo());
+            $pdo = $this->pdo();
+            $service = new RatecardImportService($pdo);
             $summary = $service->importRows(
                 $preview->getSampleRows(),
                 $targetRatecardId,
                 'VectaVoIP:' . $rateDeck,
                 $dryRun
             );
+            $this->recordImportLog($pdo, $connector->getProviderCode(), $rateDeck, $targetRatecardId, $dryRun, $summary);
         } catch (\Throwable $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -170,6 +173,27 @@ final class ProviderApiController
             'skipped_rows' => $summary->getSkippedRows(),
             'dry_run' => $dryRun,
         ], $summary->isSuccessful() ? 200 : 422);
+    }
+
+    private function recordImportLog(
+        \PDO $pdo,
+        string $provider,
+        string $rateDeck,
+        int $targetRatecardId,
+        bool $dryRun,
+        \A2BillingPlus\Module\Rate\RatecardImportSummary $summary
+    ): void {
+        $repository = new ProviderImportLogRepository($pdo);
+        $repository->record(
+            $provider,
+            $rateDeck,
+            $targetRatecardId,
+            $dryRun,
+            $summary->isSuccessful(),
+            $summary->getImportedRows(),
+            $summary->getSkippedRows(),
+            $summary->getMessage()
+        );
     }
 
     private function registerInstall(JsonRequest $request): JsonResponse

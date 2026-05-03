@@ -9,6 +9,7 @@ include_once '../lib/admin.smarty.php';
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Http\JsonRequest;
+use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
 
 if (!has_rights(ACX_ACXSETTING)) {
     Header('HTTP/1.0 401 Unauthorized');
@@ -111,6 +112,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
 $status = providerStatus();
 $ratecards = fetchRatecards();
+$recentImports = fetchRecentProviderImports();
 
 $smarty->display('main.tpl');
 
@@ -214,6 +216,15 @@ function fetchRatecards(): array
         }
 
         return $ratecards;
+    } catch (Throwable $exception) {
+        return [];
+    }
+}
+
+function fetchRecentProviderImports(): array
+{
+    try {
+        return (new ProviderImportLogRepository(providerSetupPdo()))->recent(10);
     } catch (Throwable $exception) {
         return [];
     }
@@ -534,6 +545,37 @@ function h(string $value): string
                         <td>Skipped Rows</td>
                         <td><?php echo h((string)($rateImport['skipped_rows'] ?? 0)); ?></td>
                     </tr>
+                </table>
+            <?php endif; ?>
+
+            <?php if ($recentImports): ?>
+                <br>
+                <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                    <tr>
+                        <td class="form_head" colspan="8">Recent Provider Imports</td>
+                    </tr>
+                    <tr style="font-weight:bold;">
+                        <td>Date</td>
+                        <td>Provider</td>
+                        <td>Deck</td>
+                        <td>Ratecard</td>
+                        <td>Mode</td>
+                        <td>Status</td>
+                        <td>Rows</td>
+                        <td>Message</td>
+                    </tr>
+                    <?php foreach ($recentImports as $recentImport): ?>
+                        <tr>
+                            <td><?php echo h((string)($recentImport['created_at'] ?? '')); ?></td>
+                            <td><?php echo h((string)($recentImport['provider'] ?? '')); ?></td>
+                            <td><?php echo h((string)($recentImport['rate_deck'] ?? '')); ?></td>
+                            <td><?php echo h((string)($recentImport['target_ratecard_id'] ?? '')); ?></td>
+                            <td><?php echo !empty($recentImport['dry_run']) ? 'Dry run' : 'Write'; ?></td>
+                            <td><?php echo !empty($recentImport['success']) ? 'OK' : 'Failed'; ?></td>
+                            <td><?php echo h((string)($recentImport['imported_rows'] ?? 0)); ?> / <?php echo h((string)($recentImport['skipped_rows'] ?? 0)); ?></td>
+                            <td><?php echo h((string)($recentImport['message'] ?? '')); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
                 </table>
             <?php endif; ?>
         </td>

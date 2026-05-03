@@ -155,3 +155,12 @@ Set `"dry_run": "0"` to write the rows into `cc_ratecard`. The first import
 mapping writes provider `prefix`, `rate`, `buyrate`, `increment`, and
 `destination` into the existing A2BillingPlus ratecard fields and tags rows as
 `VectaVoIP:<rate_deck>`.
+
+Each dry-run or write import records an audit row in `cc_provider_import_log`.
+The Provider Setup admin page shows the most recent import records.
+
+Migration file:
+
+```text
+install/migrations/20260503_provider_import_log.sql
+```
