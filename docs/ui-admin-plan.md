@@ -32,6 +32,11 @@ Payment screens are now ready for redesign after sandbox validation of hosted
 Stripe PaymentIntent creation, webhook signature verification, duplicate replay
 handling, raw-card rejection, and reconciliation services.
 
+Trunk, SIP/PJSIP, and DID screens are now ready for workflow-by-workflow
+redesign after PJSIP-first provisioning, DID assignment/routing services, trunk
+APIs, AMI/ARI health checks, and the Asterisk 20 sandbox call path passed
+validation.
+
 ## Responsive Customer Portal Priorities
 
 For the customer portal, build the first responsive replacement around repeat

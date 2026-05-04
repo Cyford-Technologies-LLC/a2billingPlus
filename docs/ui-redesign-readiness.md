@@ -16,13 +16,13 @@ where public API exists, and the seeded portal crawl loads.
 | CDR/reporting workflows | Ready | Billing/reporting services cover CDR filters, detail, redacted export, ASR/ALOC, timezone grouping, and provider reconciliation. |
 | Payment workflows | Ready | Hosted Stripe PaymentIntent creation, webhook signature verification, duplicate replay handling, ledger/reconciliation services, raw-card rejection, and sandbox validation are complete. |
 | Invoice/receipt workflows | Ready | Invoice and receipt services cover list/detail, customer ownership, download metadata, and invoice tax summaries from `cc_invoice_item`. |
+| Trunk, SIP/PJSIP, and DID workflows | Ready | Trunk APIs, DID inventory/assignment/routing services, PJSIP-first provisioning, AMI/ARI health checks, SIP secret handling tests, provisioning audit events, and the Asterisk 20 sandbox call-path verification are complete. |
 | Agent workflows | Ready for alpha redesign | Agent module/API coverage exists for list/detail, customer visibility, commission calculations, and authorization failures. Reseller/agent screens should be retained for alpha rather than retired. |
 
-## Not Ready Yet
+## Restricted Or Deferred
 
 | Area | Blocker |
 | --- | --- |
-| Trunk, SIP/PJSIP, and DID UI | Requires documented Asterisk 20 or 22 PJSIP sandbox call path before UI replacement. |
 | Broad legacy configuration editors | Production-disabled unless `A2BP_FEATURE_LEGACY_CONFIG_EDITORS` is explicitly enabled. Redesign should target the safe allowlisted settings surface only. |
 
 ## Redesign Rule
