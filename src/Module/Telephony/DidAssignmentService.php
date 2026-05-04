@@ -23,7 +23,8 @@ final class DidAssignmentService
         string $did,
         bool $smsEnabled = true,
         bool $voiceEnabled = true,
-        string $actor = 'service-key'
+        string $actor = 'service-key',
+        string $webhookUrl = ''
     ): array
     {
         $didRepo = new DidRepository($this->pdo);
@@ -44,8 +45,8 @@ final class DidAssignmentService
             $now = gmdate('Y-m-d H:i:s');
             $statement = $this->pdo->prepare(
                 'INSERT INTO cc_did_assignment
-                    (customer_id, did, status, sms_enabled, voice_enabled, provider_reference, assigned_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?)'
+                    (customer_id, did, status, sms_enabled, voice_enabled, provider_reference, webhook_url, assigned_at)
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
             );
             $statement->execute([
                 $customerId,
@@ -54,6 +55,7 @@ final class DidAssignmentService
                 $smsEnabled ? 1 : 0,
                 $voiceEnabled ? 1 : 0,
                 $inventory['provider_reference'],
+                $webhookUrl,
                 $now,
             ]);
             $assignmentId = (int)$this->pdo->lastInsertId();

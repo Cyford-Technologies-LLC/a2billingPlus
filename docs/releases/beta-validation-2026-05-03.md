@@ -102,11 +102,16 @@ script computes the `Stripe-Signature` header, posts to
 `/api/v1/payment-webhooks.php?provider=stripe`, and can replay the same event to
 confirm duplicate handling.
 
+Added `bin/check-stripe-webhook-readiness.ps1` to verify the shell secret, app
+container secret, local env overlay presence, app health endpoint, and webhook
+endpoint reachability before posting the real sandbox fixture.
+
 Command to run when the real sandbox fixture is available:
 
 ```powershell
 $env:STRIPE_WEBHOOK_SECRET = "whsec_..."
 docker compose up -d app
+powershell -ExecutionPolicy Bypass -File bin\check-stripe-webhook-readiness.ps1
 powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -PayloadPath .\stripe-payment-intent-succeeded.json -VerifyDuplicate
 ```
 

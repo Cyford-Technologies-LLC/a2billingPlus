@@ -84,11 +84,12 @@ if ($method === 'POST') {
         exit;
     }
 
-    $customerId = (int)$customerIdValue;
-    $smsEnabled = ($payload['sms_enabled'] ?? true) !== false;
+    $customerId  = (int)$customerIdValue;
+    $smsEnabled  = ($payload['sms_enabled']   ?? true) !== false;
     $voiceEnabled = ($payload['voice_enabled'] ?? true) !== false;
+    $webhookUrl  = trim((string)($payload['webhook_url'] ?? ''));
 
-    $result = $assignmentService->assign($customerId, $did, $smsEnabled, $voiceEnabled, $actor);
+    $result = $assignmentService->assign($customerId, $did, $smsEnabled, $voiceEnabled, $actor, $webhookUrl);
 
     if (!$result['success']) {
         ApiResponder::error('assignment_failed', $result['message'], 422)->send();

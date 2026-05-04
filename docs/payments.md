@@ -68,6 +68,14 @@ Local sandbox verification helper:
 ```powershell
 $env:STRIPE_WEBHOOK_SECRET = "whsec_test_value"
 docker compose up -d app
+powershell -ExecutionPolicy Bypass -File bin\check-stripe-webhook-readiness.ps1
+```
+
+Then post a signed sandbox event:
+
+```powershell
+$env:STRIPE_WEBHOOK_SECRET = "whsec_test_value"
+docker compose up -d app
 powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -VerifyDuplicate
 ```
 

@@ -100,6 +100,7 @@ final class PhoneTextInstaller
             sms_enabled TINYINT(1) NOT NULL DEFAULT 1,
             voice_enabled TINYINT(1) NOT NULL DEFAULT 1,
             provider_reference VARCHAR(128) NOT NULL DEFAULT '',
+            webhook_url VARCHAR(512) NOT NULL DEFAULT '',
             assigned_at DATETIME NOT NULL,
             released_at DATETIME DEFAULT NULL,
             PRIMARY KEY (id),
