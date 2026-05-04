@@ -19,7 +19,6 @@ load_env_file_if_unset() {
           ''|*[!A-Za-z0-9_]*|[0-9]*) continue ;;
         esac
         if [ -z "${!key+x}" ]; then
-          value="${value%%#*}"
           value="${value%"${value##*[![:space:]]}"}"
           value="${value%\"}"
           value="${value#\"}"
