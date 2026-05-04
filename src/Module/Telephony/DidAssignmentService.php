@@ -43,21 +43,27 @@ final class DidAssignmentService
             $didRepo->markAssigned($did);
 
             $now = gmdate('Y-m-d H:i:s');
-            $statement = $this->pdo->prepare(
-                'INSERT INTO cc_did_assignment
-                    (customer_id, did, status, sms_enabled, voice_enabled, provider_reference, webhook_url, assigned_at)
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
-            );
-            $statement->execute([
+            $columns = ['customer_id', 'did', 'status', 'sms_enabled', 'voice_enabled', 'provider_reference', 'assigned_at'];
+            $values = [
                 $customerId,
                 $did,
                 'active',
                 $smsEnabled ? 1 : 0,
                 $voiceEnabled ? 1 : 0,
                 $inventory['provider_reference'],
-                $webhookUrl,
                 $now,
-            ]);
+            ];
+            if ($this->columnExists('cc_did_assignment', 'webhook_url')) {
+                array_splice($columns, 6, 0, 'webhook_url');
+                array_splice($values, 6, 0, $webhookUrl);
+            }
+
+            $statement = $this->pdo->prepare(sprintf(
+                'INSERT INTO cc_did_assignment (%s) VALUES (%s)',
+                implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+                implode(', ', array_fill(0, count($columns), '?'))
+            ));
+            $statement->execute($values);
             $assignmentId = (int)$this->pdo->lastInsertId();
             $this->pdo->commit();
         } catch (\Throwable $exception) {
@@ -135,5 +141,37 @@ final class DidAssignmentService
     private function recordAudit(string $actor, string $action, string $did, array $metadata): void
     {
         $this->auditLog?->record($actor, $action, 'cc_did_assignment', $did, $metadata);
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        $driver = (string)$this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $statement = $this->pdo->query('PRAGMA table_info(' . $this->quoteIdentifier($table) . ')');
+            $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+            foreach ($rows as $row) {
+                if ((string)$row['name'] === $column) {
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        $statement = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $statement->execute([$table, $column]);
+
+        return (int)$statement->fetchColumn() > 0;
+    }
+
+    private function quoteIdentifier(string $identifier): string
+    {
+        if (preg_match('/^[A-Za-z0-9_]+$/', $identifier) !== 1) {
+            throw new \InvalidArgumentException('Unsafe SQL identifier.');
+        }
+
+        return '`' . $identifier . '`';
     }
 }
