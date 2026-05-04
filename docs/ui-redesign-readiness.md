@@ -14,6 +14,7 @@ where public API exists, and the seeded portal crawl loads.
 | Customer admin/customer account workflows | Ready | Customer module services and REST/customer-context APIs cover list/detail, create/update, status changes, balance/profile reads, ownership checks, and API authorization boundaries. |
 | Ratecard/rates workflows | Ready | Rate repositories cover tariff plans, tariff groups, ratecards, destinations, packages, imports, duplicate/update behavior, and rating regression tests for prefix, increments, charges, currency, and timezone-sensitive reports. |
 | CDR/reporting workflows | Ready | Billing/reporting services cover CDR filters, detail, redacted export, ASR/ALOC, timezone grouping, and provider reconciliation. |
+| Payment workflows | Ready | Hosted Stripe PaymentIntent creation, webhook signature verification, duplicate replay handling, ledger/reconciliation services, raw-card rejection, and sandbox validation are complete. |
 | Invoice/receipt workflows | Ready | Invoice and receipt services cover list/detail, customer ownership, download metadata, and invoice tax summaries from `cc_invoice_item`. |
 | Agent workflows | Ready for alpha redesign | Agent module/API coverage exists for list/detail, customer visibility, commission calculations, and authorization failures. Reseller/agent screens should be retained for alpha rather than retired. |
 
@@ -21,7 +22,6 @@ where public API exists, and the seeded portal crawl loads.
 
 | Area | Blocker |
 | --- | --- |
-| Payment UI | Requires real Stripe sandbox hosted payment and webhook verification before UI replacement. |
 | Trunk, SIP/PJSIP, and DID UI | Requires documented Asterisk 20 or 22 PJSIP sandbox call path before UI replacement. |
 | Broad legacy configuration editors | Production-disabled unless `A2BP_FEATURE_LEGACY_CONFIG_EDITORS` is explicitly enabled. Redesign should target the safe allowlisted settings surface only. |
 

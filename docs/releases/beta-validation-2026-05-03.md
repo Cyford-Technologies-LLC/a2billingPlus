@@ -142,3 +142,26 @@ Trigger succeeded! Check dashboard for event details.
 
 Result: Stripe webhook signature verification, event recording, and replay
 handling are validated in the local sandbox.
+
+## Stripe Hosted Payment Intent Validation
+
+Validated hosted/tokenized Stripe PaymentIntent creation against the Stripe
+sandbox API from the PHP app container. No raw card data was submitted or
+stored.
+
+Observed output:
+
+```json
+{
+  "success": true,
+  "status_code": 200,
+  "provider": "stripe",
+  "payment_intent_id_prefix": "pi_",
+  "client_secret_present": true,
+  "status": "requires_payment_method",
+  "message": "Stripe payment intent created."
+}
+```
+
+Result: hosted Stripe payment intent creation and webhook verification are both
+validated for the beta payment gate.

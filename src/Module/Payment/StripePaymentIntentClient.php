@@ -17,7 +17,7 @@ final class StripePaymentIntentClient
 
     public function create(PaymentIntentRequest $request): PaymentIntentResult
     {
-        if ($this->secretKey === '' || !str_starts_with($this->secretKey, 'sk_')) {
+        if ($this->secretKey === '' || (!str_starts_with($this->secretKey, 'sk_') && !str_starts_with($this->secretKey, 'rk_'))) {
             return new PaymentIntentResult(false, 503, 'stripe', message: 'Stripe secret key is not configured.');
         }
 

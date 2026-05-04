@@ -50,6 +50,35 @@ final class PaymentIntentServiceTest extends TestCase
         $this->assertSame('42', $calls[0]['fields']['metadata[a2bp_customer_id]']);
     }
 
+    public function testCreatesStripePaymentIntentWithRestrictedKey(): void
+    {
+        $calls = [];
+        $service = new PaymentIntentService(new StripePaymentIntentClient(
+            'rk_test_local',
+            function (string $url, array $headers, array $fields) use (&$calls): array {
+                $calls[] = compact('url', 'headers', 'fields');
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'id' => 'pi_test_restricted',
+                        'client_secret' => 'pi_test_restricted_secret_client',
+                        'status' => 'requires_payment_method',
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            }
+        ));
+
+        $result = $service->createStripeIntent([
+            'amount_minor_units' => '2500',
+            'currency' => 'usd',
+            'customer_id' => 42,
+        ]);
+
+        $this->assertTrue($result->success);
+        $this->assertSame('Bearer rk_test_local', $calls[0]['headers']['Authorization']);
+    }
+
     public function testRejectsRawCardDataBeforeCallingStripe(): void
     {
         $called = false;

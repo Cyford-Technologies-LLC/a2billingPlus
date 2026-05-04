@@ -28,6 +28,10 @@ The provider setup workflow is the first modernized admin surface. It already
 uses module-backed services for VectaVoIP registration, status checks, rate
 preview/import, credential storage, and provider provisioning.
 
+Payment screens are now ready for redesign after sandbox validation of hosted
+Stripe PaymentIntent creation, webhook signature verification, duplicate replay
+handling, raw-card rejection, and reconciliation services.
+
 ## Responsive Customer Portal Priorities
 
 For the customer portal, build the first responsive replacement around repeat
