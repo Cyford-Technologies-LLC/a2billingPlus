@@ -85,35 +85,60 @@ setup because no local audio sink exists.
 
 ## Stripe Sandbox Webhook Verification
 
-Status: pending real Stripe sandbox credentials or a captured Stripe sandbox
-fixture.
+Validated the Stripe webhook endpoint against a Stripe CLI-generated sandbox
+event stream and verified duplicate replay protection with a locally signed
+event. Secrets are redacted below.
 
-Local state on 2026-05-03:
+Readiness after loading `.env.stripe` and restarting the sandbox app:
 
-```text
-stripe CLI not found
-STRIPE_SECRET_KEY=missing
-STRIPE_WEBHOOK_SECRET=missing
+```json
+[
+  {"check":"local_env_overlay","passed":true},
+  {"check":"app_container_running","passed":true},
+  {"check":"container_webhook_secret","passed":true},
+  {"check":"app_health","passed":true},
+  {"check":"webhook_endpoint_reachable","passed":true}
+]
 ```
 
-Added `bin/verify-stripe-webhook-sandbox.ps1` so the remaining payment beta gate
-can be completed reproducibly once the secret and fixture are available. The
-script computes the `Stripe-Signature` header, posts to
-`/api/v1/payment-webhooks.php?provider=stripe`, and can replay the same event to
-confirm duplicate handling.
-
-Added `bin/check-stripe-webhook-readiness.ps1` to verify the shell secret, app
-container secret, local env overlay presence, app health endpoint, and webhook
-endpoint reachability before posting the real sandbox fixture.
-
-Command to run when the real sandbox fixture is available:
+Command used to validate local signature handling and replay protection:
 
 ```powershell
-$env:STRIPE_WEBHOOK_SECRET = "whsec_..."
-docker compose up -d app
-powershell -ExecutionPolicy Bypass -File bin\check-stripe-webhook-readiness.ps1
-powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -PayloadPath .\stripe-payment-intent-succeeded.json -VerifyDuplicate
+powershell -ExecutionPolicy Bypass -File bin\verify-stripe-webhook-sandbox.ps1 -VerifyDuplicate
 ```
 
-This section is intentionally not marked passed until the command is run with a
-real Stripe sandbox payload and the observed output is recorded.
+Observed output:
+
+```json
+{
+  "success": true,
+  "duplicate": false,
+  "provider": "stripe",
+  "event_type": "payment_intent.succeeded",
+  "message": "Stripe payment intent success accepted."
+}
+{
+  "success": true,
+  "duplicate": true,
+  "message": "Stripe webhook already processed."
+}
+```
+
+Command used for Stripe-generated sandbox events:
+
+```powershell
+docker run --rm -e STRIPE_API_KEY=sk_test_[REDACTED] stripe/stripe-cli trigger payment_intent.succeeded
+```
+
+Observed Stripe listener summary:
+
+```text
+Trigger succeeded! Check dashboard for event details.
+--> payment_intent.succeeded [evt_...]
+<-- [202] POST http://host.docker.internal:8080/api/v1/payment-webhooks.php?provider=stripe [evt_...]
+--> payment_intent.created [evt_...]
+<-- [202] POST http://host.docker.internal:8080/api/v1/payment-webhooks.php?provider=stripe [evt_...]
+```
+
+Result: Stripe webhook signature verification, event recording, and replay
+handling are validated in the local sandbox.

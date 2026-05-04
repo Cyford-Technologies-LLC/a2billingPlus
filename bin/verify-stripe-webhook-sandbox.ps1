@@ -63,7 +63,7 @@ function New-DefaultPayload {
         id = $Id
         object = 'event'
         api_version = '2026-05-01'
-        created = [int][double]::Parse((Get-Date -UFormat %s))
+        created = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
         livemode = $false
         type = $Type
         data = @{
@@ -91,7 +91,7 @@ if ($PayloadPath -ne '') {
     $payload = New-DefaultPayload -Id $EventId -Type $EventType
 }
 
-$timestamp = [int64][double]::Parse((Get-Date -UFormat %s))
+$timestamp = [DateTimeOffset]::UtcNow.ToUnixTimeSeconds()
 $signature = New-StripeSignature -Payload $payload -Secret $secret -Timestamp $timestamp
 $uri = "$BaseUrl/api/v1/payment-webhooks.php?provider=stripe"
 
