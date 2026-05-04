@@ -45,8 +45,12 @@ final class AppConfig
             'VECTAVOIP_INSTALLATION_ID',
             'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET',
+            'STRIPE_TEST_PUBLISHABLE_KEY',
             'STRIPE_TEST_SECRET_KEY',
+            'STRIPE_TEST_RESTRICTED_KEY',
             'STRIPE_LIVE_SECRET_KEY',
+            'STRIPE_LIVE_PUBLISHABLE_KEY',
+            'STRIPE_LIVE_RESTRICTED_KEY',
             'STRIPE_TEST_WEBHOOK_SECRET',
             'STRIPE_LIVE_WEBHOOK_SECRET',
             'BRAINTREE_MERCHANT_ID',
@@ -102,6 +106,10 @@ final class AppConfig
 
         if (($values['STRIPE_SECRET_KEY'] ?? '') === '' && ($values[$stripePrefix . '_SECRET_KEY'] ?? '') !== '') {
             $values['STRIPE_SECRET_KEY'] = $values[$stripePrefix . '_SECRET_KEY'];
+        }
+
+        if (($values['STRIPE_SECRET_KEY'] ?? '') === '' && ($values[$stripePrefix . '_RESTRICTED_KEY'] ?? '') !== '') {
+            $values['STRIPE_SECRET_KEY'] = $values[$stripePrefix . '_RESTRICTED_KEY'];
         }
 
         if (($values['STRIPE_WEBHOOK_SECRET'] ?? '') === '' && ($values[$stripePrefix . '_WEBHOOK_SECRET'] ?? '') !== '') {

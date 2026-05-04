@@ -57,6 +57,18 @@ final class AppConfigTest extends TestCase
         $this->assertSame('whsec_live_alias', $config->string('STRIPE_WEBHOOK_SECRET'));
     }
 
+    public function testMapsStripeRestrictedKeyWhenSecretKeyIsNotConfigured(): void
+    {
+        $config = new AppConfig([
+            'MODE' => 'test',
+            'STRIPE_TEST_RESTRICTED_KEY' => 'rk_test_alias',
+            'STRIPE_TEST_WEBHOOK_SECRET' => 'whsec_test_alias',
+        ]);
+
+        $this->assertSame('rk_test_alias', $config->string('STRIPE_SECRET_KEY'));
+        $this->assertSame('whsec_test_alias', $config->string('STRIPE_WEBHOOK_SECRET'));
+    }
+
     public function testReadsSecretFileEnvironmentValues(): void
     {
         $file = tempnam(sys_get_temp_dir(), 'a2bp-secret-');

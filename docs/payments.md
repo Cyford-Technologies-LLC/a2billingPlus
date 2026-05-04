@@ -34,13 +34,18 @@ A2BillingPlus also accepts Cyford-style mode-specific names:
 
 ```text
 MODE=test
+STRIPE_TEST_PUBLISHABLE_KEY=pk_test_value
 STRIPE_TEST_SECRET_KEY=sk_test_value
+STRIPE_TEST_RESTRICTED_KEY=rk_test_value
 STRIPE_TEST_WEBHOOK_SECRET=whsec_value
 ```
 
 For `MODE=live`, use `STRIPE_LIVE_SECRET_KEY` and
-`STRIPE_LIVE_WEBHOOK_SECRET`. Do not use a Stripe API secret key as the webhook
-secret; Stripe webhook secrets are separate values that start with `whsec_`.
+`STRIPE_LIVE_WEBHOOK_SECRET`. A restricted key, `rk_test_...` or `rk_live_...`,
+may be used through `STRIPE_TEST_RESTRICTED_KEY` or
+`STRIPE_LIVE_RESTRICTED_KEY` when it has the payment permissions this app needs.
+Do not use a Stripe API key or restricted key as the webhook secret; Stripe
+webhook secrets are separate values that start with `whsec_`.
 
 Braintree is optional and should stay disabled unless needed:
 
