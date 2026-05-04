@@ -44,57 +44,55 @@ if (!$ACXACCESS) {
 $smarty->display('main.tpl');
 
 ?>
-<br/><br/>
-<center>
-<table align="center" width="90%" bgcolor="white" cellpadding="15" cellspacing="15" style="border: solid 1px">
-    <tr>
-        <td width="340" align="center" style="font-family: Arial, Helvetica, sans-serif;">
-            <img src="templates/default/images/a2billingplus-logo.svg" alt="VectaVoIP Billing Platform" style="width:260px;height:auto;border:0;margin-bottom:10px;">
-            <h2 style="margin: 0; color: #2b5d87;">VectaVoIP</h2>
-            <p style="margin: 8px 0 0 0;">Billing Platform</p>
-        </td>
-        <td align="left" style="font-family: Arial, Helvetica, sans-serif; line-height: 20px;">
-        This platform includes AGPL-licensed software components.<br>
-        <a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">GNU Affero General Public License v3</a><br><br>
-        For VoIP termination, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a>
-        </td>
-    </tr>
+<div class="a2bp-intro-page">
+    <section class="a2bp-intro-band">
+        <div class="a2bp-intro-brand">
+            <img src="templates/default/images/a2billingplus-logo.svg" alt="A2BillingPlus" class="a2bp-intro-logo">
+            <div>
+                <h1>A2BillingPlus</h1>
+                <p>VectaVoIP Billing Platform</p>
+            </div>
+        </div>
+        <div class="a2bp-intro-summary">
+            <p>This platform includes AGPL-licensed software components.</p>
+            <p><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">GNU Affero General Public License v3</a></p>
+            <p>For VoIP termination, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a></p>
+        </div>
+    </section>
 
-    <tr>
-        <td colspan="2">
-        <center>
-            <b><i>This platform includes AGPL-licensed software components.</i></b>
-            <br><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">GNU Affero General Public License v3</a>
-            </center>
+    <section class="a2bp-intro-actions" aria-label="Admin shortcuts">
+        <a href="A2B_provider_setup.php" class="a2bp-intro-action">
+            <span>Provider Setup</span>
+            <small>Register, check status, preview rates, and provision VectaVoIP services.</small>
+        </a>
+        <a href="dashboard.php" class="a2bp-intro-action">
+            <span>Dashboard</span>
+            <small>Review traffic, balance, and billing activity from the legacy dashboard.</small>
+        </a>
+        <a href="A2B_entity_card.php?section=1" class="a2bp-intro-action">
+            <span>Customers</span>
+            <small>Create, search, activate, and manage customer accounts.</small>
+        </a>
+        <a href="A2B_entity_trunk.php?section=7" class="a2bp-intro-action">
+            <span>Trunks</span>
+            <small>Manage provider trunks and routing configuration.</small>
+        </a>
+    </section>
 
+    <?php if (SHOW_DONATION) { ?>
+    <section class="a2bp-intro-support">
+        <strong><?php echo gettext("For VectaVoIP platform support, please contact VectaVoIP.");?></strong>
+        <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a>
+    </section>
+    <?php } ?>
+
+    <section class="a2bp-intro-license">
+        <h2>License Notice</h2>
         <div class="scroll">
-<pre>
-<?php echo (file_get_contents("../lib/COPYING")); ?>
-</pre>
+<pre><?php echo (file_get_contents("../lib/COPYING")); ?></pre>
+        </div>
+    </section>
 </div>
-
-        </td>
-    </tr>
-
-</table>
-
-<br>
-
-<table align=center width="90%" bgcolor="white" cellpadding="5" cellspacing="5" style="border: solid 1px">
-    <tr>
-        <td align="center">
-            <?php if (SHOW_DONATION) { ?>
-            <center>
-                <?php echo gettext("For VectaVoIP platform support, please contact VectaVoIP.");?>
-                <p><a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a></p>
-            </center>
-            <br>
-            <?php } ?>
-        </td>
-    </tr>
-</table>
-
-</center>
 
 <?php
 
