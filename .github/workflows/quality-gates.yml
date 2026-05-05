@@ -16,10 +16,12 @@ jobs:
       - uses: actions/checkout@v4
       - name: Prepare sandbox env
         run: cp .env.example .env
-      - name: Start sandbox stack
-        run: docker compose up -d --build app app84 db redis
+      - name: Build sandbox images
+        run: docker compose build app app84
       - name: Install dependencies
-        run: docker compose exec -T app composer install --no-interaction --prefer-dist
+        run: docker compose run --rm --no-deps app composer install --no-interaction --prefer-dist
+      - name: Start sandbox stack
+        run: docker compose up -d app app84 db redis
       - name: Verify build
         shell: pwsh
         run: ./bin/verify-build.ps1
