@@ -106,3 +106,63 @@
 .a2bp-button:focus {
     background: var(--a2bp-brand-strong);
 }
+
+.a2bp-nav {
+    align-items: flex-start;
+    background: var(--a2bp-panel);
+    border: 1px solid var(--a2bp-panel-border);
+    border-radius: 8px;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin: 0 0 16px;
+    padding: 12px;
+}
+
+.a2bp-nav__section {
+    min-width: 160px;
+}
+
+.a2bp-nav__section-title,
+.a2bp-theme-selector label {
+    color: var(--a2bp-muted);
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+}
+
+.a2bp-nav__items {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+.a2bp-nav__item {
+    border: 1px solid transparent;
+    border-radius: 6px;
+    color: var(--a2bp-text);
+    display: inline-block;
+    padding: 6px 8px;
+    text-decoration: none;
+}
+
+.a2bp-nav__item:hover,
+.a2bp-nav__item:focus,
+.a2bp-nav__item--active {
+    background: #eef7f9;
+    border-color: #b9dfe6;
+    color: var(--a2bp-brand-strong);
+}
+
+.a2bp-theme-selector {
+    align-items: end;
+    display: flex;
+    gap: 8px;
+    margin-left: auto;
+}
+
+.a2bp-theme-selector select {
+    min-height: 34px;
+}

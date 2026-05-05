@@ -31,3 +31,14 @@ If a requested theme is missing, the registry falls back to `a2billingplus`.
 Modernized screens should render through module-backed services, use shared UI
 classes from the active theme, hide secrets by default, and remain covered by
 seeded crawl checks before the legacy page is retired.
+
+## Modular Navigation
+
+Modernized pages should use `A2BillingPlus\Module\Ui\NavigationRegistry` and
+`NavigationRenderer` instead of embedding menu markup in each page. The first
+admin implementation renders the common operations/customer/rates links and an
+admin theme selector inside the modular navigation bar.
+
+The selector posts `form_action=set_ui_theme` and stores `A2BP_UI_THEME` in
+the local `.env` file when it is writable. Legacy Smarty menus remain available
+until each workflow is replaced.

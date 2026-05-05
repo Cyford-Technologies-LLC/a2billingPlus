@@ -9,6 +9,8 @@ include_once '../lib/admin.smarty.php';
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
+use A2BillingPlus\Module\Ui\NavigationRegistry;
+use A2BillingPlus\Module\Ui\NavigationRenderer;
 use A2BillingPlus\Module\Ui\ThemeRegistry;
 use A2BillingPlus\Module\Ui\ThemeRenderer;
 
@@ -24,15 +26,17 @@ if (is_file($autoloadPath)) {
     require_once $autoloadPath;
 }
 
-$theme = ThemeRegistry::default()->resolve(envString('A2BP_UI_THEME'));
+$envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
+$themeRegistry = ThemeRegistry::default();
+$theme = $themeRegistry->resolve(envString('A2BP_UI_THEME'));
 $themeRenderer = new ThemeRenderer();
+$navigationRenderer = new NavigationRenderer();
 
 $messages = [];
 $errors = [];
 $registration = [];
 $ratePreview = [];
 $rateImport = [];
-$envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
 
 $defaults = [
     'base_url' => envString('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com'),
@@ -58,13 +62,19 @@ $providerSetup = providerSetupService();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formAction = trim((string)($_POST['form_action'] ?? ''));
 
+    if ($formAction === 'set_ui_theme') {
+        $selectedTheme = $themeRegistry->resolve(trim((string)($_POST['ui_theme'] ?? '')));
+        saveUiTheme($envPath, $selectedTheme->id(), $messages, $errors);
+        $theme = $selectedTheme;
+    }
+
     foreach ($defaults as $key => $default) {
         $input[$key] = trim((string)($_POST[$key] ?? ''));
     }
     $input['save_credentials'] = isset($_POST['save_credentials']) ? '1' : '';
     $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
 
-    if ($input['base_url'] === '') {
+    if ($formAction !== 'set_ui_theme' && $input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
     }
 
@@ -166,7 +176,59 @@ function envString(string $key, string $default = ''): string
         }
     }
 
+    $fileValues = envFileValues();
+    if (($fileValues[$key] ?? '') !== '') {
+        return $fileValues[$key];
+    }
+
     return $default;
+}
+
+/**
+ * @return array<string, string>
+ */
+function envFileValues(): array
+{
+    static $values = null;
+    if (is_array($values)) {
+        return $values;
+    }
+
+    global $envPath;
+    $values = [];
+    if (!is_string($envPath) || !is_readable($envPath)) {
+        return $values;
+    }
+
+    $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+    if (!is_array($lines)) {
+        return $values;
+    }
+
+    foreach ($lines as $line) {
+        $line = trim($line);
+        if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+            continue;
+        }
+
+        [$key, $value] = explode('=', $line, 2);
+        $key = trim($key);
+        $value = trim($value);
+        if ($key === '') {
+            continue;
+        }
+
+        if (
+            strlen($value) >= 2
+            && (($value[0] === '"' && substr($value, -1) === '"') || ($value[0] === "'" && substr($value, -1) === "'"))
+        ) {
+            $value = substr($value, 1, -1);
+        }
+
+        $values[$key] = str_replace(['\\"', '\\\\'], ['"', '\\'], $value);
+    }
+
+    return $values;
 }
 
 function saveProviderCredentials(string $envPath, string $baseUrl, array $registration, array &$messages, array &$errors): void
@@ -202,6 +264,25 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
     }
 
     $messages[] = 'Saved VectaVoIP provider credentials to .env.';
+}
+
+function saveUiTheme(string $envPath, string $themeId, array &$messages, array &$errors): void
+{
+    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
+        $errors[] = '.env is not writable. UI theme was not saved.';
+        return;
+    }
+
+    $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
+    $contents = mergeEnvValues($contents, ['A2BP_UI_THEME' => $themeId]);
+
+    if (@file_put_contents($envPath, $contents) === false) {
+        $errors[] = 'Could not write .env. UI theme was not saved.';
+        return;
+    }
+
+    putenv('A2BP_UI_THEME=' . $themeId);
+    $messages[] = 'Saved UI theme: ' . $themeId . '.';
 }
 
 function writeSecretFileValues(array &$values, array $secretKeys, array &$messages, array &$errors): void
@@ -279,6 +360,7 @@ function h(string $value): string
 <br>
 <div class="<?php echo h($theme->bodyClass()); ?>">
 <div class="a2bp-page">
+    <?php echo $navigationRenderer->render(NavigationRegistry::admin(), 'provider-setup', $theme, $themeRegistry->all()); ?>
     <div class="a2bp-panel">
         <div class="a2bp-panel__header">
             <h1 class="a2bp-panel__title">VectaVoIP Provider Setup</h1>
