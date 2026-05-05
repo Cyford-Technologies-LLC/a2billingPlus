@@ -166,3 +166,47 @@
 .a2bp-theme-selector select {
     min-height: 34px;
 }
+
+.a2bp-form-row {
+    align-items: end;
+    display: flex;
+    flex-wrap: wrap;
+    gap: 12px;
+}
+
+.a2bp-form-row label {
+    color: var(--a2bp-muted);
+    display: grid;
+    font-size: 12px;
+    font-weight: 700;
+    gap: 4px;
+    text-transform: uppercase;
+}
+
+.a2bp-form-row input {
+    min-height: 30px;
+    min-width: 150px;
+}
+
+.a2bp-metrics {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    margin: 0 0 16px;
+}
+
+.a2bp-metric {
+    background: var(--a2bp-panel);
+    border: 1px solid var(--a2bp-panel-border);
+    border-radius: 8px;
+    padding: 12px;
+}
+
+.a2bp-metric__label {
+    color: var(--a2bp-muted);
+    display: block;
+    font-size: 12px;
+    font-weight: 700;
+    margin: 0 0 6px;
+    text-transform: uppercase;
+}
