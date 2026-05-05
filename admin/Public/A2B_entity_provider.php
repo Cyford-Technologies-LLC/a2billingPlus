@@ -122,12 +122,14 @@ function renderBuiltInProvidersPanel(): void
         .a2bp-provider-token { font-family: monospace; word-break: break-all; }
         .a2bp-provider-token[hidden] { display: none; }
         .a2bp-provider-note { margin: 0 0 10px; color: #44536b; }
+        .a2bp-provider-action { display: inline-block; padding: 5px 10px; border: 1px solid #7d94b8; background: #eef4ff; color: #24344d; text-decoration: none; }
+        .a2bp-provider-action:hover { background: #dde8fb; }
     </style>
     <details class="a2bp-provider-panel" open>
         <summary>Built-in Providers</summary>
         <div class="a2bp-provider-panel-body">
             <p class="a2bp-provider-note">
-                Module-backed providers available to this admin are listed here. Use the setup links for provider credentials and provisioning workflows.
+                Built-in providers are already shipped in code. Use the action button to install, register, or manage the provider for this system.
             </p>
             <table class="a2bp-provider-grid">
                 <tr>
@@ -136,12 +138,12 @@ function renderBuiltInProvidersPanel(): void
                     <th>API</th>
                     <th>Configured Token</th>
                     <th>Access</th>
+                    <th>Action</th>
                 </tr>
                 <?php foreach ($providers as $index => $provider): ?>
                 <tr>
                     <td>
-                        <strong><?php echo h((string)$provider['name']); ?></strong><br>
-                        <a href="<?php echo h((string)$provider['setup_url']); ?>">Open setup</a>
+                        <strong><?php echo h((string)$provider['name']); ?></strong>
                     </td>
                     <td>
                         <span class="a2bp-provider-badge"><?php echo h((string)$provider['status']); ?></span>
@@ -161,6 +163,7 @@ function renderBuiltInProvidersPanel(): void
                         <?php endif; ?>
                     </td>
                     <td><?php echo h((string)$provider['access_label']); ?></td>
+                    <td><a class="a2bp-provider-action" href="<?php echo h((string)$provider['setup_url']); ?>"><?php echo h((string)$provider['action_label']); ?></a></td>
                 </tr>
                 <?php endforeach; ?>
             </table>
@@ -194,10 +197,24 @@ function builtInProviders(): array
             'token_masked' => $token !== '' ? maskProviderToken($token) : '',
             'access_label' => $policy->isLocked($code) ? 'Licensed / company only' : 'Standard',
             'setup_url' => 'A2B_provider_setup.php?provider=' . rawurlencode($code),
+            'action_label' => providerActionLabel($code, $token !== ''),
         ];
     }
 
     return $providers;
+}
+
+function providerActionLabel(string $providerCode, bool $configured): string
+{
+    if ($configured) {
+        return 'Manage';
+    }
+
+    return match ($providerCode) {
+        'vectavoip' => 'Install / Register',
+        'didww' => 'Configure / Activate',
+        default => 'Open Setup',
+    };
 }
 
 function providerPrimaryToken(\A2BillingPlus\Config\AppConfig $config, string $providerCode): string
