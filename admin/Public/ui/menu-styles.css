@@ -1,0 +1,110 @@
+body.a2bp-menu-side-rail #top_menu,
+body.a2bp-menu-compact #top_menu,
+body.a2bp-menu-split #top_menu {
+    left: 0;
+    position: relative;
+}
+
+body.a2bp-menu-side-rail #main-content,
+body.a2bp-menu-compact #main-content,
+body.a2bp-menu-split #main-content {
+    padding-right: 20px;
+}
+
+body.a2bp-menu-side-rail #leftmenu-top,
+body.a2bp-menu-side-rail #leftmenu-middle,
+body.a2bp-menu-side-rail #leftmenu-down,
+body.a2bp-menu-topbar #leftmenu-top,
+body.a2bp-menu-topbar #leftmenu-middle,
+body.a2bp-menu-topbar #leftmenu-down,
+body.a2bp-menu-compact #leftmenu-top,
+body.a2bp-menu-compact #leftmenu-middle,
+body.a2bp-menu-compact #leftmenu-down,
+body.a2bp-menu-split #leftmenu-top,
+body.a2bp-menu-split #leftmenu-middle,
+body.a2bp-menu-split #leftmenu-down {
+    background-image: none;
+}
+
+body.a2bp-menu-side-rail #left-sidebar {
+    width: 210px;
+}
+
+body.a2bp-menu-side-rail #main-content {
+    padding-left: 245px;
+}
+
+body.a2bp-menu-topbar #left-sidebar {
+    float: none;
+    padding: 10px 16px 0;
+    width: auto;
+}
+
+body.a2bp-menu-topbar #leftmenu-middle {
+    padding: 8px;
+}
+
+body.a2bp-menu-topbar #left-sidebar #nav {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 6px;
+}
+
+body.a2bp-menu-topbar #left-sidebar .toggle_menu {
+    display: inline-block;
+}
+
+body.a2bp-menu-topbar #left-sidebar .tohide {
+    display: none !important;
+}
+
+body.a2bp-menu-topbar #main-content {
+    padding-left: 20px;
+}
+
+body.a2bp-menu-topbar #footer {
+    margin-left: 20px;
+}
+
+body.a2bp-menu-compact #left-sidebar {
+    width: 150px;
+}
+
+body.a2bp-menu-compact #main-content {
+    padding-left: 175px;
+}
+
+body.a2bp-menu-compact #nav li a,
+body.a2bp-menu-compact #nav li span {
+    font-size: 10px;
+}
+
+body.a2bp-menu-compact #nav ul li a,
+body.a2bp-menu-compact #nav ul li span {
+    padding-left: 12px;
+}
+
+body.a2bp-menu-compact #menutitlebutton {
+    display: none;
+}
+
+body.a2bp-menu-split #top_menu {
+    margin-bottom: 8px;
+}
+
+body.a2bp-menu-split #left-sidebar {
+    width: 240px;
+}
+
+body.a2bp-menu-split #main-content {
+    padding-left: 275px;
+}
+
+body.a2bp-menu-split #left-sidebar #nav > .toggle_menu,
+body.a2bp-menu-split #left-sidebar #nav > li {
+    margin-bottom: 6px;
+}
+
+body.a2bp-menu-split #left-sidebar .tohide {
+    margin-bottom: 8px;
+}

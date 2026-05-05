@@ -22,6 +22,11 @@ final class ModernAdminRuntimeTest extends TestCase
             $theme = $runtime->saveUiTheme('a2billingplus');
             self::assertSame('a2billingplus', $theme->id());
             self::assertStringContainsString('A2BP_UI_THEME=a2billingplus', (string)file_get_contents($root . DIRECTORY_SEPARATOR . '.env'));
+            self::assertStringContainsString('A2BP_UI_MENU_STYLE=side-rail', (string)file_get_contents($root . DIRECTORY_SEPARATOR . '.env'));
+
+            $style = $runtime->saveUiMenuStyle('topbar');
+            self::assertSame('topbar', $style);
+            self::assertSame('topbar', $runtime->activeMenuStyle($theme));
         } finally {
             @unlink($root . DIRECTORY_SEPARATOR . '.env');
             @rmdir($root);

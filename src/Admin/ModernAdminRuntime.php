@@ -6,6 +6,7 @@ namespace A2BillingPlus\Admin;
 
 use A2BillingPlus\Module\Ui\Theme;
 use A2BillingPlus\Module\Ui\ThemeRegistry;
+use A2BillingPlus\Module\Ui\MenuStyleRegistry;
 
 final class ModernAdminRuntime
 {
@@ -18,7 +19,7 @@ final class ModernAdminRuntime
         private readonly string $projectRoot,
         ?ThemeRegistry $themeRegistry = null
     ) {
-        $this->themeRegistry = $themeRegistry ?? ThemeRegistry::default();
+        $this->themeRegistry = $themeRegistry ?? ThemeRegistry::forProjectRoot($projectRoot);
     }
 
     public function themeRegistry(): ThemeRegistry
@@ -29,6 +30,13 @@ final class ModernAdminRuntime
     public function activeTheme(): Theme
     {
         return $this->themeRegistry->resolve($this->envString('A2BP_UI_THEME'));
+    }
+
+    public function activeMenuStyle(?Theme $theme = null): string
+    {
+        $theme ??= $this->activeTheme();
+        $saved = $this->envString('A2BP_UI_MENU_STYLE');
+        return MenuStyleRegistry::resolve($saved, $theme->defaultMenuStyle());
     }
 
     public function envPath(): string
@@ -58,11 +66,25 @@ final class ModernAdminRuntime
     public function saveUiTheme(string $requestedTheme): Theme
     {
         $theme = $this->themeRegistry->resolve($requestedTheme);
-        $this->saveEnvValues(['A2BP_UI_THEME' => $theme->id()]);
+        $this->saveEnvValues([
+            'A2BP_UI_THEME' => $theme->id(),
+            'A2BP_UI_MENU_STYLE' => $theme->defaultMenuStyle(),
+        ]);
         putenv('A2BP_UI_THEME=' . $theme->id());
+        putenv('A2BP_UI_MENU_STYLE=' . $theme->defaultMenuStyle());
         $this->envFileValues = null;
 
         return $theme;
+    }
+
+    public function saveUiMenuStyle(string $requestedStyle): string
+    {
+        $style = MenuStyleRegistry::resolve($requestedStyle, $this->activeTheme()->defaultMenuStyle());
+        $this->saveEnvValues(['A2BP_UI_MENU_STYLE' => $style]);
+        putenv('A2BP_UI_MENU_STYLE=' . $style);
+        $this->envFileValues = null;
+
+        return $style;
     }
 
     public function pdo(): \PDO

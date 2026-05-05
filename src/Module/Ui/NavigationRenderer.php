@@ -9,9 +9,12 @@ final class NavigationRenderer
     /**
      * @param list<NavigationSection> $sections
      * @param array<string, Theme> $themes
+     * @param array<string, string> $menuStyles
      */
-    public function render(array $sections, string $activeItemId, Theme $activeTheme, array $themes): string
+    public function render(array $sections, string $activeItemId, Theme $activeTheme, array $themes, array $menuStyles = [], string $activeMenuStyle = ''): string
     {
+        $menuStyles = $menuStyles !== [] ? $menuStyles : MenuStyleRegistry::all();
+        $activeMenuStyle = MenuStyleRegistry::resolve($activeMenuStyle, $activeTheme->defaultMenuStyle());
         $html = '<nav class="a2bp-nav" aria-label="A2BillingPlus navigation">';
         foreach ($sections as $section) {
             $html .= '<div class="a2bp-nav__section">';
@@ -33,7 +36,7 @@ final class NavigationRenderer
             $html .= '</div></div>';
         }
 
-        $html .= $this->renderThemeSelector($activeTheme, $themes);
+        $html .= $this->renderUiSelector($activeTheme, $themes, $menuStyles, $activeMenuStyle);
         $html .= '</nav>';
 
         return $html;
@@ -42,10 +45,10 @@ final class NavigationRenderer
     /**
      * @param array<string, Theme> $themes
      */
-    private function renderThemeSelector(Theme $activeTheme, array $themes): string
+    private function renderUiSelector(Theme $activeTheme, array $themes, array $menuStyles, string $activeMenuStyle): string
     {
         $html = '<form class="a2bp-theme-selector" method="post">';
-        $html .= '<input type="hidden" name="form_action" value="set_ui_theme">';
+        $html .= '<input type="hidden" name="form_action" value="set_ui_preferences">';
         $html .= '<label for="a2bp-ui-theme">Theme</label>';
         $html .= '<select id="a2bp-ui-theme" name="ui_theme">';
         foreach ($themes as $theme) {
@@ -55,6 +58,18 @@ final class NavigationRenderer
                 $this->escape($theme->id()),
                 $selected,
                 $this->escape($theme->name())
+            );
+        }
+        $html .= '</select>';
+        $html .= '<label for="a2bp-ui-menu-style">Menu</label>';
+        $html .= '<select id="a2bp-ui-menu-style" name="ui_menu_style">';
+        foreach ($menuStyles as $styleId => $label) {
+            $selected = $styleId === $activeMenuStyle ? ' selected' : '';
+            $html .= sprintf(
+                '<option value="%s"%s>%s</option>',
+                $this->escape((string)$styleId),
+                $selected,
+                $this->escape((string)$label)
             );
         }
         $html .= '</select>';

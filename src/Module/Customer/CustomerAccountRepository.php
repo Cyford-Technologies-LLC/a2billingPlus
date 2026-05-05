@@ -74,28 +74,9 @@ final class CustomerAccountRepository
             throw new \RuntimeException('No supported customer columns were found.');
         }
 
+        [$whereSql, $bindings] = $this->buildSearchFilter($criteria, $columns);
         $where = [];
-        $bindings = [];
-        if ($criteria->status !== null && in_array('status', $columns, true)) {
-            $where[] = $this->quoteIdentifier('status') . ' = :status';
-            $bindings[':status'] = $criteria->status;
-        }
-
-        if ($criteria->search !== '') {
-            $searchColumns = array_values(array_intersect(['username', 'useralias', 'firstname', 'lastname', 'email'], $columns));
-            if ($searchColumns !== []) {
-                $parts = [];
-                foreach ($searchColumns as $index => $column) {
-                    $parameter = ':search' . $index;
-                    $parts[] = $this->quoteIdentifier($column) . ' LIKE ' . $parameter;
-                    $bindings[$parameter] = '%' . $criteria->search . '%';
-                }
-                $where[] = '(' . implode(' OR ', $parts) . ')';
-            }
-        }
-
         $columnSql = implode(', ', array_map([$this, 'quoteIdentifier'], $columns));
-        $whereSql = $where === [] ? '' : ' WHERE ' . implode(' AND ', $where);
         $orderColumn = in_array('id', $columns, true) ? 'id' : $columns[0];
 
         $statement = $this->pdo->prepare(sprintf(
@@ -116,6 +97,39 @@ final class CustomerAccountRepository
         return [
             'items' => $statement->fetchAll(\PDO::FETCH_ASSOC),
             'columns' => $columns,
+        ];
+    }
+
+    /**
+     * @return array{total:int,active:int,blocked:int}
+     */
+    public function summary(CustomerSearchCriteria $criteria): array
+    {
+        $columns = $this->safeColumns();
+        if ($columns === []) {
+            throw new \RuntimeException('No supported customer columns were found.');
+        }
+
+        [$whereSql, $bindings] = $this->buildSearchFilter($criteria, $columns);
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT COUNT(*) AS total,
+                SUM(CASE WHEN %1$s = 1 THEN 1 ELSE 0 END) AS active,
+                SUM(CASE WHEN %1$s = 0 THEN 1 ELSE 0 END) AS blocked
+             FROM %2$s%3$s',
+            $this->quoteIdentifier('status'),
+            $this->quoteIdentifier(self::TABLE),
+            $whereSql
+        ));
+        foreach ($bindings as $parameter => $value) {
+            $statement->bindValue($parameter, $value, is_int($value) ? \PDO::PARAM_INT : \PDO::PARAM_STR);
+        }
+        $statement->execute();
+        $row = $statement->fetch(\PDO::FETCH_ASSOC) ?: [];
+
+        return [
+            'total' => (int)($row['total'] ?? 0),
+            'active' => (int)($row['active'] ?? 0),
+            'blocked' => (int)($row['blocked'] ?? 0),
         ];
     }
 
@@ -279,6 +293,32 @@ final class CustomerAccountRepository
     }
 
     /**
+     * @return list<array{id:string,name:string}>
+     */
+    public function groups(): array
+    {
+        $driver = (string)$this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        $tableExists = false;
+        if ($driver === 'sqlite') {
+            $tableExists = (bool)$this->pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'cc_card_group'")->fetchColumn();
+        } else {
+            $tableExists = (bool)$this->pdo->query("SHOW TABLES LIKE 'cc_card_group'")->fetchColumn();
+        }
+
+        if (!$tableExists) {
+            return [];
+        }
+
+        $statement = $this->pdo->query('SELECT id, name FROM ' . $this->quoteIdentifier('cc_card_group') . ' ORDER BY name ASC');
+        $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+
+        return array_map(static fn (array $row): array => [
+            'id' => (string)($row['id'] ?? ''),
+            'name' => (string)($row['name'] ?? ''),
+        ], $rows);
+    }
+
+    /**
      * @param list<string> $preferred
      * @return list<string>
      */
@@ -339,6 +379,35 @@ final class CustomerAccountRepository
             'company_website' => $data['company_website'] ?? '',
             'traffic_target' => '',
         ];
+    }
+
+    /**
+     * @param list<string> $columns
+     * @return array{0:string,1:array<string, int|string>}
+     */
+    private function buildSearchFilter(CustomerSearchCriteria $criteria, array $columns): array
+    {
+        $where = [];
+        $bindings = [];
+        if ($criteria->status !== null && in_array('status', $columns, true)) {
+            $where[] = $this->quoteIdentifier('status') . ' = :status';
+            $bindings[':status'] = $criteria->status;
+        }
+
+        if ($criteria->search !== '') {
+            $searchColumns = array_values(array_intersect(['username', 'useralias', 'firstname', 'lastname', 'email'], $columns));
+            if ($searchColumns !== []) {
+                $parts = [];
+                foreach ($searchColumns as $index => $column) {
+                    $parameter = ':search' . $index;
+                    $parts[] = $this->quoteIdentifier($column) . ' LIKE ' . $parameter;
+                    $bindings[$parameter] = '%' . $criteria->search . '%';
+                }
+                $where[] = '(' . implode(' OR ', $parts) . ')';
+            }
+        }
+
+        return [$where === [] ? '' : ' WHERE ' . implode(' AND ', $where), $bindings];
     }
 
     private function quoteIdentifier(string $identifier): string

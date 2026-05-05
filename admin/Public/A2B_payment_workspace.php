@@ -7,13 +7,11 @@ include_once '../lib/admin.module.access.php';
 include_once '../lib/admin.smarty.php';
 
 use A2BillingPlus\Admin\ModernAdminRuntime;
+use A2BillingPlus\Admin\ModernAdminPageRenderer;
 use A2BillingPlus\Module\Payment\AdminPaymentWorkspaceService;
 use A2BillingPlus\Module\Payment\PaymentLedgerRepository;
 use A2BillingPlus\Module\Payment\PaymentLedgerService;
 use A2BillingPlus\Module\Payment\PaymentReconciliationService;
-use A2BillingPlus\Module\Ui\NavigationRegistry;
-use A2BillingPlus\Module\Ui\NavigationRenderer;
-use A2BillingPlus\Module\Ui\ThemeRenderer;
 
 if (!has_rights(ACX_BILLING)) {
     Header('HTTP/1.0 401 Unauthorized');
@@ -23,13 +21,18 @@ if (!has_rights(ACX_BILLING)) {
 
 $projectRoot = realpath(__DIR__ . '/../..') ?: dirname(__DIR__, 2);
 $runtime = new ModernAdminRuntime($projectRoot);
+$pageRenderer = new ModernAdminPageRenderer();
 $messages = [];
 $errors = [];
 $theme = $runtime->activeTheme();
+$menuStyle = $runtime->activeMenuStyle($theme);
 
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && trim((string)($_POST['form_action'] ?? '')) === 'set_ui_theme') {
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array(trim((string)($_POST['form_action'] ?? '')), ['set_ui_theme', 'set_ui_preferences'], true)) {
     try {
         $theme = $runtime->saveUiTheme(trim((string)($_POST['ui_theme'] ?? '')));
+        $menuStyle = trim((string)($_POST['form_action'] ?? '')) === 'set_ui_preferences'
+            ? $runtime->saveUiMenuStyle(trim((string)($_POST['ui_menu_style'] ?? '')))
+            : $runtime->activeMenuStyle($theme);
         $messages[] = 'Saved UI theme: ' . $theme->id() . '.';
     } catch (Throwable $exception) {
         $errors[] = $exception->getMessage();
@@ -57,31 +60,17 @@ try {
 }
 
 $smarty->display('main.tpl');
-echo (new ThemeRenderer())->stylesheetLink($theme);
+echo $pageRenderer->begin(
+    $theme,
+    $runtime->themeRegistry(),
+    'payments',
+    'Payment Workspace',
+    'Hosted/tokenized provider payments, recent ledger activity, and reconciliation totals.',
+    $menuStyle
+);
+echo $pageRenderer->renderAlerts($messages, $errors);
 
 ?>
-<br>
-<div class="<?php echo h($theme->bodyClass()); ?>">
-<div class="a2bp-page">
-    <?php echo (new NavigationRenderer())->render(NavigationRegistry::admin(), 'payments', $theme, $runtime->themeRegistry()->all()); ?>
-
-    <div class="a2bp-panel">
-        <div class="a2bp-panel__header">
-            <h1 class="a2bp-panel__title">Payment Workspace</h1>
-        </div>
-        <div class="a2bp-panel__body a2bp-muted">
-            Hosted/tokenized provider payments, recent ledger activity, and reconciliation totals.
-        </div>
-    </div>
-
-    <?php foreach ($messages as $message): ?>
-        <div class="a2bp-alert a2bp-alert--success"><?php echo h($message); ?></div>
-    <?php endforeach; ?>
-
-    <?php foreach ($errors as $error): ?>
-        <div class="a2bp-alert a2bp-alert--error"><?php echo h($error); ?></div>
-    <?php endforeach; ?>
-
     <div class="a2bp-panel">
         <div class="a2bp-panel__header">
             <h2 class="a2bp-panel__title">Filters</h2>
@@ -159,9 +148,9 @@ echo (new ThemeRenderer())->stylesheetLink($theme);
             </table>
         </div>
     </div>
-</div>
-</div>
 <?php
+
+echo $pageRenderer->end();
 
 $smarty->display('footer.tpl');
 

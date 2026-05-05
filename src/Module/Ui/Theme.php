@@ -37,6 +37,12 @@ final class Theme
         return $this->assets[$name] ?? '';
     }
 
+    public function defaultMenuStyle(): string
+    {
+        $style = $this->asset('menu_style');
+        return $style !== '' ? $style : 'side-rail';
+    }
+
     public function bodyClass(): string
     {
         return 'a2bp-ui a2bp-theme-' . preg_replace('/[^a-z0-9_-]/', '-', strtolower($this->id));

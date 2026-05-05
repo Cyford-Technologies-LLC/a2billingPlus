@@ -25,7 +25,8 @@ final class NavigationRendererTest extends TestCase
 
         self::assertStringContainsString('Provider Setup', $html);
         self::assertStringContainsString('a2bp-nav__item--active', $html);
-        self::assertStringContainsString('name="form_action" value="set_ui_theme"', $html);
+        self::assertStringContainsString('name="form_action" value="set_ui_preferences"', $html);
         self::assertStringContainsString('<option value="classic" selected>', $html);
+        self::assertStringContainsString('name="ui_menu_style"', $html);
     }
 }

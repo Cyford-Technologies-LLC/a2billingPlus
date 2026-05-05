@@ -7,12 +7,10 @@ include_once '../lib/admin.module.access.php';
 include_once '../lib/admin.smarty.php';
 
 use A2BillingPlus\Api\ProviderApiController;
+use A2BillingPlus\Admin\ModernAdminPageRenderer;
+use A2BillingPlus\Admin\ModernAdminRuntime;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
-use A2BillingPlus\Module\Ui\NavigationRegistry;
-use A2BillingPlus\Module\Ui\NavigationRenderer;
-use A2BillingPlus\Module\Ui\ThemeRegistry;
-use A2BillingPlus\Module\Ui\ThemeRenderer;
 
 if (!has_rights(ACX_ACXSETTING)) {
     Header('HTTP/1.0 401 Unauthorized');
@@ -26,11 +24,11 @@ if (is_file($autoloadPath)) {
     require_once $autoloadPath;
 }
 
-$envPath = $projectRoot . DIRECTORY_SEPARATOR . '.env';
-$themeRegistry = ThemeRegistry::default();
-$theme = $themeRegistry->resolve(envString('A2BP_UI_THEME'));
-$themeRenderer = new ThemeRenderer();
-$navigationRenderer = new NavigationRenderer();
+$runtime = new ModernAdminRuntime($projectRoot);
+$pageRenderer = new ModernAdminPageRenderer();
+$envPath = $runtime->envPath();
+$theme = $runtime->activeTheme();
+$menuStyle = $runtime->activeMenuStyle($theme);
 
 $messages = [];
 $errors = [];
@@ -62,10 +60,16 @@ $providerSetup = providerSetupService();
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $formAction = trim((string)($_POST['form_action'] ?? ''));
 
-    if ($formAction === 'set_ui_theme') {
-        $selectedTheme = $themeRegistry->resolve(trim((string)($_POST['ui_theme'] ?? '')));
-        saveUiTheme($envPath, $selectedTheme->id(), $messages, $errors);
-        $theme = $selectedTheme;
+    if (in_array($formAction, ['set_ui_theme', 'set_ui_preferences'], true)) {
+        try {
+            $theme = $runtime->saveUiTheme(trim((string)($_POST['ui_theme'] ?? '')));
+            $menuStyle = $formAction === 'set_ui_preferences'
+                ? $runtime->saveUiMenuStyle(trim((string)($_POST['ui_menu_style'] ?? '')))
+                : $runtime->activeMenuStyle($theme);
+            $messages[] = 'Saved UI theme: ' . $theme->id() . '.';
+        } catch (Throwable $exception) {
+            $errors[] = $exception->getMessage();
+        }
     }
 
     foreach ($defaults as $key => $default) {
@@ -74,7 +78,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input['save_credentials'] = isset($_POST['save_credentials']) ? '1' : '';
     $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
 
-    if ($formAction !== 'set_ui_theme' && $input['base_url'] === '') {
+    if (!in_array($formAction, ['set_ui_theme', 'set_ui_preferences'], true) && $input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
     }
 
@@ -132,7 +136,15 @@ $ratecards = $providerSetup->ratecards();
 $recentImports = $providerSetup->recentImports();
 
 $smarty->display('main.tpl');
-echo $themeRenderer->stylesheetLink($theme);
+echo $pageRenderer->begin(
+    $theme,
+    $runtime->themeRegistry(),
+    'provider-setup',
+    'VectaVoIP Provider Setup',
+    'Register this A2BillingPlus install with VectaVoIP and store provider API credentials for rate imports.',
+    $menuStyle
+);
+echo $pageRenderer->renderAlerts($messages, $errors);
 
 function providerSetupService(): ProviderSetupService
 {
@@ -146,19 +158,9 @@ function providerSetupService(): ProviderSetupService
 
 function providerSetupPdo(): PDO
 {
-    $dsn = envString('A2BP_DB_DSN');
-    if ($dsn === '') {
-        $dsn = sprintf(
-            'mysql:host=%s;dbname=%s;charset=utf8mb4',
-            envString('A2BP_DB_HOST', 'db'),
-            envString('A2BP_DB_NAME', 'mya2billing')
-        );
-    }
+    global $runtime;
 
-    return new PDO($dsn, envString('A2BP_DB_USER', 'a2billinguser'), envString('A2BP_DB_PASSWORD', 'a2billing'), [
-        PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-    ]);
+    return $runtime->pdo();
 }
 
 function envString(string $key, string $default = ''): string
@@ -266,25 +268,6 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
     $messages[] = 'Saved VectaVoIP provider credentials to .env.';
 }
 
-function saveUiTheme(string $envPath, string $themeId, array &$messages, array &$errors): void
-{
-    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
-        $errors[] = '.env is not writable. UI theme was not saved.';
-        return;
-    }
-
-    $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
-    $contents = mergeEnvValues($contents, ['A2BP_UI_THEME' => $themeId]);
-
-    if (@file_put_contents($envPath, $contents) === false) {
-        $errors[] = 'Could not write .env. UI theme was not saved.';
-        return;
-    }
-
-    putenv('A2BP_UI_THEME=' . $themeId);
-    $messages[] = 'Saved UI theme: ' . $themeId . '.';
-}
-
 function writeSecretFileValues(array &$values, array $secretKeys, array &$messages, array &$errors): void
 {
     $secretDir = envString('A2BP_SECRET_DIR');
@@ -357,37 +340,12 @@ function h(string $value): string
 }
 
 ?>
-<br>
-<div class="<?php echo h($theme->bodyClass()); ?>">
-<div class="a2bp-page">
-    <?php echo $navigationRenderer->render(NavigationRegistry::admin(), 'provider-setup', $theme, $themeRegistry->all()); ?>
-    <div class="a2bp-panel">
-        <div class="a2bp-panel__header">
-            <h1 class="a2bp-panel__title">VectaVoIP Provider Setup</h1>
-        </div>
-        <div class="a2bp-panel__body a2bp-muted">
-            Register this A2BillingPlus install with VectaVoIP and store provider API credentials for rate imports.
-        </div>
-    </div>
-
 <table width="95%" class="provider_setup_page">
     <tr>
         <td class="form_head">VectaVoIP Provider Setup</td>
     </tr>
     <tr>
         <td class="tdstyle_001">
-            <?php foreach ($messages as $message): ?>
-                <div class="a2bp-alert a2bp-alert--success">
-                    <?php echo h($message); ?>
-                </div>
-            <?php endforeach; ?>
-
-            <?php foreach ($errors as $error): ?>
-                <div class="a2bp-alert a2bp-alert--error">
-                    <?php echo h($error); ?>
-                </div>
-            <?php endforeach; ?>
-
             <table width="100%" cellspacing="0" cellpadding="8">
                 <tr>
                     <td width="220"><strong>Status</strong></td>
@@ -633,9 +591,9 @@ function h(string $value): string
         </td>
     </tr>
 </table>
-</div>
-</div>
 
 <?php
+
+echo $pageRenderer->end();
 
 $smarty->display('footer.tpl');

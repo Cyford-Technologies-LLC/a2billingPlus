@@ -23,6 +23,22 @@ final class CustomerAccountService
     }
 
     /**
+     * @return array{total:int,active:int,blocked:int}
+     */
+    public function summary(CustomerSearchCriteria $criteria): array
+    {
+        return $this->repository->summary($criteria);
+    }
+
+    /**
+     * @return list<array{id:string,name:string}>
+     */
+    public function groups(): array
+    {
+        return $this->repository->groups();
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function detail(int $id): ?array

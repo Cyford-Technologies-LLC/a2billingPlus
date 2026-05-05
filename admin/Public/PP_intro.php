@@ -65,6 +65,10 @@ $smarty->display('main.tpl');
             <span>Provider Setup</span>
             <small>Register, check status, preview rates, and provision VectaVoIP services.</small>
         </a>
+        <a href="A2B_ui_theme_manager.php?section=18" class="a2bp-intro-action">
+            <span>Theme Manager</span>
+            <small>Install modular theme packages and switch the active admin theme.</small>
+        </a>
         <a href="dashboard.php" class="a2bp-intro-action">
             <span>Dashboard</span>
             <small>Review traffic, balance, and billing activity from the legacy dashboard.</small>
@@ -72,6 +76,10 @@ $smarty->display('main.tpl');
         <a href="A2B_entity_card.php?section=1" class="a2bp-intro-action">
             <span>Customers</span>
             <small>Create, search, activate, and manage customer accounts.</small>
+        </a>
+        <a href="A2B_customer_workspace.php?section=1" class="a2bp-intro-action">
+            <span>Customer Workspace</span>
+            <small>Use the modular customer list and detail screens for customer account operations.</small>
         </a>
         <a href="A2B_entity_trunk.php?section=7" class="a2bp-intro-action">
             <span>Trunks</span>
