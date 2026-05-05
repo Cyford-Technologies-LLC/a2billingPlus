@@ -11,6 +11,8 @@ The active theme is selected with `A2BP_UI_THEME`.
 Available built-in themes:
 
 - `a2billingplus`: default modern operations theme.
+- `classic`: compact A2Billing-style theme for operators who prefer the old
+  gray, blue, and red admin look on new modular screens.
 - `legacy`: compatibility asset path for legacy screens during migration.
 
 If a requested theme is missing, the registry falls back to `a2billingplus`.

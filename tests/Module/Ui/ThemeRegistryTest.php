@@ -25,6 +25,13 @@ final class ThemeRegistryTest extends TestCase
         self::assertSame('legacy', $registry->resolve('legacy')->id());
     }
 
+    public function testResolvesClassicTheme(): void
+    {
+        $registry = ThemeRegistry::default();
+
+        self::assertSame('ui/themes/classic/theme.css', $registry->resolve('classic')->asset('stylesheet'));
+    }
+
     public function testCanRegisterCustomTheme(): void
     {
         $registry = ThemeRegistry::default();

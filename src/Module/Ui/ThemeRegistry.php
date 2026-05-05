@@ -31,6 +31,12 @@ final class ThemeRegistry
                 ['stylesheet' => 'ui/themes/a2billingplus/theme.css']
             ),
             new Theme(
+                'classic',
+                'A2Billing Classic',
+                'Modern modular theme that keeps the compact gray, blue, and red A2Billing visual style.',
+                ['stylesheet' => 'ui/themes/classic/theme.css']
+            ),
+            new Theme(
                 'legacy',
                 'Legacy A2Billing',
                 'Compatibility theme for legacy screens while pages are replaced workflow by workflow.',
