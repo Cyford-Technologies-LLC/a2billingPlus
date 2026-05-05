@@ -10,8 +10,12 @@ on:
 jobs:
   verify:
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     steps:
       - uses: actions/checkout@v4
+      - name: Prepare sandbox env
+        run: cp .env.example .env
       - name: Start sandbox stack
         run: docker compose up -d --build app app84 db redis
       - name: Install dependencies
