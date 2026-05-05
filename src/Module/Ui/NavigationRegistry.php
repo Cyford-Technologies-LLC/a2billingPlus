@@ -26,8 +26,8 @@ final class NavigationRegistry
                 new NavigationItem('Invoices', 'A2B_entity_invoice.php?section=11', 'invoices'),
             ], 'customers'),
             new NavigationSection('Rates and Reports', [
-                new NavigationItem('Ratecards', 'A2B_entity_tariffplan.php?atmenu=tariffplan&section=6', 'ratecards'),
-                new NavigationItem('Rates', 'A2B_entity_def_ratecard.php?atmenu=ratecard&section=6', 'rates'),
+                new NavigationItem('Rate Workspace', 'A2B_rate_workspace.php?section=6', 'rates'),
+                new NavigationItem('Legacy Ratecards', 'A2B_entity_tariffplan.php?atmenu=tariffplan&section=6', 'ratecards'),
                 new NavigationItem('CDRs', 'call-log-customers.php?nodisplay=1&posted=1&section=5', 'cdrs'),
             ], 'rates-reports'),
         ];

@@ -81,6 +81,10 @@ $smarty->display('main.tpl');
             <span>Customer Workspace</span>
             <small>Use the modular customer list and detail screens for customer account operations.</small>
         </a>
+        <a href="A2B_rate_workspace.php?section=6" class="a2bp-intro-action">
+            <span>Rate Workspace</span>
+            <small>Search rates, tariff plans, tariff groups, and destination coverage in the modular UI.</small>
+        </a>
         <a href="A2B_entity_trunk.php?section=7" class="a2bp-intro-action">
             <span>Trunks</span>
             <small>Manage provider trunks and routing configuration.</small>

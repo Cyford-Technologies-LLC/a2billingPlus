@@ -31,6 +31,7 @@ Invoke-Step 'PHP syntax: core changed entrypoints' {
     docker compose exec -T app php -l admin/Public/A2B_ui_theme_manager.php
     docker compose exec -T app php -l admin/Public/A2B_customer_workspace.php
     docker compose exec -T app php -l admin/Public/A2B_customer_detail.php
+    docker compose exec -T app php -l admin/Public/A2B_rate_workspace.php
     docker compose exec -T app php -l bin/migrate-a2billing.php
     docker compose exec -T app php -l bin/apply-install-migrations.php
 }

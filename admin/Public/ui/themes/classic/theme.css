@@ -225,6 +225,13 @@
     margin: 0 0 12px;
 }
 
+.a2bp-grid-two {
+    display: grid;
+    gap: 12px;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    margin: 12px 0;
+}
+
 .a2bp-metric {
     background: var(--a2bp-panel);
     border: 1px solid var(--a2bp-panel-border);

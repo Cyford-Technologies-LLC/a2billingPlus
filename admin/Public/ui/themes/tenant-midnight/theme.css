@@ -317,6 +317,13 @@ ul#menu_horizontal a:hover {
     margin: 0 0 16px;
 }
 
+.a2bp-grid-two {
+    display: grid;
+    gap: 18px;
+    grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+    margin: 18px 0;
+}
+
 .a2bp-metric {
     background: var(--a2bp-panel);
     border: 1px solid var(--a2bp-panel-border);

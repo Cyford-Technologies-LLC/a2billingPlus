@@ -98,3 +98,15 @@ admin theme selector inside the modular navigation bar.
 The selector posts `form_action=set_ui_theme` and stores `A2BP_UI_THEME` in
 the local `.env` file when it is writable. Legacy Smarty menus remain available
 until each workflow is replaced.
+
+## Current Modular Admin Screens
+
+- `A2B_provider_setup.php`: provider registration, status, rate preview, and
+  provisioning setup.
+- `A2B_payment_workspace.php`: hosted/tokenized payment activity and
+  reconciliation totals.
+- `A2B_customer_workspace.php` and `A2B_customer_detail.php`: customer search,
+  account review, status, and core contact updates.
+- `A2B_rate_workspace.php`: rate row search, tariff plan/group review, and
+  destination coverage lookup through the rate module services.
+- `A2B_ui_theme_manager.php`: theme package upload/install and activation.
