@@ -109,4 +109,6 @@ until each workflow is replaced.
   account review, status, and core contact updates.
 - `A2B_rate_workspace.php`: rate row search, tariff plan/group review, and
   destination coverage lookup through the rate module services.
+- `A2B_telephony_workspace.php`: DID, trunk, SIP/IAX account review plus
+  Asterisk launch-readiness checks through the telephony module services.
 - `A2B_ui_theme_manager.php`: theme package upload/install and activation.

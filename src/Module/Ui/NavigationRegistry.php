@@ -17,12 +17,13 @@ final class NavigationRegistry
                 new NavigationItem('Provider Setup', 'A2B_provider_setup.php?section=7', 'provider-setup'),
                 new NavigationItem('Payments', 'A2B_payment_workspace.php?section=10', 'payments'),
                 new NavigationItem('Themes', 'A2B_ui_theme_manager.php?section=9', 'themes'),
-                new NavigationItem('DIDs', 'A2B_entity_did.php?section=7', 'dids'),
-                new NavigationItem('Trunks', 'A2B_entity_trunk.php?section=7', 'trunks'),
+                new NavigationItem('Telephony', 'A2B_telephony_workspace.php?section=7', 'telephony'),
+                new NavigationItem('Legacy DIDs', 'A2B_entity_did.php?section=7', 'dids'),
+                new NavigationItem('Legacy Trunks', 'A2B_entity_trunk.php?section=7', 'trunks'),
             ], 'operations'),
             new NavigationSection('Customers', [
                 new NavigationItem('Customers', 'A2B_customer_workspace.php?section=1', 'customers'),
-                new NavigationItem('VoIP Settings', 'A2B_entity_friend.php?atmenu=sip&section=1', 'voip-settings'),
+                new NavigationItem('Legacy VoIP Settings', 'A2B_entity_friend.php?atmenu=sip&section=1', 'voip-settings'),
                 new NavigationItem('Invoices', 'A2B_entity_invoice.php?section=11', 'invoices'),
             ], 'customers'),
             new NavigationSection('Rates and Reports', [

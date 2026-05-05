@@ -31,6 +31,8 @@ Status key:
       menu layouts, theme defaults, and admin override support.
 - [x] Modular rate workspace is present for rate row search, tariff plan/group
       review, and destination coverage lookup.
+- [x] Modular telephony workspace is present for DID, trunk, SIP/IAX account
+      review, and Asterisk readiness checks.
 
 ## Next Beta Work
 
@@ -361,8 +363,10 @@ its business rules live outside the page script.
 - [ ] Expand modular customer screens to cover create, group workflows, VoIP
       settings, caller IDs, notifications, speed dial, history, and other
       remaining legacy customer-side admin tasks.
-- [ ] Replace DID inventory, assignment, routing, and trunk management screens
-      with modular telephony workspaces.
+- [x] Start replacing DID inventory, trunk, and VoIP account review with a
+      modular telephony workspace.
+- [ ] Add write workflows for DID assignment/routing, trunk edits, and VoIP
+      account changes in the modular telephony screens.
 - [x] Start replacing ratecard, rates, tariff plan, and destination workflows
       with a modular rate workspace for search and review.
 - [ ] Add write workflows to modular pricing screens for tariff/rate edits,
@@ -407,8 +411,9 @@ its business rules live outside the page script.
 - [ ] Decide whether theme installation stays filesystem-based, becomes module-
       registered, or supports both paths with a single manifest contract.
 - [ ] Continue modular UI replacement across all remaining launch modules:
-      customer subflows, telephony, rate write/import flows, reports, invoices,
-      configuration, agent/reseller, and customer portal surfaces.
+      customer subflows, telephony write flows, rate write/import flows,
+      reports, invoices, configuration, agent/reseller, and customer portal
+      surfaces.
 
 ## 10. Multi-Tenant Platform Support
 
@@ -502,14 +507,17 @@ the major file movement settles.
       customer detail screens.
 - [x] Start the rates replacement step with a modular rate workspace for
       ratecards, tariff plans, tariff groups, and destinations.
+- [x] Start the telephony replacement step with a modular telephony workspace
+      for DID, trunk, and VoIP account review.
 - [x] Build theme management and theme package upload/install support for custom
       modular themes.
 - [ ] Define and start implementing the tenant model before customer, payment,
       provider, and telephony UI replacements grow around single-tenant
       assumptions.
-- [ ] Continue module-by-module UI replacement after the current rates slice:
-      VoIP settings, DID/trunk workspaces, rate write/import flows, reporting,
-      invoices, configuration, agent/reseller, and customer portal.
+- [ ] Continue module-by-module UI replacement after the current telephony
+      slice: DID/trunk write flows, VoIP settings edits, rate write/import
+      flows, reporting, invoices, configuration, agent/reseller, and customer
+      portal.
 
 ## Alpha Release Criteria
 

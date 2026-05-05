@@ -85,6 +85,10 @@ $smarty->display('main.tpl');
             <span>Rate Workspace</span>
             <small>Search rates, tariff plans, tariff groups, and destination coverage in the modular UI.</small>
         </a>
+        <a href="A2B_telephony_workspace.php?section=7" class="a2bp-intro-action">
+            <span>Telephony Workspace</span>
+            <small>Review trunks, DIDs, SIP and IAX accounts, and Asterisk readiness from the modular UI.</small>
+        </a>
         <a href="A2B_entity_trunk.php?section=7" class="a2bp-intro-action">
             <span>Trunks</span>
             <small>Manage provider trunks and routing configuration.</small>
