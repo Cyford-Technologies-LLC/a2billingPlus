@@ -16,6 +16,10 @@ Status key:
 - [x] Seeded portal crawl passes for admin, agent, and customer portals:
       admin 365 URLs, agent 49 URLs, customer 34 URLs, 0 crawl errors.
 - [x] VectaVoIP provider setup is module-backed and crawl-clean.
+- [x] Provider setup now supports provider-aware flows with DIDWW credential
+      validation and provider lock policy hooks for company/licensed access.
+- [x] DIDWW is now positioned as a restricted provider path for internal company
+      use and paid licensed admins, with UI and API enforcement.
 - [x] A2BillingPlus branding is present on login and admin intro surfaces.
 - [x] Modular UI theme foundation, classic theme option, and admin theme
       selector are in place for new module-backed screens.
@@ -179,6 +183,14 @@ its business rules live outside the page script.
 - [x] Add provider API contract tests for live-compatible status, rates,
       credentials, provisioning, and webhook event handling.
 - [x] Add rollback and retry behavior for partial provider provisioning.
+- [x] Add DIDWW provider registration in the provider registry with API-key
+      connection testing and locked-access enforcement.
+- [x] Add provider access policy support so selected providers can be locked to
+      company admins and licensed individuals.
+- [ ] Add licensed-admin management for locked providers so paid access can be
+      granted and revoked without editing environment variables by hand.
+- [ ] Expand DIDWW integration beyond credential validation into DID inventory,
+      trunk provisioning, ordering, and synchronization workflows.
 
 ### Agent And Reseller Module
 
@@ -269,6 +281,8 @@ its business rules live outside the page script.
 - [x] Add sandbox provider registration endpoint.
 - [x] Add sandbox provider rate preview endpoint.
 - [x] Add admin provider setup page at `admin/Public/A2B_provider_setup.php`.
+- [x] Make the admin provider setup page provider-aware instead of
+      VectaVoIP-only, with DIDWW credential test/save support.
 - [x] Add provider rate preview, dry-run import, and write import flow.
 - [x] Add provider import audit table migration.
 - [x] Add provider registration documentation in
@@ -418,6 +432,8 @@ its business rules live outside the page script.
       customer subflows, telephony write flows, rate write/import flows,
       reports, invoices, configuration, agent/reseller, and customer portal
       surfaces.
+- [x] Keep provider setup inside the modular admin shell while expanding it to
+      multiple providers and locked-provider policies.
 
 ## 10. Multi-Tenant Platform Support
 

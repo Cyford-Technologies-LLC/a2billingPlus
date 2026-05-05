@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
+use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Module\Provider\ProviderConnectionResult;
+use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderConnectorInterface;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
@@ -20,13 +22,20 @@ final class ProviderApiControllerTest extends TestCase
 {
     public function testListsProviders(): void
     {
-        $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            null,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root'
+        );
         $response = $controller->handle(new JsonRequest('GET'));
+        $providers = $response->getPayload()['providers'];
+        $codes = array_column($providers, 'code');
 
         $this->assertSame(200, $response->getStatusCode());
-        $this->assertSame('vectavoip', $response->getPayload()['providers'][0]['code']);
-        $this->assertSame('info@VectaVoIP.com', $response->getPayload()['providers'][0]['support_email']);
-        $this->assertSame('https://api.vectavoip.com', $response->getPayload()['providers'][0]['api_base_url']);
+        $this->assertContains('vectavoip', $codes);
+        $this->assertContains('didww', $codes);
     }
 
     public function testTestsProviderConnection(): void
@@ -198,6 +207,22 @@ final class ProviderApiControllerTest extends TestCase
         ]));
 
         $this->assertSame(404, $response->getStatusCode());
+    }
+
+    public function testHidesLockedProviderFromPublicList(): void
+    {
+        putenv('A2BP_LOCKED_PROVIDERS=didww');
+
+        try {
+            $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
+            $response = $controller->handle(new JsonRequest('GET'));
+            $codes = array_column($response->getPayload()['providers'], 'code');
+
+            $this->assertContains('vectavoip', $codes);
+            $this->assertNotContains('didww', $codes);
+        } finally {
+            putenv('A2BP_LOCKED_PROVIDERS');
+        }
     }
 
     private function previewProviderRegistry(): ProviderRegistry

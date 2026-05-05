@@ -19,6 +19,7 @@ final class AppConfig
     public static function fromEnvironment(): self
     {
         $values = [];
+        $fileValues = self::envFileValues();
         foreach ($_ENV as $key => $value) {
             if (is_scalar($value)) {
                 $values[(string)$key] = (string)$value;
@@ -39,7 +40,13 @@ final class AppConfig
             'A2BP_DB_PASSWORD',
             'A2BP_API_SERVICE_KEY',
             'A2BP_UI_THEME',
+            'A2BP_LOCKED_PROVIDERS',
+            'A2BP_PROVIDER_OWNER_ADMINS',
+            'A2BP_PROVIDER_LICENSED_ADMINS',
             'MODE',
+            'DIDWW_API_BASE_URL',
+            'DIDWW_API_KEY',
+            'DIDWW_API_VERSION',
             'VECTAVOIP_API_BASE_URL',
             'VECTAVOIP_API_KEY',
             'VECTAVOIP_API_SECRET',
@@ -70,6 +77,13 @@ final class AppConfig
                 if (is_string($contents)) {
                     $values[$key] = trim($contents);
                 }
+            } elseif (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
+                $contents = file_get_contents($fileValues[$key . '_FILE']);
+                if (is_string($contents)) {
+                    $values[$key] = trim($contents);
+                }
+            } elseif (($fileValues[$key] ?? '') !== '') {
+                $values[$key] = $fileValues[$key];
             }
         }
 
@@ -115,6 +129,48 @@ final class AppConfig
 
         if (($values['STRIPE_WEBHOOK_SECRET'] ?? '') === '' && ($values[$stripePrefix . '_WEBHOOK_SECRET'] ?? '') !== '') {
             $values['STRIPE_WEBHOOK_SECRET'] = $values[$stripePrefix . '_WEBHOOK_SECRET'];
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private static function envFileValues(): array
+    {
+        $values = [];
+        $envPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
+        if (!is_readable($envPath)) {
+            return $values;
+        }
+
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            return $values;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if ($key === '') {
+                continue;
+            }
+
+            if (
+                strlen($value) >= 2
+                && (($value[0] === '"' && substr($value, -1) === '"') || ($value[0] === "'" && substr($value, -1) === "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            $values[$key] = str_replace(['\\"', '\\\\'], ['"', '\\'], $value);
         }
 
         return $values;

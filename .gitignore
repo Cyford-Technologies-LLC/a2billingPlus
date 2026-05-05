@@ -13,6 +13,7 @@
 .env
 .env.local
 .env.stripe
+.secrets/
 .phpunit.result.cache
 
 # Provider API runtime env overlays are created on deployment hosts.

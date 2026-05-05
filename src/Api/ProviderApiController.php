@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace A2BillingPlus\Api;
 
+use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
+use A2BillingPlus\Module\Provider\Didww\DidwwConnector;
+use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
@@ -24,9 +27,14 @@ final class ProviderApiController
     public function __construct(
         private readonly ProviderRegistry $registry,
         private $registrationClientFactory = null,
-        private $pdoFactory = null
+        private $pdoFactory = null,
+        ?ProviderAccessPolicy $accessPolicy = null,
+        private readonly string $actor = ''
     ) {
+        $this->accessPolicy = $accessPolicy ?? new ProviderAccessPolicy(AppConfig::fromEnvironment());
     }
+
+    private readonly ProviderAccessPolicy $accessPolicy;
 
     public function handle(JsonRequest $request): JsonResponse
     {
@@ -52,6 +60,9 @@ final class ProviderApiController
     {
         $providers = [];
         foreach ($this->registry->all() as $connector) {
+            if (!$this->accessPolicy->isAllowed($connector->getProviderCode(), $this->actor)) {
+                continue;
+            }
             $providers[] = [
                 'code' => $connector->getProviderCode(),
                 'name' => $connector->getDisplayName(),
@@ -110,10 +121,11 @@ final class ProviderApiController
 
         return new JsonResponse([
             'provider' => $connector->getProviderCode(),
-            'registered' => $this->envString('VECTAVOIP_API_KEY') !== '',
-            'installation_id' => $this->envString('VECTAVOIP_INSTALLATION_ID'),
-            'api_base_url' => $this->envString('VECTAVOIP_API_BASE_URL', $connector->getApiBaseUrl()),
+            'registered' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'API_KEY')) !== '',
+            'installation_id' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'INSTALLATION_ID')),
+            'api_base_url' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'API_BASE_URL'), $connector->getApiBaseUrl()),
             'support_email' => $connector->getSupportEmail(),
+            'locked' => $this->accessPolicy->isLocked($connector->getProviderCode()),
         ]);
     }
 
@@ -153,7 +165,7 @@ final class ProviderApiController
             $summary = $service->importRows(
                 $preview->getSampleRows(),
                 $targetRatecardId,
-                'VectaVoIP:' . $rateDeck,
+                $connector->getDisplayName() . ':' . $rateDeck,
                 $dryRun,
                 $updateExisting
             );
@@ -252,6 +264,9 @@ final class ProviderApiController
     private function getConnector(JsonRequest $request): object
     {
         $providerCode = $request->getString('provider', 'vectavoip');
+        if (!$this->accessPolicy->isAllowed($providerCode, $this->actor)) {
+            return new JsonResponse(['error' => $this->accessPolicy->denialMessage($providerCode)], 403);
+        }
         $connector = $this->registry->get($providerCode);
 
         if (!$connector) {
@@ -263,12 +278,30 @@ final class ProviderApiController
 
     private function credentialsFromRequest(JsonRequest $request): ProviderCredentials
     {
+        $providerCode = $request->getString('provider', 'vectavoip');
         return new ProviderCredentials(
-            $request->getString('base_url', $this->envString('VECTAVOIP_API_BASE_URL', VectaVoIPConnector::API_BASE_URL)),
-            $request->getString('api_key', $this->envString('VECTAVOIP_API_KEY')),
-            $request->getString('api_secret', $this->envString('VECTAVOIP_API_SECRET')),
-            $this->stringMap($request->getArray('metadata'))
+            $request->getString('base_url', $this->envString($this->providerEnvKey($providerCode, 'API_BASE_URL'), $this->defaultBaseUrl($providerCode))),
+            $request->getString('api_key', $this->envString($this->providerEnvKey($providerCode, 'API_KEY'))),
+            $request->getString('api_secret', $this->envString($this->providerEnvKey($providerCode, 'API_SECRET'))),
+            array_merge(
+                $this->stringMap($request->getArray('metadata')),
+                ['api_version' => $request->getString('api_version', $this->envString($this->providerEnvKey($providerCode, 'API_VERSION')))]
+            )
         );
+    }
+
+    private function defaultBaseUrl(string $providerCode): string
+    {
+        return match ($providerCode) {
+            'vectavoip' => VectaVoIPConnector::API_BASE_URL,
+            'didww' => DidwwConnector::API_BASE_URL,
+            default => '',
+        };
+    }
+
+    private function providerEnvKey(string $providerCode, string $suffix): string
+    {
+        return strtoupper($providerCode) . '_' . $suffix;
     }
 
     private function envString(string $key, string $default = ''): string
@@ -284,6 +317,18 @@ final class ProviderApiController
             if (is_string($contents)) {
                 return trim($contents);
             }
+        }
+
+        $fileValues = $this->envFileValues();
+        $filePath = $fileValues[$key . '_FILE'] ?? '';
+        if ($filePath !== '' && is_readable($filePath)) {
+            $contents = file_get_contents($filePath);
+            if (is_string($contents)) {
+                return trim($contents);
+            }
+        }
+        if (($fileValues[$key] ?? '') !== '') {
+            return $fileValues[$key];
         }
 
         return $default;
@@ -344,5 +389,52 @@ final class ProviderApiController
         }
 
         return $mapped;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private function envFileValues(): array
+    {
+        static $values = null;
+        if (is_array($values)) {
+            return $values;
+        }
+
+        $values = [];
+        $envPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
+        if (!is_readable($envPath)) {
+            return $values;
+        }
+
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            return $values;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if ($key === '') {
+                continue;
+            }
+
+            if (
+                strlen($value) >= 2
+                && (($value[0] === '"' && substr($value, -1) === '"') || ($value[0] === "'" && substr($value, -1) === "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            $values[$key] = str_replace(['\\"', '\\\\'], ['"', '\\'], $value);
+        }
+
+        return $values;
     }
 }

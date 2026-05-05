@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace A2BillingPlus\Bootstrap;
 
 use A2BillingPlus\Config\AppConfig;
+use A2BillingPlus\Module\Provider\Didww\DidwwProviderModule;
 use A2BillingPlus\Module\Provider\ProviderModuleInterface;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProviderModule;
@@ -36,6 +37,7 @@ final class ProviderRegistryFactory
 
         return [
             new VectaVoIPProviderModule($config),
+            new DidwwProviderModule($config),
         ];
     }
 }

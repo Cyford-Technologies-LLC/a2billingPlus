@@ -19,6 +19,17 @@ final class ProviderSetupService
     }
 
     /**
+     * @return list<array{code:string,name:string,support_email:string,api_base_url:string}>
+     */
+    public function providers(): array
+    {
+        $response = $this->controller->handle(new JsonRequest('GET'));
+        $payload = $response->getPayload();
+        $providers = $payload['providers'] ?? [];
+        return is_array($providers) ? $providers : [];
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function providerStatus(string $provider = 'vectavoip'): array
@@ -33,11 +44,27 @@ final class ProviderSetupService
      * @param array<string, string> $input
      * @return array<string, mixed>
      */
+    public function testConnection(array $input): array
+    {
+        return $this->post([
+            'action' => 'test_connection',
+            'provider' => $input['provider'],
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
     public function registerInstall(array $input): array
     {
         return $this->post([
             'action' => 'register_install',
-            'provider' => 'vectavoip',
+            'provider' => $input['provider'] ?? 'vectavoip',
             'base_url' => $input['base_url'],
             'install_key' => $input['install_key'],
             'company_name' => $input['company_name'],
@@ -141,10 +168,11 @@ final class ProviderSetupService
 
         return [
             'action' => $action,
-            'provider' => 'vectavoip',
+            'provider' => $input['provider'] ?? 'vectavoip',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
             'rate_deck' => $input['rate_deck'],
             'currency' => $input['currency'],
             'filters' => $filters,
