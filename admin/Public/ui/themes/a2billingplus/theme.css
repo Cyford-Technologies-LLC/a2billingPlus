@@ -1,0 +1,108 @@
+.a2bp-ui {
+    --a2bp-bg: #f6f8fb;
+    --a2bp-panel: #ffffff;
+    --a2bp-panel-border: #d7dde8;
+    --a2bp-text: #172033;
+    --a2bp-muted: #5d6a7d;
+    --a2bp-brand: #1f7a8c;
+    --a2bp-brand-strong: #155e6d;
+    --a2bp-success-bg: #ecfdf3;
+    --a2bp-success-border: #abefc6;
+    --a2bp-success-text: #065f46;
+    --a2bp-error-bg: #fef3f2;
+    --a2bp-error-border: #fecdca;
+    --a2bp-error-text: #912018;
+    color: var(--a2bp-text);
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+.a2bp-page {
+    width: min(1180px, calc(100% - 32px));
+    margin: 18px auto 32px;
+}
+
+.a2bp-panel {
+    background: var(--a2bp-panel);
+    border: 1px solid var(--a2bp-panel-border);
+    border-radius: 8px;
+    margin: 0 0 16px;
+    overflow: hidden;
+}
+
+.a2bp-panel__header {
+    align-items: center;
+    border-bottom: 1px solid var(--a2bp-panel-border);
+    display: flex;
+    gap: 12px;
+    justify-content: space-between;
+    padding: 14px 16px;
+}
+
+.a2bp-panel__title {
+    color: var(--a2bp-text);
+    font-size: 18px;
+    font-weight: 700;
+    margin: 0;
+}
+
+.a2bp-panel__body {
+    padding: 16px;
+}
+
+.a2bp-alert {
+    border: 1px solid;
+    border-radius: 6px;
+    margin: 10px 0;
+    padding: 10px 12px;
+}
+
+.a2bp-alert--success {
+    background: var(--a2bp-success-bg);
+    border-color: var(--a2bp-success-border);
+    color: var(--a2bp-success-text);
+}
+
+.a2bp-alert--error {
+    background: var(--a2bp-error-bg);
+    border-color: var(--a2bp-error-border);
+    color: var(--a2bp-error-text);
+}
+
+.a2bp-muted {
+    color: var(--a2bp-muted);
+}
+
+.a2bp-table {
+    border-collapse: collapse;
+    width: 100%;
+}
+
+.a2bp-table th,
+.a2bp-table td {
+    border-bottom: 1px solid var(--a2bp-panel-border);
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+.a2bp-table th {
+    color: var(--a2bp-muted);
+    font-size: 12px;
+    text-transform: uppercase;
+}
+
+.a2bp-button {
+    background: var(--a2bp-brand);
+    border: 1px solid var(--a2bp-brand-strong);
+    border-radius: 6px;
+    color: #ffffff;
+    cursor: pointer;
+    font-weight: 700;
+    min-height: 34px;
+    padding: 7px 12px;
+}
+
+.a2bp-button:hover,
+.a2bp-button:focus {
+    background: var(--a2bp-brand-strong);
+}

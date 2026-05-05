@@ -38,6 +38,7 @@ final class AppConfig
             'A2BP_DB_USER',
             'A2BP_DB_PASSWORD',
             'A2BP_API_SERVICE_KEY',
+            'A2BP_UI_THEME',
             'MODE',
             'VECTAVOIP_API_BASE_URL',
             'VECTAVOIP_API_KEY',

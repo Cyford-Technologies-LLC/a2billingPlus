@@ -9,6 +9,8 @@ include_once '../lib/admin.smarty.php';
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
+use A2BillingPlus\Module\Ui\ThemeRegistry;
+use A2BillingPlus\Module\Ui\ThemeRenderer;
 
 if (!has_rights(ACX_ACXSETTING)) {
     Header('HTTP/1.0 401 Unauthorized');
@@ -21,6 +23,9 @@ $autoloadPath = $projectRoot . DIRECTORY_SEPARATOR . 'vendor' . DIRECTORY_SEPARA
 if (is_file($autoloadPath)) {
     require_once $autoloadPath;
 }
+
+$theme = ThemeRegistry::default()->resolve(envString('A2BP_UI_THEME'));
+$themeRenderer = new ThemeRenderer();
 
 $messages = [];
 $errors = [];
@@ -117,6 +122,7 @@ $ratecards = $providerSetup->ratecards();
 $recentImports = $providerSetup->recentImports();
 
 $smarty->display('main.tpl');
+echo $themeRenderer->stylesheetLink($theme);
 
 function providerSetupService(): ProviderSetupService
 {
@@ -271,13 +277,16 @@ function h(string $value): string
 
 ?>
 <br>
-<div class="toggle_show2hide">
-    <div class="tohide" style="display:visible;">
-        <div class="msg_info">
+<div class="<?php echo h($theme->bodyClass()); ?>">
+<div class="a2bp-page">
+    <div class="a2bp-panel">
+        <div class="a2bp-panel__header">
+            <h1 class="a2bp-panel__title">VectaVoIP Provider Setup</h1>
+        </div>
+        <div class="a2bp-panel__body a2bp-muted">
             Register this A2BillingPlus install with VectaVoIP and store provider API credentials for rate imports.
         </div>
     </div>
-</div>
 
 <table width="95%" class="provider_setup_page">
     <tr>
@@ -286,13 +295,13 @@ function h(string $value): string
     <tr>
         <td class="tdstyle_001">
             <?php foreach ($messages as $message): ?>
-                <div style="margin:10px 0;padding:10px;border:1px solid #abefc6;background:#ecfdf3;color:#065f46;">
+                <div class="a2bp-alert a2bp-alert--success">
                     <?php echo h($message); ?>
                 </div>
             <?php endforeach; ?>
 
             <?php foreach ($errors as $error): ?>
-                <div style="margin:10px 0;padding:10px;border:1px solid #fecdca;background:#fef3f2;color:#912018;">
+                <div class="a2bp-alert a2bp-alert--error">
                     <?php echo h($error); ?>
                 </div>
             <?php endforeach; ?>
@@ -542,6 +551,8 @@ function h(string $value): string
         </td>
     </tr>
 </table>
+</div>
+</div>
 
 <?php
 
