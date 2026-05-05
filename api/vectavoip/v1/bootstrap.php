@@ -84,6 +84,26 @@ function sendJson(array $payload, int $statusCode): never
     exit;
 }
 
+function clientIp(): string
+{
+    foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_CF_CONNECTING_IP', 'REMOTE_ADDR'] as $key) {
+        $value = $_SERVER[$key] ?? '';
+        if (!is_scalar($value)) {
+            continue;
+        }
+        $value = trim((string)$value);
+        if ($value === '') {
+            continue;
+        }
+        if (str_contains($value, ',')) {
+            $value = trim(explode(',', $value, 2)[0]);
+        }
+        return $value;
+    }
+
+    return '0.0.0.0';
+}
+
 function envString(string $key, string $default = ''): string
 {
     $value = getenv($key);

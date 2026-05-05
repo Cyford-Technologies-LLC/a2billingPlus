@@ -9,7 +9,9 @@ if (($_SERVER['REQUEST_METHOD'] ?? 'GET') !== 'POST') {
 }
 
 try {
-    $result = vectavoipService()->registerInstallation(requestJson());
+    $payload = requestJson();
+    $payload['request_ip'] = clientIp();
+    $result = vectavoipService()->registerInstallation($payload);
     sendJson($result['body'], $result['status']);
 } catch (InvalidArgumentException $exception) {
     sendJson(['message' => $exception->getMessage()], 422);

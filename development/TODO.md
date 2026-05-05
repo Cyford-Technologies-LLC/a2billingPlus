@@ -20,6 +20,9 @@ Status key:
       validation and provider lock policy hooks for company/licensed access.
 - [x] DIDWW is now positioned as a restricted provider path for internal company
       use and paid licensed admins, with UI and API enforcement.
+- [x] VectaVoIP registration is now opt-in from the provider setup screen using
+      username/password, with server-issued install credentials and returned
+      account/IP metadata.
 - [x] A2BillingPlus branding is present on login and admin intro surfaces.
 - [x] Modular UI theme foundation, classic theme option, and admin theme
       selector are in place for new module-backed screens.
@@ -183,6 +186,8 @@ its business rules live outside the page script.
 - [x] Add provider API contract tests for live-compatible status, rates,
       credentials, provisioning, and webhook event handling.
 - [x] Add rollback and retry behavior for partial provider provisioning.
+- [ ] Expand VectaVoIP post-registration package selection into package-specific
+      provisioning forms after the plan is chosen.
 - [x] Add DIDWW provider registration in the provider registry with API-key
       connection testing and locked-access enforcement.
 - [x] Add provider access policy support so selected providers can be locked to

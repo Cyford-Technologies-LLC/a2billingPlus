@@ -115,14 +115,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if ($provider === 'vectavoip' && $formAction === 'register_provider') {
-        if ($input['company_name'] === '') {
-            $errors[] = 'Company name is required.';
+        if ($input['registration_username'] === '') {
+            $errors[] = 'Registration username is required.';
         }
-        if ($input['contact_name'] === '') {
-            $errors[] = 'Contact name is required.';
-        }
-        if ($input['contact_email'] === '' || !filter_var($input['contact_email'], FILTER_VALIDATE_EMAIL)) {
-            $errors[] = 'A valid contact email is required.';
+        if ($input['registration_password'] === '') {
+            $errors[] = 'Registration password is required.';
         }
     }
 
@@ -136,6 +133,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             if ($input['save_credentials'] === '1') {
                 saveProviderRegistrationCredentials($envPath, $provider, $input['base_url'], $registration, $messages, $errors);
             }
+        }
+    }
+
+    if ($provider === 'vectavoip' && !$errors && $formAction === 'save_selected_package') {
+        if ($input['selected_package'] === '') {
+            $errors[] = 'Select a VectaVoIP plan before saving.';
+        } else {
+            saveProviderPackageSelection($envPath, $provider, $input['selected_package'], $messages, $errors);
         }
     }
 
@@ -216,11 +221,16 @@ function providerDefaults(string $provider): array
         'api_version' => providerEnvString($provider, 'API_VERSION', $provider === 'didww' ? '2026-04-16' : ''),
         'company_name' => 'VectaVoIP',
         'company_domain' => 'VectaVoIP.com',
-        'contact_name' => '',
+        'registration_username' => '',
+        'registration_password' => '',
         'contact_email' => '',
-        'contact_phone' => '',
-        'details' => '',
         'install_key' => providerEnvString($provider, 'INSTALL_KEY'),
+        'account_number' => providerEnvString($provider, 'ACCOUNT_NUMBER'),
+        'registered_ip' => providerEnvString($provider, 'REGISTERED_IP'),
+        'allowed_ips' => providerEnvString($provider, 'ALLOWED_IPS'),
+        'portal_username' => providerEnvString($provider, 'PORTAL_USERNAME'),
+        'available_packages_json' => providerEnvString($provider, 'AVAILABLE_PACKAGES_JSON'),
+        'selected_package' => providerEnvString($provider, 'SELECTED_PACKAGE'),
         'target_ratecard_id' => '',
         'rate_deck' => 'retail',
         'currency' => 'USD',
@@ -386,6 +396,19 @@ function saveProviderRegistrationCredentials(string $envPath, string $provider, 
         $prefix . '_API_KEY' => (string)($registration['api_key'] ?? ''),
         $prefix . '_API_SECRET' => (string)($registration['api_secret'] ?? ''),
     ];
+    $metadata = is_array($registration['metadata'] ?? null) ? $registration['metadata'] : [];
+    foreach ([
+        'account_number' => 'ACCOUNT_NUMBER',
+        'registered_ip' => 'REGISTERED_IP',
+        'allowed_ips' => 'ALLOWED_IPS',
+        'portal_username' => 'PORTAL_USERNAME',
+        'available_packages_json' => 'AVAILABLE_PACKAGES_JSON',
+    ] as $metadataKey => $suffix) {
+        $value = (string)($metadata[$metadataKey] ?? '');
+        if ($value !== '') {
+            $values[$prefix . '_' . $suffix] = $value;
+        }
+    }
 
     writeSecretFileValues($values, [$prefix . '_API_KEY', $prefix . '_API_SECRET'], $messages, $errors);
     if ($errors) {
@@ -438,6 +461,27 @@ function writeSecretFileValues(array &$values, array $secretKeys, array &$messag
     $messages[] = 'Saved provider API keys/secrets to A2BP_SECRET_DIR.';
 }
 
+function saveProviderPackageSelection(string $envPath, string $provider, string $selectedPackage, array &$messages, array &$errors): void
+{
+    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
+        $errors[] = '.env is not writable. Package selection was not saved.';
+        return;
+    }
+
+    $key = strtoupper($provider) . '_SELECTED_PACKAGE';
+    $values = [$key => $selectedPackage];
+    $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
+    $contents = mergeEnvValues($contents, $values);
+
+    if (@file_put_contents($envPath, $contents) === false) {
+        $errors[] = 'Could not write .env. Package selection was not saved.';
+        return;
+    }
+
+    putenv($key . '=' . $selectedPackage);
+    $messages[] = 'Saved selected ' . strtoupper($provider) . ' package: ' . $selectedPackage . '.';
+}
+
 function mergeEnvValues(string $contents, array $values): string
 {
     $lines = preg_split('/\r\n|\r|\n/', $contents);
@@ -477,6 +521,47 @@ function envValue(string $value): string
 function h(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
+}
+
+/**
+ * @return list<array<string,string>>
+ */
+function packageOptions(array $input, array $registration): array
+{
+    $json = '';
+    if (is_array($registration['metadata'] ?? null) && is_string(($registration['metadata']['available_packages_json'] ?? null))) {
+        $json = (string)$registration['metadata']['available_packages_json'];
+    }
+    if ($json === '') {
+        $json = (string)($input['available_packages_json'] ?? '');
+    }
+    if ($json === '') {
+        return [];
+    }
+
+    $decoded = json_decode($json, true);
+    if (!is_array($decoded)) {
+        return [];
+    }
+
+    $options = [];
+    foreach ($decoded as $row) {
+        if (!is_array($row)) {
+            continue;
+        }
+        $code = is_scalar($row['code'] ?? null) ? trim((string)$row['code']) : '';
+        if ($code === '') {
+            continue;
+        }
+        $options[] = [
+            'code' => $code,
+            'name' => is_scalar($row['name'] ?? null) ? (string)$row['name'] : $code,
+            'billing' => is_scalar($row['billing'] ?? null) ? (string)$row['billing'] : '',
+            'price' => is_scalar($row['price'] ?? null) ? (string)$row['price'] : '',
+        ];
+    }
+
+    return $options;
 }
 
 ?>
@@ -582,7 +667,15 @@ function h(string $value): string
                         <td class="form_head" colspan="2">VectaVoIP Registration</td>
                     </tr>
                     <tr>
-                        <td width="220"><label for="company_name">Company Name</label></td>
+                        <td width="220"><label for="registration_username">Username</label></td>
+                        <td><input id="registration_username" name="registration_username" type="text" size="40" value="<?php echo h($input['registration_username']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="registration_password">Password</label></td>
+                        <td><input id="registration_password" name="registration_password" type="password" size="40" value="<?php echo h($input['registration_password']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="company_name">Company Label</label></td>
                         <td><input id="company_name" name="company_name" type="text" size="70" value="<?php echo h($input['company_name']); ?>"></td>
                     </tr>
                     <tr>
@@ -590,24 +683,16 @@ function h(string $value): string
                         <td><input id="company_domain" name="company_domain" type="text" size="70" value="<?php echo h($input['company_domain']); ?>"></td>
                     </tr>
                     <tr>
-                        <td><label for="contact_name">Contact Name</label></td>
-                        <td><input id="contact_name" name="contact_name" type="text" size="70" value="<?php echo h($input['contact_name']); ?>"></td>
-                    </tr>
-                    <tr>
                         <td><label for="contact_email">Contact Email</label></td>
                         <td><input id="contact_email" name="contact_email" type="text" size="70" value="<?php echo h($input['contact_email']); ?>"></td>
-                    </tr>
-                    <tr>
-                        <td><label for="contact_phone">Contact Phone</label></td>
-                        <td><input id="contact_phone" name="contact_phone" type="text" size="70" value="<?php echo h($input['contact_phone']); ?>"></td>
                     </tr>
                     <tr>
                         <td><label for="install_key">Install Key</label></td>
                         <td><input id="install_key" name="install_key" type="text" size="70" value="<?php echo h($input['install_key']); ?>"></td>
                     </tr>
                     <tr>
-                        <td><label for="details">Details</label></td>
-                        <td><textarea id="details" name="details" rows="4" cols="72"><?php echo h($input['details']); ?></textarea></td>
+                        <td></td>
+                        <td>This registration is opt-in. The VectaVoIP server will create the installation ID, account number, allowed IP entry, and API credentials after successful registration.</td>
                     </tr>
                     <tr>
                         <td></td>
@@ -615,6 +700,52 @@ function h(string $value): string
                     </tr>
                 </table>
             </form>
+
+            <?php $packageOptions = packageOptions($input, $registration); ?>
+            <?php if ($registration || $input['account_number'] !== '' || $packageOptions): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8">
+                <tr>
+                    <td class="form_head" colspan="2">VectaVoIP Installation Details</td>
+                </tr>
+                <tr>
+                    <td width="220">Account Number</td>
+                    <td><?php echo h((string)(($registration['metadata']['account_number'] ?? '') ?: $input['account_number'])); ?></td>
+                </tr>
+                <tr>
+                    <td>Registered IP</td>
+                    <td><?php echo h((string)(($registration['metadata']['registered_ip'] ?? '') ?: $input['registered_ip'])); ?></td>
+                </tr>
+                <tr>
+                    <td>Allowed IPs</td>
+                    <td><?php echo h((string)(($registration['metadata']['allowed_ips'] ?? '') ?: $input['allowed_ips'])); ?></td>
+                </tr>
+                <tr>
+                    <td>Portal Username</td>
+                    <td><?php echo h((string)(($registration['metadata']['portal_username'] ?? '') ?: $input['portal_username'] ?: $input['registration_username'])); ?></td>
+                </tr>
+                <?php if ($packageOptions): ?>
+                <tr>
+                    <td>Available Plans</td>
+                    <td>
+                        <form method="post">
+                            <input type="hidden" name="provider" value="vectavoip">
+                            <select name="selected_package">
+                                <option value="">Select a plan</option>
+                                <?php foreach ($packageOptions as $packageOption): ?>
+                                    <option value="<?php echo h($packageOption['code']); ?>" <?php echo ($input['selected_package'] ?? '') === $packageOption['code'] ? 'selected' : ''; ?>>
+                                        <?php echo h($packageOption['name'] . ' [' . $packageOption['code'] . '] ' . $packageOption['price'] . ' ' . $packageOption['billing']); ?>
+                                    </option>
+                                <?php endforeach; ?>
+                            </select>
+                            <button class="form_input_button" name="form_action" type="submit" value="save_selected_package">Save Plan</button>
+                        </form>
+                        <div class="a2bp-muted">The selected plan is persisted. Package-specific provisioning form options are the next provider workflow.</div>
+                    </td>
+                </tr>
+                <?php endif; ?>
+            </table>
+            <?php endif; ?>
 
             <br>
             <form method="post">

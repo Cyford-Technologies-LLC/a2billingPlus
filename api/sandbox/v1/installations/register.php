@@ -17,14 +17,20 @@ if (!is_array($payload)) {
 }
 
 $installKey = stringValue($payload, 'install_key');
-$companyName = stringValue($payload, 'company_name');
-$contactEmail = stringValue($payload, 'contact_email');
+$username = stringValue($payload, 'username');
+$password = stringValue($payload, 'password');
+$requestIp = stringValue($payload, 'request_ip');
 
-if ($installKey === '' || $companyName === '' || $contactEmail === '') {
-    sendJson(['message' => 'install_key, company_name, and contact_email are required.'], 422);
+if ($installKey === '' || $username === '' || $password === '') {
+    sendJson(['message' => 'install_key, username, and password are required.'], 422);
 }
 
-$seed = $installKey . '|' . $companyName . '|' . $contactEmail;
+$seed = $installKey . '|' . $username . '|' . $password;
+$packages = [
+    ['code' => 'starter', 'name' => 'Starter SIP', 'billing' => 'monthly', 'price' => '29.00'],
+    ['code' => 'business', 'name' => 'Business Voice', 'billing' => 'monthly', 'price' => '79.00'],
+    ['code' => 'wholesale', 'name' => 'Wholesale Origination', 'billing' => 'monthly', 'price' => '199.00'],
+];
 
 sendJson([
     'message' => 'Sandbox registration completed.',
@@ -34,6 +40,11 @@ sendJson([
     'metadata' => [
         'mode' => 'sandbox',
         'provider' => 'vectavoip',
+        'account_number' => 'VVSBX' . strtoupper(substr(hash('sha256', $seed . '|acct'), 0, 8)),
+        'registered_ip' => $requestIp !== '' ? $requestIp : '127.0.0.1',
+        'allowed_ips' => ($requestIp !== '' ? $requestIp : '127.0.0.1') . '/32',
+        'portal_username' => $username,
+        'available_packages_json' => json_encode($packages, JSON_UNESCAPED_SLASHES),
     ],
 ], 201);
 

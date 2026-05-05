@@ -18,12 +18,12 @@ final class VectaVoIPProviderApiService
     {
         $request = new VectaVoIPRegistrationRequest(
             $this->requiredString($payload, 'install_key'),
-            $this->requiredString($payload, 'company_name'),
+            $this->requiredString($payload, 'username'),
+            $this->requiredString($payload, 'password'),
+            $this->stringValue($payload, 'company_name', $this->requiredString($payload, 'username')),
             $this->stringValue($payload, 'company_domain'),
-            $this->requiredString($payload, 'contact_name'),
-            $this->requiredEmail($payload, 'contact_email'),
-            $this->stringValue($payload, 'contact_phone'),
-            $this->stringValue($payload, 'details'),
+            $this->stringValue($payload, 'contact_email'),
+            $this->stringValue($payload, 'request_ip'),
             $this->stringValue($payload, 'app_name', 'A2BillingPlus'),
             $this->stringValue($payload, 'app_version', '0.1.0-alpha')
         );
@@ -142,16 +142,6 @@ final class VectaVoIPProviderApiService
     /**
      * @param array<string, mixed> $payload
      */
-    private function requiredEmail(array $payload, string $key): string
-    {
-        $value = $this->requiredString($payload, $key);
-        if (!filter_var($value, FILTER_VALIDATE_EMAIL)) {
-            throw new \InvalidArgumentException($key . ' is invalid.');
-        }
-
-        return $value;
-    }
-
     /**
      * @param array<string, mixed> $payload
      */

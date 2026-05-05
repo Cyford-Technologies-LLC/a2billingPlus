@@ -125,7 +125,8 @@ final class ProviderApiControllerTest extends TestCase
             fn (string $baseUrl): VectaVoIPRegistrationClient => new VectaVoIPRegistrationClient($baseUrl, function (string $url, array $payload): array {
                 $this->assertSame('http://localhost:8080/api/sandbox/v1/installations/register', $url);
                 $this->assertSame('a2bp_test', $payload['install_key']);
-                $this->assertSame('Jane Admin', $payload['contact_name']);
+                $this->assertSame('janeadmin', $payload['username']);
+                $this->assertSame('secret-pass', $payload['password']);
 
                 return [
                     'status' => 201,
@@ -134,6 +135,11 @@ final class ProviderApiControllerTest extends TestCase
                         'installation_id' => 'inst_123',
                         'api_key' => 'key_123',
                         'api_secret' => 'secret_123',
+                        'metadata' => [
+                            'account_number' => 'VV12345',
+                            'registered_ip' => '74.208.7.156',
+                            'allowed_ips' => '74.208.7.156/32',
+                        ],
                     ], JSON_THROW_ON_ERROR),
                 ];
             })
@@ -144,9 +150,10 @@ final class ProviderApiControllerTest extends TestCase
             'provider' => 'vectavoip',
             'base_url' => 'http://localhost:8080/api/sandbox',
             'install_key' => 'a2bp_test',
+            'registration_username' => 'janeadmin',
+            'registration_password' => 'secret-pass',
             'company_name' => 'ExampleCo',
             'company_domain' => 'example.test',
-            'contact_name' => 'Jane Admin',
             'contact_email' => 'jane@example.test',
             'app_name' => 'A2BillingPlus',
             'app_version' => '0.1.0-alpha',
@@ -157,6 +164,7 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame('a2bp_test', $response->getPayload()['install_key']);
         $this->assertSame('inst_123', $response->getPayload()['installation_id']);
         $this->assertSame('key_123', $response->getPayload()['api_key']);
+        $this->assertSame('VV12345', $response->getPayload()['metadata']['account_number']);
     }
 
     public function testDryRunsPreviewRateImport(): void

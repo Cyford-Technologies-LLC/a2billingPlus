@@ -229,12 +229,12 @@ final class ProviderApiController
 
         $result = $client->register(new VectaVoIPRegistrationRequest(
             $installKey,
-            $request->getString('company_name'),
+            $request->getString('registration_username'),
+            $request->getString('registration_password'),
+            $request->getString('company_name', $request->getString('registration_username')),
             $request->getString('company_domain'),
-            $request->getString('contact_name'),
             $request->getString('contact_email'),
-            $request->getString('contact_phone'),
-            $request->getString('details'),
+            $request->getString('request_ip'),
             $request->getString('app_name', 'A2BillingPlus'),
             $request->getString('app_version', '0.1.0-alpha')
         ));

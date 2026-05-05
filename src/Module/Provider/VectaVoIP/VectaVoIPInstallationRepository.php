@@ -26,10 +26,18 @@ final class VectaVoIPInstallationRepository
         $apiKey = 'vvp_' . bin2hex(random_bytes(24));
         $apiSecret = 'vvs_' . bin2hex(random_bytes(32));
         $now = gmdate('Y-m-d H:i:s');
+        $requestIp = $request->getRequestIp() !== '' ? $request->getRequestIp() : '0.0.0.0';
+        $accountNumber = 'VV' . strtoupper(substr(bin2hex(random_bytes(6)), 0, 10));
         $metadata = [
             'provider' => 'vectavoip',
             'mode' => 'production',
             'region' => 'us',
+            'account_number' => $accountNumber,
+            'registered_ip' => $requestIp,
+            'allowed_ips' => $requestIp . '/32',
+            'portal_username' => $request->getUsername(),
+            'portal_password_hash' => password_hash($request->getPassword(), PASSWORD_DEFAULT),
+            'available_packages_json' => json_encode($this->defaultPackages(), JSON_UNESCAPED_SLASHES),
         ];
 
         $statement = $this->pdo->prepare(
@@ -47,10 +55,10 @@ final class VectaVoIPInstallationRepository
             password_hash($apiSecret, PASSWORD_DEFAULT),
             $request->getCompanyName(),
             $request->getCompanyDomain(),
-            $request->getContactName(),
+            $request->getUsername(),
             $request->getContactEmail(),
-            $request->getContactPhone(),
-            $request->getDetails(),
+            '',
+            '',
             $request->getAppName(),
             $request->getAppVersion(),
             'active',
@@ -228,5 +236,17 @@ final class VectaVoIPInstallationRepository
         }
 
         return $mapped;
+    }
+
+    /**
+     * @return list<array<string, string>>
+     */
+    private function defaultPackages(): array
+    {
+        return [
+            ['code' => 'starter', 'name' => 'Starter SIP', 'billing' => 'monthly', 'price' => '29.00'],
+            ['code' => 'business', 'name' => 'Business Voice', 'billing' => 'monthly', 'price' => '79.00'],
+            ['code' => 'wholesale', 'name' => 'Wholesale Origination', 'billing' => 'monthly', 'price' => '199.00'],
+        ];
     }
 }
