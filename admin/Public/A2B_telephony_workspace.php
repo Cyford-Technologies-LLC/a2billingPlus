@@ -33,6 +33,10 @@ $messages = [];
 $errors = [];
 $theme = $runtime->activeTheme();
 $menuStyle = $runtime->activeMenuStyle($theme);
+$pdo = null;
+$didService = null;
+$trunkService = null;
+$accountService = null;
 
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && in_array(trim((string)($_POST['form_action'] ?? '')), ['set_ui_theme', 'set_ui_preferences'], true)) {
     try {
@@ -64,12 +68,78 @@ $workspace = [
 
 try {
     $pdo = $runtime->pdo();
+    $didService = new DidService(new DidRepository($pdo), $pdo);
+    $trunkService = new TrunkService(new TrunkRepository($pdo));
+    $accountService = new TelephonyAccountService(new TelephonyAccountRepository($pdo));
     $service = new AdminTelephonyWorkspaceService(
-        new DidService(new DidRepository($pdo), $pdo),
-        new TrunkService(new TrunkRepository($pdo)),
-        new TelephonyAccountService(new TelephonyAccountRepository($pdo)),
+        $didService,
+        $trunkService,
+        $accountService,
         new AsteriskConfigCheckService()
     );
+
+    $action = trim((string)($_POST['form_action'] ?? ''));
+    $actor = 'admin:' . trim((string)($_SESSION['pr_login'] ?? 'system'));
+    if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, ['set_ui_theme', 'set_ui_preferences'], true)) {
+        if ($action === 'assign_did' && $canDid) {
+            $result = $didService->assign((int)($_POST['did_id'] ?? 0), (int)($_POST['customer_id'] ?? 0), $actor);
+            if (($result['body']['success'] ?? false) === true) {
+                $messages[] = 'Assigned DID ' . ((string)($result['body']['did']['did'] ?? '')) . '.';
+            } else {
+                $errors[] = (string)($result['body']['message'] ?? 'Could not assign DID.');
+            }
+        } elseif ($action === 'release_did' && $canDid) {
+            $result = $didService->release((int)($_POST['did_id'] ?? 0), $actor);
+            if (($result['body']['success'] ?? false) === true) {
+                $messages[] = 'Released DID ' . ((string)($result['body']['did']['did'] ?? '')) . '.';
+            } else {
+                $errors[] = (string)($result['body']['message'] ?? 'Could not release DID.');
+            }
+        } elseif ($action === 'update_did_routing' && $canDid) {
+            $routingPayload = [
+                'customer_id' => trim((string)($_POST['customer_id'] ?? '')),
+                'destinations' => [[
+                    'destination' => trim((string)($_POST['destination'] ?? '')),
+                    'priority' => trim((string)($_POST['priority'] ?? '1')),
+                    'voip_call' => trim((string)($_POST['voip_call'] ?? '1')),
+                    'activated' => '1',
+                    'validated' => '1',
+                ]],
+            ];
+            $result = $didService->updateRouting((int)($_POST['did_id'] ?? 0), $routingPayload, $actor);
+            if (($result['body']['success'] ?? false) === true) {
+                $messages[] = 'Updated DID routing for ' . ((string)($result['body']['did']['did'] ?? '')) . '.';
+            } else {
+                $errors[] = (string)($result['body']['message'] ?? 'Could not update DID routing.');
+            }
+        } elseif ($action === 'update_trunk' && $canTrunk) {
+            $trunkPayload = [
+                'providerip' => trim((string)($_POST['providerip'] ?? '')),
+                'status' => trim((string)($_POST['status'] ?? '')),
+                'maxuse' => trim((string)($_POST['maxuse'] ?? '')),
+            ];
+            $result = $trunkService->update((int)($_POST['trunk_id'] ?? 0), $trunkPayload, $actor);
+            if (($result['body']['success'] ?? false) === true) {
+                $messages[] = 'Updated trunk ' . ((string)($result['body']['trunk']['trunkcode'] ?? '')) . '.';
+            } else {
+                $errors[] = (string)($result['body']['message'] ?? 'Could not update trunk.');
+            }
+        } elseif ($action === 'update_account' && $canAccounts) {
+            $accountPayload = [
+                'callerid' => trim((string)($_POST['callerid'] ?? '')),
+                'context' => trim((string)($_POST['context'] ?? '')),
+                'host' => trim((string)($_POST['host'] ?? '')),
+                'type' => trim((string)($_POST['type'] ?? '')),
+            ];
+            $result = $accountService->update(trim((string)($_POST['technology'] ?? '')), (int)($_POST['account_id'] ?? 0), $accountPayload, $actor);
+            if (($result['body']['success'] ?? false) === true) {
+                $messages[] = 'Updated ' . strtoupper((string)($_POST['technology'] ?? '')) . ' account ' . ((string)($result['body']['account']['username'] ?? '')) . '.';
+            } else {
+                $errors[] = (string)($result['body']['message'] ?? 'Could not update telephony account.');
+            }
+        }
+    }
+
     $workspace = $service->workspace(
         $customerId,
         $trunkStatus,
@@ -233,6 +303,7 @@ function rowValue(array $row, string $column): string
                     <th>Host</th>
                     <th>Status</th>
                     <th>Max Use</th>
+                    <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -244,11 +315,24 @@ function rowValue(array $row, string $column): string
                         <td><?php echo h(rowValue($trunk, 'providerip')); ?></td>
                         <td><?php echo rowValue($trunk, 'status') === '1' ? 'Enabled' : 'Disabled'; ?></td>
                         <td><?php echo h(rowValue($trunk, 'maxuse')); ?></td>
+                        <td>
+                            <form method="post" class="a2bp-form-row">
+                                <input type="hidden" name="form_action" value="update_trunk">
+                                <input type="hidden" name="trunk_id" value="<?php echo h(rowValue($trunk, 'id_trunk')); ?>">
+                                <input type="text" name="providerip" value="<?php echo h(rowValue($trunk, 'providerip')); ?>" placeholder="Provider host">
+                                <select name="status">
+                                    <option value="1" <?php echo rowValue($trunk, 'status') === '1' ? 'selected' : ''; ?>>Enabled</option>
+                                    <option value="0" <?php echo rowValue($trunk, 'status') === '0' ? 'selected' : ''; ?>>Disabled</option>
+                                </select>
+                                <input type="text" name="maxuse" value="<?php echo h(rowValue($trunk, 'maxuse')); ?>" placeholder="Max use">
+                                <button class="a2bp-button" type="submit">Save</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$workspace['trunks']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No trunks matched the current filters.</td>
+                        <td colspan="7" class="a2bp-muted">No trunks matched the current filters.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
@@ -272,6 +356,7 @@ function rowValue(array $row, string $column): string
                     <th>Reserved</th>
                     <th>Active</th>
                     <th>Rate</th>
+                    <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -283,11 +368,39 @@ function rowValue(array $row, string $column): string
                         <td><?php echo rowValue($did, 'reserved') === '1' ? 'Reserved' : 'Available'; ?></td>
                         <td><?php echo rowValue($did, 'activated') === '1' ? 'Active' : 'Inactive'; ?></td>
                         <td><?php echo h(rowValue($did, 'fixrate')); ?></td>
+                        <td>
+                            <?php if (rowValue($did, 'reserved') === '1'): ?>
+                                <form method="post" class="a2bp-form-row">
+                                    <input type="hidden" name="form_action" value="release_did">
+                                    <input type="hidden" name="did_id" value="<?php echo h(rowValue($did, 'id')); ?>">
+                                    <button class="a2bp-button" type="submit">Release</button>
+                                </form>
+                                <form method="post" class="a2bp-form-row">
+                                    <input type="hidden" name="form_action" value="update_did_routing">
+                                    <input type="hidden" name="did_id" value="<?php echo h(rowValue($did, 'id')); ?>">
+                                    <input type="hidden" name="customer_id" value="<?php echo h(rowValue($did, 'iduser')); ?>">
+                                    <input type="text" name="destination" value="" placeholder="Route destination">
+                                    <input type="text" name="priority" value="1" placeholder="Priority">
+                                    <select name="voip_call">
+                                        <option value="1">VoIP</option>
+                                        <option value="0">PSTN</option>
+                                    </select>
+                                    <button class="a2bp-button" type="submit">Route</button>
+                                </form>
+                            <?php else: ?>
+                                <form method="post" class="a2bp-form-row">
+                                    <input type="hidden" name="form_action" value="assign_did">
+                                    <input type="hidden" name="did_id" value="<?php echo h(rowValue($did, 'id')); ?>">
+                                    <input type="text" name="customer_id" value="" placeholder="Customer ID">
+                                    <button class="a2bp-button" type="submit">Assign</button>
+                                </form>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$workspace['dids']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No DIDs matched the current filters.</td>
+                        <td colspan="7" class="a2bp-muted">No DIDs matched the current filters.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
@@ -313,6 +426,7 @@ function rowValue(array $row, string $column): string
                     <th>Context</th>
                     <th>Host</th>
                     <th>Type</th>
+                    <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -324,11 +438,27 @@ function rowValue(array $row, string $column): string
                         <td><?php echo h(rowValue($account, 'context')); ?></td>
                         <td><?php echo h(rowValue($account, 'host')); ?></td>
                         <td><?php echo h(rowValue($account, 'type')); ?></td>
+                        <td>
+                            <form method="post" class="a2bp-form-row">
+                                <input type="hidden" name="form_action" value="update_account">
+                                <input type="hidden" name="technology" value="sip">
+                                <input type="hidden" name="account_id" value="<?php echo h(rowValue($account, 'id')); ?>">
+                                <input type="text" name="callerid" value="<?php echo h(rowValue($account, 'callerid')); ?>" placeholder="Caller ID">
+                                <input type="text" name="context" value="<?php echo h(rowValue($account, 'context')); ?>" placeholder="Context">
+                                <input type="text" name="host" value="<?php echo h(rowValue($account, 'host')); ?>" placeholder="Host">
+                                <select name="type">
+                                    <?php foreach (['friend', 'peer', 'user'] as $type): ?>
+                                        <option value="<?php echo $type; ?>" <?php echo rowValue($account, 'type') === $type ? 'selected' : ''; ?>><?php echo strtoupper($type); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button class="a2bp-button" type="submit">Save</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$workspace['sip_accounts']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No SIP accounts matched the current filters.</td>
+                        <td colspan="7" class="a2bp-muted">No SIP accounts matched the current filters.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
@@ -350,6 +480,7 @@ function rowValue(array $row, string $column): string
                     <th>Context</th>
                     <th>Host</th>
                     <th>Type</th>
+                    <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -361,11 +492,27 @@ function rowValue(array $row, string $column): string
                         <td><?php echo h(rowValue($account, 'context')); ?></td>
                         <td><?php echo h(rowValue($account, 'host')); ?></td>
                         <td><?php echo h(rowValue($account, 'type')); ?></td>
+                        <td>
+                            <form method="post" class="a2bp-form-row">
+                                <input type="hidden" name="form_action" value="update_account">
+                                <input type="hidden" name="technology" value="iax">
+                                <input type="hidden" name="account_id" value="<?php echo h(rowValue($account, 'id')); ?>">
+                                <input type="text" name="callerid" value="<?php echo h(rowValue($account, 'callerid')); ?>" placeholder="Caller ID">
+                                <input type="text" name="context" value="<?php echo h(rowValue($account, 'context')); ?>" placeholder="Context">
+                                <input type="text" name="host" value="<?php echo h(rowValue($account, 'host')); ?>" placeholder="Host">
+                                <select name="type">
+                                    <?php foreach (['friend', 'peer', 'user'] as $type): ?>
+                                        <option value="<?php echo $type; ?>" <?php echo rowValue($account, 'type') === $type ? 'selected' : ''; ?>><?php echo strtoupper($type); ?></option>
+                                    <?php endforeach; ?>
+                                </select>
+                                <button class="a2bp-button" type="submit">Save</button>
+                            </form>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$workspace['iax_accounts']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No IAX accounts matched the current filters.</td>
+                        <td colspan="7" class="a2bp-muted">No IAX accounts matched the current filters.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>

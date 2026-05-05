@@ -33,6 +33,8 @@ Status key:
       review, and destination coverage lookup.
 - [x] Modular telephony workspace is present for DID, trunk, SIP/IAX account
       review, and Asterisk readiness checks.
+- [x] First modular telephony write flows are present for DID assign/release,
+      basic DID routing, trunk updates, and SIP/IAX account edits.
 
 ## Next Beta Work
 
@@ -365,8 +367,10 @@ its business rules live outside the page script.
       remaining legacy customer-side admin tasks.
 - [x] Start replacing DID inventory, trunk, and VoIP account review with a
       modular telephony workspace.
-- [ ] Add write workflows for DID assignment/routing, trunk edits, and VoIP
-      account changes in the modular telephony screens.
+- [x] Add first write workflows for DID assignment/routing, trunk updates, and
+      VoIP account changes in the modular telephony screens.
+- [ ] Expand modular telephony write flows to full DID destination management,
+      PJSIP provisioning, bulk changes, and audit-friendly edit history.
 - [x] Start replacing ratecard, rates, tariff plan, and destination workflows
       with a modular rate workspace for search and review.
 - [ ] Add write workflows to modular pricing screens for tariff/rate edits,
