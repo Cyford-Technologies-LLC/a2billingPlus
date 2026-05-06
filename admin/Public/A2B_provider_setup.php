@@ -144,6 +144,21 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($provider === 'vectavoip' && !$errors && $formAction === 'save_package_provisioning') {
+        if ($input['selected_package'] === '') {
+            $errors[] = 'Select a VectaVoIP plan before saving provisioning options.';
+        }
+        if (!ctype_digit($input['package_did_count']) || (int)$input['package_did_count'] < 0) {
+            $errors[] = 'DID quantity must be zero or greater.';
+        }
+        if (!ctype_digit($input['package_channels']) || (int)$input['package_channels'] <= 0) {
+            $errors[] = 'Concurrent channels must be greater than zero.';
+        }
+        if (!$errors) {
+            saveProviderPackageProvisioning($envPath, $provider, $input, $messages, $errors);
+        }
+    }
+
     if ($provider === 'vectavoip' && !$errors && $formAction === 'preview_rates') {
         $ratePreview = $providerSetup->previewRates($input);
         if (isset($ratePreview['error'])) {
@@ -231,6 +246,13 @@ function providerDefaults(string $provider): array
         'portal_username' => providerEnvString($provider, 'PORTAL_USERNAME'),
         'available_packages_json' => providerEnvString($provider, 'AVAILABLE_PACKAGES_JSON'),
         'selected_package' => providerEnvString($provider, 'SELECTED_PACKAGE'),
+        'package_did_count' => providerEnvString($provider, 'PACKAGE_DID_COUNT', '1'),
+        'package_channels' => providerEnvString($provider, 'PACKAGE_CHANNELS', '2'),
+        'package_sms_enabled' => providerEnvString($provider, 'PACKAGE_SMS_ENABLED'),
+        'package_911_enabled' => providerEnvString($provider, 'PACKAGE_911_ENABLED'),
+        'package_ratecard_id' => providerEnvString($provider, 'PACKAGE_RATECARD_ID'),
+        'package_trunk_label' => providerEnvString($provider, 'PACKAGE_TRUNK_LABEL'),
+        'package_notes' => providerEnvString($provider, 'PACKAGE_NOTES'),
         'target_ratecard_id' => '',
         'rate_deck' => 'retail',
         'currency' => 'USD',
@@ -482,6 +504,40 @@ function saveProviderPackageSelection(string $envPath, string $provider, string 
     $messages[] = 'Saved selected ' . strtoupper($provider) . ' package: ' . $selectedPackage . '.';
 }
 
+function saveProviderPackageProvisioning(string $envPath, string $provider, array $input, array &$messages, array &$errors): void
+{
+    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
+        $errors[] = '.env is not writable. Package provisioning options were not saved.';
+        return;
+    }
+
+    $prefix = strtoupper($provider);
+    $values = [
+        $prefix . '_SELECTED_PACKAGE' => $input['selected_package'],
+        $prefix . '_PACKAGE_DID_COUNT' => $input['package_did_count'],
+        $prefix . '_PACKAGE_CHANNELS' => $input['package_channels'],
+        $prefix . '_PACKAGE_SMS_ENABLED' => $input['package_sms_enabled'] === '1' ? '1' : '0',
+        $prefix . '_PACKAGE_911_ENABLED' => $input['package_911_enabled'] === '1' ? '1' : '0',
+        $prefix . '_PACKAGE_RATECARD_ID' => $input['package_ratecard_id'],
+        $prefix . '_PACKAGE_TRUNK_LABEL' => $input['package_trunk_label'],
+        $prefix . '_PACKAGE_NOTES' => $input['package_notes'],
+    ];
+
+    $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
+    $contents = mergeEnvValues($contents, $values);
+
+    if (@file_put_contents($envPath, $contents) === false) {
+        $errors[] = 'Could not write .env. Package provisioning options were not saved.';
+        return;
+    }
+
+    foreach ($values as $key => $value) {
+        putenv($key . '=' . $value);
+    }
+
+    $messages[] = 'Saved VectaVoIP provisioning options for package: ' . $input['selected_package'] . '.';
+}
+
 function mergeEnvValues(string $contents, array $values): string
 {
     $lines = preg_split('/\r\n|\r|\n/', $contents);
@@ -562,6 +618,20 @@ function packageOptions(array $input, array $registration): array
     }
 
     return $options;
+}
+
+/**
+ * @return array<string,string>
+ */
+function selectedPackageOption(array $packageOptions, string $selectedPackage): array
+{
+    foreach ($packageOptions as $packageOption) {
+        if (($packageOption['code'] ?? '') === $selectedPackage) {
+            return $packageOption;
+        }
+    }
+
+    return [];
 }
 
 ?>
@@ -702,6 +772,8 @@ function packageOptions(array $input, array $registration): array
             </form>
 
             <?php $packageOptions = packageOptions($input, $registration); ?>
+            <?php $selectedPackage = (string)($input['selected_package'] ?? ''); ?>
+            <?php $selectedPackageOption = selectedPackageOption($packageOptions, $selectedPackage); ?>
             <?php if ($registration || $input['account_number'] !== '' || $packageOptions): ?>
             <br>
             <table width="100%" cellspacing="0" cellpadding="8">
@@ -733,18 +805,80 @@ function packageOptions(array $input, array $registration): array
                             <select name="selected_package">
                                 <option value="">Select a plan</option>
                                 <?php foreach ($packageOptions as $packageOption): ?>
-                                    <option value="<?php echo h($packageOption['code']); ?>" <?php echo ($input['selected_package'] ?? '') === $packageOption['code'] ? 'selected' : ''; ?>>
+                                    <option value="<?php echo h($packageOption['code']); ?>" <?php echo $selectedPackage === $packageOption['code'] ? 'selected' : ''; ?>>
                                         <?php echo h($packageOption['name'] . ' [' . $packageOption['code'] . '] ' . $packageOption['price'] . ' ' . $packageOption['billing']); ?>
                                     </option>
                                 <?php endforeach; ?>
                             </select>
                             <button class="form_input_button" name="form_action" type="submit" value="save_selected_package">Save Plan</button>
                         </form>
-                        <div class="a2bp-muted">The selected plan is persisted. Package-specific provisioning form options are the next provider workflow.</div>
+                        <div class="a2bp-muted">The selected plan controls the provisioning options below.</div>
                     </td>
                 </tr>
                 <?php endif; ?>
             </table>
+
+            <?php if ($selectedPackage !== '' && $selectedPackageOption): ?>
+            <br>
+            <form method="post">
+                <input type="hidden" name="provider" value="vectavoip">
+                <input type="hidden" name="selected_package" value="<?php echo h($selectedPackage); ?>">
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td class="form_head" colspan="2">VectaVoIP Package Provisioning</td>
+                    </tr>
+                    <tr>
+                        <td width="220">Selected Plan</td>
+                        <td><?php echo h($selectedPackageOption['name'] . ' [' . $selectedPackageOption['code'] . ']'); ?></td>
+                    </tr>
+                    <tr>
+                        <td><label for="package_did_count">DID Quantity</label></td>
+                        <td><input id="package_did_count" name="package_did_count" type="number" min="0" step="1" size="8" value="<?php echo h($input['package_did_count']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="package_channels">Concurrent Channels</label></td>
+                        <td><input id="package_channels" name="package_channels" type="number" min="1" step="1" size="8" value="<?php echo h($input['package_channels']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="package_ratecard_id">Target Ratecard ID</label></td>
+                        <td>
+                            <?php if ($ratecards): ?>
+                                <select id="package_ratecard_id" name="package_ratecard_id">
+                                    <option value="">Select a ratecard</option>
+                                    <?php foreach ($ratecards as $ratecard): ?>
+                                        <option value="<?php echo h($ratecard['id']); ?>" <?php echo $input['package_ratecard_id'] === $ratecard['id'] ? 'selected' : ''; ?>>
+                                            <?php echo h($ratecard['name'] . ' (#' . $ratecard['id'] . ')'); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php else: ?>
+                                <input id="package_ratecard_id" name="package_ratecard_id" type="text" size="10" value="<?php echo h($input['package_ratecard_id']); ?>">
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="package_trunk_label">Trunk Label</label></td>
+                        <td><input id="package_trunk_label" name="package_trunk_label" type="text" size="45" value="<?php echo h($input['package_trunk_label']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td>Options</td>
+                        <td>
+                            <label><input name="package_sms_enabled" type="checkbox" value="1" <?php echo $input['package_sms_enabled'] === '1' ? 'checked' : ''; ?>> SMS enabled</label>
+                            &nbsp;
+                            <label><input name="package_911_enabled" type="checkbox" value="1" <?php echo $input['package_911_enabled'] === '1' ? 'checked' : ''; ?>> E911 enabled</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="package_notes">Provisioning Notes</label></td>
+                        <td><textarea id="package_notes" name="package_notes" rows="3" cols="72"><?php echo h($input['package_notes']); ?></textarea></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button class="form_input_button" name="form_action" type="submit" value="save_package_provisioning">Save Provisioning Options</button></td>
+                    </tr>
+                </table>
+            </form>
+            <?php endif; ?>
             <?php endif; ?>
 
             <br>

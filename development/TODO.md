@@ -186,7 +186,7 @@ its business rules live outside the page script.
 - [x] Add provider API contract tests for live-compatible status, rates,
       credentials, provisioning, and webhook event handling.
 - [x] Add rollback and retry behavior for partial provider provisioning.
-- [ ] Expand VectaVoIP post-registration package selection into package-specific
+- [x] Expand VectaVoIP post-registration package selection into package-specific
       provisioning forms after the plan is chosen.
 - [x] Add DIDWW provider registration in the provider registry with API-key
       connection testing and locked-access enforcement.
