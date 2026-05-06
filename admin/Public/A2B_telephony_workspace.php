@@ -58,11 +58,13 @@ $limit = (int)($_GET['limit'] ?? 25);
 
 $workspace = [
     'filters' => ['customer_id' => $customerId, 'trunk_status' => $trunkStatus, 'did_reserved' => $didReserved, 'did_activated' => $didActivated, 'limit' => 25],
-    'summary' => ['dids' => 0, 'trunks' => 0, 'sip_accounts' => 0, 'iax_accounts' => 0, 'asterisk_ready' => false],
+    'summary' => ['dids' => 0, 'trunks' => 0, 'sip_accounts' => 0, 'iax_accounts' => 0, 'asterisk_ready' => false, 'vectavoip_requests' => 0, 'pjsip_trunks' => 0],
     'dids' => ['items' => [], 'columns' => []],
     'trunks' => ['items' => [], 'columns' => []],
     'sip_accounts' => ['items' => [], 'columns' => []],
     'iax_accounts' => ['items' => [], 'columns' => []],
+    'vectavoip_requests' => ['items' => [], 'columns' => []],
+    'pjsip_trunks' => ['items' => [], 'columns' => []],
     'asterisk' => ['success' => false, 'checks' => []],
 ];
 
@@ -75,7 +77,8 @@ try {
         $didService,
         $trunkService,
         $accountService,
-        new AsteriskConfigCheckService()
+        new AsteriskConfigCheckService(),
+        $pdo
     );
 
     $action = trim((string)($_POST['form_action'] ?? ''));
@@ -259,6 +262,14 @@ function rowValue(array $row, string $column): string
         <span class="a2bp-metric__label">Asterisk</span>
         <strong><?php echo $workspace['summary']['asterisk_ready'] ? 'Ready' : 'Review'; ?></strong>
     </div>
+    <div class="a2bp-metric">
+        <span class="a2bp-metric__label">VV DID Requests</span>
+        <strong><?php echo h((string)$workspace['summary']['vectavoip_requests']); ?></strong>
+    </div>
+    <div class="a2bp-metric">
+        <span class="a2bp-metric__label">PJSIP Trunks</span>
+        <strong><?php echo h((string)$workspace['summary']['pjsip_trunks']); ?></strong>
+    </div>
 </div>
 
 <div class="a2bp-panel">
@@ -288,6 +299,78 @@ function rowValue(array $row, string $column): string
 </div>
 
 <div class="a2bp-grid-two">
+    <div class="a2bp-panel">
+        <div class="a2bp-panel__header">
+            <h2 class="a2bp-panel__title">VectaVoIP DID Requests</h2>
+        </div>
+        <div class="a2bp-panel__body">
+            <table class="a2bp-table">
+                <thead>
+                <tr>
+                    <th>ID</th>
+                    <th>Package</th>
+                    <th>DIDs</th>
+                    <th>Account</th>
+                    <th>IP</th>
+                    <th>Status</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($workspace['vectavoip_requests']['items'] as $request): ?>
+                    <tr>
+                        <td><?php echo h(rowValue($request, 'id')); ?></td>
+                        <td><?php echo h(rowValue($request, 'package_code')); ?></td>
+                        <td><?php echo h(rowValue($request, 'did_count')); ?></td>
+                        <td><?php echo h(rowValue($request, 'account_number')); ?></td>
+                        <td><?php echo h(rowValue($request, 'registered_ip')); ?></td>
+                        <td><?php echo h(rowValue($request, 'status')); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$workspace['vectavoip_requests']['items']): ?>
+                    <tr>
+                        <td colspan="6" class="a2bp-muted">No VectaVoIP DID requests have been created yet.</td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="a2bp-panel">
+        <div class="a2bp-panel__header">
+            <h2 class="a2bp-panel__title">PJSIP Trunk Endpoints</h2>
+        </div>
+        <div class="a2bp-panel__body">
+            <table class="a2bp-table">
+                <thead>
+                <tr>
+                    <th>Endpoint</th>
+                    <th>Label</th>
+                    <th>Context</th>
+                    <th>Allow</th>
+                    <th>Updated</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($workspace['pjsip_trunks']['items'] as $endpoint): ?>
+                    <tr>
+                        <td><?php echo h(rowValue($endpoint, 'endpoint_id')); ?></td>
+                        <td><?php echo h(rowValue($endpoint, 'label')); ?></td>
+                        <td><?php echo h(rowValue($endpoint, 'context')); ?></td>
+                        <td><?php echo h(rowValue($endpoint, 'allow')); ?></td>
+                        <td><?php echo h(rowValue($endpoint, 'updated_at')); ?></td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$workspace['pjsip_trunks']['items']): ?>
+                    <tr>
+                        <td colspan="5" class="a2bp-muted">No PJSIP trunk endpoints have been provisioned yet.</td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
     <?php if ($canTrunk): ?>
     <div class="a2bp-panel">
         <div class="a2bp-panel__header">
