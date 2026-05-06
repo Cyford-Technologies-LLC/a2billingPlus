@@ -9,6 +9,7 @@ final class VectaVoIPProvisioningService
     public function __construct(private readonly \PDO $pdo)
     {
         $this->ensureDidInventoryTable();
+        $this->ensureDidRequestTable();
     }
 
     /**
@@ -69,6 +70,71 @@ final class VectaVoIPProvisioningService
         ];
     }
 
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    public function applyPackageProvisioning(array $payload): array
+    {
+        $packageCode = $this->stringValue($payload, 'selected_package');
+        if ($packageCode === '') {
+            throw new \InvalidArgumentException('selected_package is required.');
+        }
+
+        $didCount = max(0, (int)$this->stringValue($payload, 'package_did_count', '0'));
+        $channels = max(1, (int)$this->stringValue($payload, 'package_channels', '1'));
+        $trunkLabel = $this->stringValue($payload, 'package_trunk_label', 'VectaVoIP ' . strtoupper($packageCode));
+        $ratecardId = (int)$this->stringValue($payload, 'package_ratecard_id');
+        $accountNumber = $this->stringValue($payload, 'account_number');
+        $portalUsername = $this->stringValue($payload, 'portal_username');
+        $apiSecret = $this->stringValue($payload, 'api_secret');
+        $registeredIp = $this->stringValue($payload, 'registered_ip');
+
+        $this->pdo->beginTransaction();
+        try {
+            $providerId = $this->ensureProvider();
+            $trunkId = $this->ensurePackageTrunk($providerId, $trunkLabel, $channels);
+            $resolvedRatecardId = $this->ensurePackageRatecard($trunkId, $packageCode, $ratecardId);
+            $didRequestId = $this->recordDidRequest([
+                'package_code' => $packageCode,
+                'did_count' => $didCount,
+                'sms_enabled' => $this->booleanInt($payload, 'package_sms_enabled'),
+                'e911_enabled' => $this->booleanInt($payload, 'package_911_enabled'),
+                'ratecard_id' => $resolvedRatecardId,
+                'trunk_id' => $trunkId,
+                'account_number' => $accountNumber,
+                'registered_ip' => $registeredIp,
+                'notes' => $this->stringValue($payload, 'package_notes'),
+            ]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        $pjsipResult = null;
+        if ($portalUsername !== '' && $apiSecret !== '') {
+            $pjsip = new \A2BillingPlus\Module\Telephony\PjsipProvisioningService($this->pdo);
+            $pjsipResult = $pjsip->provisionTrunk([
+                'trunkcode' => $this->trunkCodeFor($packageCode),
+                'host' => 'sip.vectavoip.com',
+                'username' => $accountNumber !== '' ? $accountNumber : $portalUsername,
+                'secret' => $apiSecret,
+                'allow' => 'ulaw,alaw',
+            ], 'vectavoip-package');
+        }
+
+        return [
+            'success' => true,
+            'provider_id' => $providerId,
+            'trunk_id' => $trunkId,
+            'ratecard_id' => $resolvedRatecardId,
+            'did_request_id' => $didRequestId,
+            'pjsip_endpoint' => $pjsipResult['body']['endpoint']['endpoint_id'] ?? '',
+            'message' => 'VectaVoIP package provisioning applied.',
+        ];
+    }
+
     private function ensureProvider(): int
     {
         $statement = $this->pdo->prepare('SELECT id FROM cc_provider WHERE provider_name = ? LIMIT 1');
@@ -117,6 +183,53 @@ final class VectaVoIPProvisioningService
         return (int)$this->pdo->lastInsertId();
     }
 
+    private function ensurePackageTrunk(int $providerId, string $trunkLabel, int $channels): int
+    {
+        $trunkCode = $this->trunkCodeFor($trunkLabel);
+        $statement = $this->pdo->prepare('SELECT id_trunk FROM cc_trunk WHERE trunkcode = ? LIMIT 1');
+        $statement->execute([$trunkCode]);
+        $id = $statement->fetchColumn();
+        if ($id !== false) {
+            $update = $this->pdo->prepare(
+                'UPDATE cc_trunk
+                 SET providerip = ?, maxuse = ?, status = ?, id_provider = ?, addparameter = ?
+                 WHERE id_trunk = ?'
+            );
+            $update->execute([
+                'sip.vectavoip.com',
+                $channels,
+                1,
+                $providerId,
+                $trunkLabel,
+                (int)$id,
+            ]);
+            return (int)$id;
+        }
+
+        $insert = $this->pdo->prepare(
+            'INSERT INTO cc_trunk
+                (trunkcode, trunkprefix, providertech, providerip, removeprefix, failover_trunk, addparameter,
+                 id_provider, inuse, maxuse, status, if_max_use)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $insert->execute([
+            $trunkCode,
+            '',
+            'PJSIP',
+            'sip.vectavoip.com',
+            '',
+            0,
+            $trunkLabel,
+            $providerId,
+            0,
+            $channels,
+            1,
+            0,
+        ]);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
     private function ensureRatecard(int $trunkId): int
     {
         $statement = $this->pdo->prepare('SELECT id FROM cc_tariffplan WHERE iduser = 0 AND tariffname = ? LIMIT 1');
@@ -138,6 +251,70 @@ final class VectaVoIPProvisioningService
             $trunkId,
             'all',
             'all',
+        ]);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    private function ensurePackageRatecard(int $trunkId, string $packageCode, int $requestedRatecardId): int
+    {
+        if ($requestedRatecardId > 0) {
+            $update = $this->pdo->prepare('UPDATE cc_tariffplan SET id_trunk = ? WHERE id = ?');
+            $update->execute([$trunkId, $requestedRatecardId]);
+            return $requestedRatecardId;
+        }
+
+        $name = 'VectaVoIP ' . strtoupper($packageCode);
+        $statement = $this->pdo->prepare('SELECT id FROM cc_tariffplan WHERE iduser = 0 AND tariffname = ? LIMIT 1');
+        $statement->execute([$name]);
+        $id = $statement->fetchColumn();
+        if ($id !== false) {
+            $update = $this->pdo->prepare('UPDATE cc_tariffplan SET id_trunk = ? WHERE id = ?');
+            $update->execute([$trunkId, (int)$id]);
+            return (int)$id;
+        }
+
+        $insert = $this->pdo->prepare(
+            'INSERT INTO cc_tariffplan
+                (iduser, tariffname, description, id_trunk, dnidprefix, calleridprefix)
+             VALUES (?, ?, ?, ?, ?, ?)'
+        );
+        $insert->execute([
+            0,
+            $name,
+            'VectaVoIP package ratecard for ' . strtoupper($packageCode) . '.',
+            $trunkId,
+            'all',
+            'all',
+        ]);
+
+        return (int)$this->pdo->lastInsertId();
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function recordDidRequest(array $payload): int
+    {
+        $now = gmdate('Y-m-d H:i:s');
+        $insert = $this->pdo->prepare(
+            'INSERT INTO cc_vectavoip_did_requests
+                (package_code, did_count, sms_enabled, e911_enabled, ratecard_id, trunk_id, account_number, registered_ip, notes, status, created_at, updated_at)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
+        );
+        $insert->execute([
+            $payload['package_code'],
+            $payload['did_count'],
+            $payload['sms_enabled'],
+            $payload['e911_enabled'],
+            $payload['ratecard_id'],
+            $payload['trunk_id'],
+            $payload['account_number'],
+            $payload['registered_ip'],
+            $payload['notes'],
+            'requested',
+            $now,
+            $now,
         ]);
 
         return (int)$this->pdo->lastInsertId();
@@ -238,6 +415,51 @@ final class VectaVoIPProvisioningService
         );
     }
 
+    private function ensureDidRequestTable(): void
+    {
+        if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $this->pdo->exec(
+                'CREATE TABLE IF NOT EXISTS cc_vectavoip_did_requests (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    package_code TEXT NOT NULL,
+                    did_count INTEGER NOT NULL DEFAULT 0,
+                    sms_enabled INTEGER NOT NULL DEFAULT 0,
+                    e911_enabled INTEGER NOT NULL DEFAULT 0,
+                    ratecard_id INTEGER NOT NULL DEFAULT 0,
+                    trunk_id INTEGER NOT NULL DEFAULT 0,
+                    account_number TEXT NOT NULL DEFAULT \'\',
+                    registered_ip TEXT NOT NULL DEFAULT \'\',
+                    notes TEXT NOT NULL DEFAULT \'\',
+                    status TEXT NOT NULL DEFAULT \'requested\',
+                    created_at TEXT NOT NULL,
+                    updated_at TEXT NOT NULL
+                )'
+            );
+            return;
+        }
+
+        $this->pdo->exec(
+            'CREATE TABLE IF NOT EXISTS cc_vectavoip_did_requests (
+                id BIGINT NOT NULL AUTO_INCREMENT,
+                package_code VARCHAR(64) NOT NULL,
+                did_count INT NOT NULL DEFAULT 0,
+                sms_enabled TINYINT(1) NOT NULL DEFAULT 0,
+                e911_enabled TINYINT(1) NOT NULL DEFAULT 0,
+                ratecard_id BIGINT NOT NULL DEFAULT 0,
+                trunk_id BIGINT NOT NULL DEFAULT 0,
+                account_number VARCHAR(64) NOT NULL DEFAULT \'\',
+                registered_ip VARCHAR(64) NOT NULL DEFAULT \'\',
+                notes TEXT NOT NULL,
+                status VARCHAR(32) NOT NULL DEFAULT \'requested\',
+                created_at DATETIME NOT NULL,
+                updated_at DATETIME NOT NULL,
+                PRIMARY KEY (id),
+                KEY idx_vectavoip_did_requests_status (status),
+                KEY idx_vectavoip_did_requests_package (package_code)
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
+        );
+    }
+
     /**
      * @param array<string, mixed> $values
      */
@@ -254,5 +476,21 @@ final class VectaVoIPProvisioningService
     {
         $value = $values[$key] ?? '0.00000';
         return is_numeric($value) ? number_format((float)$value, 5, '.', '') : '0.00000';
+    }
+
+    /**
+     * @param array<string,mixed> $values
+     */
+    private function booleanInt(array $values, string $key): int
+    {
+        $value = $values[$key] ?? '';
+        return in_array((string)$value, ['1', 'true', 'on', 'yes'], true) ? 1 : 0;
+    }
+
+    private function trunkCodeFor(string $value): string
+    {
+        $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $value) ?? 'VECTAVOIP');
+        $safe = $safe !== '' ? $safe : 'VECTAVOIP';
+        return substr($safe, 0, 20);
     }
 }

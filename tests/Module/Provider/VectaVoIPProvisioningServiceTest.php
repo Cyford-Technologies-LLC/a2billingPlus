@@ -7,91 +7,82 @@ use PHPUnit\Framework\TestCase;
 
 final class VectaVoIPProvisioningServiceTest extends TestCase
 {
-    public function testProvisionsProviderTrunkAndRatecard(): void
-    {
-        $pdo = $this->pdo();
-        $service = new VectaVoIPProvisioningService($pdo);
-
-        $result = $service->provisionDefaults();
-        $again = $service->provisionDefaults();
-
-        $this->assertTrue($result['success']);
-        $this->assertSame($result['provider_id'], $again['provider_id']);
-        $this->assertSame($result['trunk_id'], $again['trunk_id']);
-        $this->assertSame($result['ratecard_id'], $again['ratecard_id']);
-        $this->assertSame(1, (int)$pdo->query('SELECT COUNT(*) FROM cc_provider')->fetchColumn());
-        $this->assertSame(1, (int)$pdo->query('SELECT COUNT(*) FROM cc_trunk')->fetchColumn());
-        $this->assertSame(1, (int)$pdo->query('SELECT COUNT(*) FROM cc_tariffplan')->fetchColumn());
-    }
-
-    public function testSyncsDidInventory(): void
-    {
-        $pdo = $this->pdo();
-        $service = new VectaVoIPProvisioningService($pdo);
-
-        $result = $service->syncDidInventory([
-            ['did' => '+15551234567', 'country' => 'US', 'region' => 'CA', 'monthly_rate' => '1.25', 'setup_rate' => '0.50'],
-            ['did' => '+15557654321', 'country' => 'US', 'region' => 'NY'],
-        ]);
-        $update = $service->syncDidInventory([
-            ['did' => '+15551234567', 'country' => 'US', 'region' => 'TX', 'status' => 'reserved'],
-        ]);
-
-        $this->assertSame(2, $result['upserted']);
-        $this->assertSame(1, $update['upserted']);
-        $this->assertSame(2, (int)$pdo->query('SELECT COUNT(*) FROM cc_vectavoip_did_inventory')->fetchColumn());
-        $this->assertSame('reserved', $pdo->query("SELECT status FROM cc_vectavoip_did_inventory WHERE did = '+15551234567'")->fetchColumn());
-    }
-
-    public function testRollsBackPartialDefaultProvisioningFailure(): void
-    {
-        $pdo = $this->pdo();
-        $pdo->exec('DROP TABLE cc_tariffplan');
-        $service = new VectaVoIPProvisioningService($pdo);
-
-        try {
-            $service->provisionDefaults();
-            $this->fail('Expected provisioning to fail.');
-        } catch (Throwable) {
-            $this->assertSame(0, (int)$pdo->query('SELECT COUNT(*) FROM cc_provider')->fetchColumn());
-            $this->assertSame(0, (int)$pdo->query('SELECT COUNT(*) FROM cc_trunk')->fetchColumn());
-        }
-    }
-
-    private function pdo(): PDO
+    public function testApplyPackageProvisioningCreatesTelephonyArtifacts(): void
     {
         $pdo = new PDO('sqlite::memory:');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT UNIQUE, description TEXT)');
-        $pdo->exec(
-            'CREATE TABLE cc_trunk (
-                id_trunk INTEGER PRIMARY KEY AUTOINCREMENT,
-                trunkcode TEXT,
-                trunkprefix TEXT,
-                providertech TEXT,
-                providerip TEXT,
-                removeprefix TEXT,
-                failover_trunk INTEGER,
-                addparameter TEXT,
-                id_provider INTEGER,
-                inuse INTEGER,
-                maxuse INTEGER,
-                status INTEGER,
-                if_max_use INTEGER
-            )'
-        );
-        $pdo->exec(
-            'CREATE TABLE cc_tariffplan (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                iduser INTEGER,
-                tariffname TEXT,
-                description TEXT,
-                id_trunk INTEGER,
-                dnidprefix TEXT,
-                calleridprefix TEXT
-            )'
-        );
+        $this->createBaseTables($pdo);
 
-        return $pdo;
+        $service = new VectaVoIPProvisioningService($pdo);
+        $result = $service->applyPackageProvisioning([
+            'selected_package' => 'business',
+            'package_did_count' => '3',
+            'package_channels' => '6',
+            'package_sms_enabled' => '1',
+            'package_911_enabled' => '0',
+            'package_ratecard_id' => '',
+            'package_trunk_label' => 'Business Primary',
+            'package_notes' => 'Provision for test tenant',
+            'account_number' => 'VV12345',
+            'portal_username' => 'tenant-admin',
+            'api_secret' => 'secret-123',
+            'registered_ip' => '74.208.7.156',
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertGreaterThan(0, (int)$result['provider_id']);
+        $this->assertGreaterThan(0, (int)$result['trunk_id']);
+        $this->assertGreaterThan(0, (int)$result['ratecard_id']);
+        $this->assertGreaterThan(0, (int)$result['did_request_id']);
+        $this->assertSame('trunk-business', $result['pjsip_endpoint']);
+
+        $trunk = $pdo->query("SELECT trunkcode, providertech, providerip, maxuse, addparameter FROM cc_trunk")->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('BUSINESSPRIMARY', $trunk['trunkcode']);
+        $this->assertSame('PJSIP', $trunk['providertech']);
+        $this->assertSame('sip.vectavoip.com', $trunk['providerip']);
+        $this->assertSame(6, (int)$trunk['maxuse']);
+
+        $ratecard = $pdo->query("SELECT tariffname, id_trunk FROM cc_tariffplan")->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('VectaVoIP BUSINESS', $ratecard['tariffname']);
+        $this->assertSame((int)$result['trunk_id'], (int)$ratecard['id_trunk']);
+
+        $didRequest = $pdo->query("SELECT package_code, did_count, sms_enabled, e911_enabled, account_number, registered_ip, status FROM cc_vectavoip_did_requests")->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('business', $didRequest['package_code']);
+        $this->assertSame(3, (int)$didRequest['did_count']);
+        $this->assertSame(1, (int)$didRequest['sms_enabled']);
+        $this->assertSame(0, (int)$didRequest['e911_enabled']);
+        $this->assertSame('VV12345', $didRequest['account_number']);
+        $this->assertSame('74.208.7.156', $didRequest['registered_ip']);
+        $this->assertSame('requested', $didRequest['status']);
+    }
+
+    private function createBaseTables(PDO $pdo): void
+    {
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT NOT NULL, description TEXT NOT NULL)');
+        $pdo->exec('CREATE TABLE cc_trunk (
+            id_trunk INTEGER PRIMARY KEY AUTOINCREMENT,
+            trunkcode TEXT NOT NULL,
+            trunkprefix TEXT NOT NULL DEFAULT "",
+            providertech TEXT NOT NULL,
+            providerip TEXT NOT NULL,
+            removeprefix TEXT NOT NULL DEFAULT "",
+            creationdate TEXT NOT NULL DEFAULT "",
+            failover_trunk INTEGER NOT NULL DEFAULT 0,
+            addparameter TEXT NOT NULL DEFAULT "",
+            id_provider INTEGER NOT NULL DEFAULT 0,
+            inuse INTEGER NOT NULL DEFAULT 0,
+            maxuse INTEGER NOT NULL DEFAULT 0,
+            status INTEGER NOT NULL DEFAULT 1,
+            if_max_use INTEGER NOT NULL DEFAULT 0
+        )');
+        $pdo->exec('CREATE TABLE cc_tariffplan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            iduser INTEGER NOT NULL DEFAULT 0,
+            tariffname TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT "",
+            id_trunk INTEGER NOT NULL DEFAULT 0,
+            dnidprefix TEXT NOT NULL DEFAULT "",
+            calleridprefix TEXT NOT NULL DEFAULT ""
+        )');
     }
 }

@@ -13,6 +13,7 @@ use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProvisioningService;
 
 if (!has_rights(ACX_ACXSETTING)) {
     Header('HTTP/1.0 401 Unauthorized');
@@ -38,6 +39,7 @@ $errors = [];
 $registration = [];
 $ratePreview = [];
 $rateImport = [];
+$provisioningResult = [];
 
 $providerSetup = providerSetupService($actor);
 $providers = $providerSetup->providers();
@@ -159,6 +161,42 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($provider === 'vectavoip' && !$errors && $formAction === 'apply_package_provisioning') {
+        if ($input['selected_package'] === '') {
+            $errors[] = 'Select a VectaVoIP plan before applying provisioning.';
+        }
+        if (!ctype_digit($input['package_did_count']) || (int)$input['package_did_count'] < 0) {
+            $errors[] = 'DID quantity must be zero or greater.';
+        }
+        if (!ctype_digit($input['package_channels']) || (int)$input['package_channels'] <= 0) {
+            $errors[] = 'Concurrent channels must be greater than zero.';
+        }
+        if (!$errors) {
+            saveProviderPackageProvisioning($envPath, $provider, $input, $messages, $errors);
+        }
+        if (!$errors) {
+            try {
+                $provisioningResult = providerProvisioningService()->applyPackageProvisioning([
+                    'selected_package' => $input['selected_package'],
+                    'package_did_count' => $input['package_did_count'],
+                    'package_channels' => $input['package_channels'],
+                    'package_sms_enabled' => $input['package_sms_enabled'],
+                    'package_911_enabled' => $input['package_911_enabled'],
+                    'package_ratecard_id' => $input['package_ratecard_id'],
+                    'package_trunk_label' => $input['package_trunk_label'],
+                    'package_notes' => $input['package_notes'],
+                    'account_number' => $input['account_number'],
+                    'portal_username' => $input['portal_username'] !== '' ? $input['portal_username'] : $input['registration_username'],
+                    'api_secret' => $input['api_secret'],
+                    'registered_ip' => $input['registered_ip'],
+                ]);
+                $messages[] = (string)($provisioningResult['message'] ?? 'VectaVoIP package provisioning applied.');
+            } catch (Throwable $exception) {
+                $errors[] = 'Package provisioning failed: ' . $exception->getMessage();
+            }
+        }
+    }
+
     if ($provider === 'vectavoip' && !$errors && $formAction === 'preview_rates') {
         $ratePreview = $providerSetup->previewRates($input);
         if (isset($ratePreview['error'])) {
@@ -221,6 +259,11 @@ function providerSetupPdo(): PDO
     global $runtime;
 
     return $runtime->pdo();
+}
+
+function providerProvisioningService(): VectaVoIPProvisioningService
+{
+    return new VectaVoIPProvisioningService(providerSetupPdo());
 }
 
 /**
@@ -874,11 +917,43 @@ function selectedPackageOption(array $packageOptions, string $selectedPackage): 
                     </tr>
                     <tr>
                         <td></td>
-                        <td><button class="form_input_button" name="form_action" type="submit" value="save_package_provisioning">Save Provisioning Options</button></td>
+                        <td>
+                            <button class="form_input_button" name="form_action" type="submit" value="save_package_provisioning">Save Provisioning Options</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="apply_package_provisioning">Apply Provisioning</button>
+                        </td>
                     </tr>
                 </table>
             </form>
             <?php endif; ?>
+            <?php endif; ?>
+
+            <?php if ($provisioningResult): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8">
+                <tr>
+                    <td class="form_head" colspan="2">VectaVoIP Provisioning Result</td>
+                </tr>
+                <tr>
+                    <td width="220">Provider ID</td>
+                    <td><?php echo h((string)($provisioningResult['provider_id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Trunk ID</td>
+                    <td><?php echo h((string)($provisioningResult['trunk_id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Ratecard ID</td>
+                    <td><?php echo h((string)($provisioningResult['ratecard_id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>DID Request ID</td>
+                    <td><?php echo h((string)($provisioningResult['did_request_id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>PJSIP Endpoint</td>
+                    <td><?php echo h((string)($provisioningResult['pjsip_endpoint'] ?? '')); ?></td>
+                </tr>
+            </table>
             <?php endif; ?>
 
             <br>
