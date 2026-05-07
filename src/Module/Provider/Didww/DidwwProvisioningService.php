@@ -33,7 +33,11 @@ final class DidwwProvisioningService
                 'setup_rate' => '0.00000',
                 'currency' => 'USD',
                 'status' => $this->statusForDid($did),
+                'provider_code' => 'didww',
                 'provider_reference' => $id !== '' ? 'didww:' . $id : 'didww',
+                'provider_trunk_reference' => $this->stringValue($did, 'voice_in_trunk_reference'),
+                'provider_trunk_name' => $this->stringValue($did, 'voice_in_trunk'),
+                'order_reference' => $this->stringValue($did, 'order_reference'),
             ]);
             $upserted++;
         }
@@ -136,12 +140,28 @@ final class DidwwProvisioningService
      */
     private function upsertDid(array $did): void
     {
+        $columns = [
+            'did',
+            'country',
+            'region',
+            'monthly_rate',
+            'setup_rate',
+            'currency',
+            'status',
+            'provider_code',
+            'provider_reference',
+            'provider_trunk_reference',
+            'provider_trunk_name',
+            'order_reference',
+            'created_at',
+            'updated_at',
+        ];
         if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
             $statement = $this->pdo->prepare(
                 'INSERT INTO cc_vectavoip_did_inventory
-                    (did, country, region, monthly_rate, setup_rate, currency, status, provider_reference, created_at, updated_at)
+                    (' . implode(', ', $columns) . ')
                  VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON CONFLICT(did) DO UPDATE SET
                     country = excluded.country,
                     region = excluded.region,
@@ -149,15 +169,19 @@ final class DidwwProvisioningService
                     setup_rate = excluded.setup_rate,
                     currency = excluded.currency,
                     status = excluded.status,
+                    provider_code = excluded.provider_code,
                     provider_reference = excluded.provider_reference,
+                    provider_trunk_reference = excluded.provider_trunk_reference,
+                    provider_trunk_name = excluded.provider_trunk_name,
+                    order_reference = excluded.order_reference,
                     updated_at = excluded.updated_at'
             );
         } else {
             $statement = $this->pdo->prepare(
                 'INSERT INTO cc_vectavoip_did_inventory
-                    (did, country, region, monthly_rate, setup_rate, currency, status, provider_reference, created_at, updated_at)
+                    (' . implode(', ', $columns) . ')
                  VALUES
-                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                  ON DUPLICATE KEY UPDATE
                     country = VALUES(country),
                     region = VALUES(region),
@@ -165,7 +189,11 @@ final class DidwwProvisioningService
                     setup_rate = VALUES(setup_rate),
                     currency = VALUES(currency),
                     status = VALUES(status),
+                    provider_code = VALUES(provider_code),
                     provider_reference = VALUES(provider_reference),
+                    provider_trunk_reference = VALUES(provider_trunk_reference),
+                    provider_trunk_name = VALUES(provider_trunk_name),
+                    order_reference = VALUES(order_reference),
                     updated_at = VALUES(updated_at)'
             );
         }
@@ -179,7 +207,11 @@ final class DidwwProvisioningService
             $did['setup_rate'],
             $did['currency'],
             $did['status'],
+            $did['provider_code'],
             $did['provider_reference'],
+            $did['provider_trunk_reference'],
+            $did['provider_trunk_name'],
+            $did['order_reference'],
             $now,
             $now,
         ]);
@@ -198,11 +230,19 @@ final class DidwwProvisioningService
                     setup_rate TEXT NOT NULL DEFAULT \'0.00000\',
                     currency TEXT NOT NULL DEFAULT \'USD\',
                     status TEXT NOT NULL DEFAULT \'available\',
+                    provider_code TEXT NOT NULL DEFAULT \'\',
                     provider_reference TEXT NOT NULL DEFAULT \'\',
+                    provider_trunk_reference TEXT NOT NULL DEFAULT \'\',
+                    provider_trunk_name TEXT NOT NULL DEFAULT \'\',
+                    order_reference TEXT NOT NULL DEFAULT \'\',
                     created_at TEXT NOT NULL,
                     updated_at TEXT NOT NULL
                 )'
             );
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_code', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_trunk_reference', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_trunk_name', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'order_reference', "TEXT NOT NULL DEFAULT ''");
             return;
         }
 
@@ -216,7 +256,11 @@ final class DidwwProvisioningService
                 setup_rate DECIMAL(15,5) NOT NULL DEFAULT 0.00000,
                 currency VARCHAR(3) NOT NULL DEFAULT \'USD\',
                 status VARCHAR(32) NOT NULL DEFAULT \'available\',
+                provider_code VARCHAR(32) NOT NULL DEFAULT \'\',
                 provider_reference VARCHAR(128) NOT NULL DEFAULT \'\',
+                provider_trunk_reference VARCHAR(128) NOT NULL DEFAULT \'\',
+                provider_trunk_name VARCHAR(128) NOT NULL DEFAULT \'\',
+                order_reference VARCHAR(128) NOT NULL DEFAULT \'\',
                 created_at DATETIME NOT NULL,
                 updated_at DATETIME NOT NULL,
                 PRIMARY KEY (id),
@@ -224,6 +268,10 @@ final class DidwwProvisioningService
                 KEY idx_vectavoip_did_inventory_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_code', "VARCHAR(32) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_trunk_reference', "VARCHAR(128) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_trunk_name', "VARCHAR(128) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'order_reference', "VARCHAR(128) NOT NULL DEFAULT ''");
     }
 
     /**
@@ -258,5 +306,31 @@ final class DidwwProvisioningService
         $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $value) ?? 'DIDWW');
         $safe = $safe !== '' ? $safe : 'DIDWW';
         return substr($safe, 0, 20);
+    }
+
+    private function ensureSqliteColumn(string $table, string $column, string $definition): void
+    {
+        $statement = $this->pdo->query('PRAGMA table_info(' . $table . ')');
+        $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $row) {
+            if ((string) ($row['name'] ?? '') === $column) {
+                return;
+            }
+        }
+
+        $this->pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
+    }
+
+    private function ensureMysqlColumn(string $table, string $column, string $definition): void
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $statement->execute([$table, $column]);
+        if ((int) $statement->fetchColumn() > 0) {
+            return;
+        }
+
+        $this->pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
     }
 }

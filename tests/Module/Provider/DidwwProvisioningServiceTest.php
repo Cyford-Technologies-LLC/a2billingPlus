@@ -13,14 +13,17 @@ final class DidwwProvisioningServiceTest extends TestCase
         $service = new DidwwProvisioningService($pdo);
 
         $result = $service->syncOwnedDids([
-            ['id' => 'did-1', 'number' => '+12125550100', 'blocked' => 'No', 'awaiting_registration' => 'No', 'terminated' => 'No'],
-            ['id' => 'did-2', 'number' => '+12125550101', 'blocked' => 'Yes', 'awaiting_registration' => 'No', 'terminated' => 'No'],
+            ['id' => 'did-1', 'number' => '+12125550100', 'blocked' => 'No', 'awaiting_registration' => 'No', 'terminated' => 'No', 'voice_in_trunk_reference' => 'trunk-1', 'voice_in_trunk' => 'Main DIDWW Trunk', 'order_reference' => 'ORD-1'],
+            ['id' => 'did-2', 'number' => '+12125550101', 'blocked' => 'Yes', 'awaiting_registration' => 'No', 'terminated' => 'No', 'voice_in_trunk_reference' => 'trunk-2', 'voice_in_trunk' => 'Backup DIDWW Trunk', 'order_reference' => 'ORD-2'],
         ]);
 
         $this->assertTrue($result['success']);
         $this->assertSame(2, $result['upserted']);
         $this->assertSame(2, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE provider_reference LIKE 'didww:%'")->fetchColumn());
         $this->assertSame('blocked', $pdo->query("SELECT status FROM cc_vectavoip_did_inventory WHERE did = '+12125550101'")->fetchColumn());
+        $this->assertSame('didww', $pdo->query("SELECT provider_code FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        $this->assertSame('Main DIDWW Trunk', $pdo->query("SELECT provider_trunk_name FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        $this->assertSame('ORD-2', $pdo->query("SELECT order_reference FROM cc_vectavoip_did_inventory WHERE did = '+12125550101'")->fetchColumn());
     }
 
     public function testMaterializeInboundTrunkCreatesProviderAndLocalTrunk(): void

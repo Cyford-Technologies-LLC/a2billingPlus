@@ -719,6 +719,7 @@ final class ProviderApiController
                 'blocked' => $this->boolString($attributes, 'blocked'),
                 'awaiting_registration' => $this->boolString($attributes, 'awaiting_registration'),
                 'terminated' => $this->boolString($attributes, 'terminated'),
+                'voice_in_trunk_reference' => $this->stringValue($voiceInTrunk, 'id'),
                 'voice_in_trunk' => $this->stringValue($voiceInTrunk['attributes'] ?? [], 'name', $this->stringValue($voiceInTrunk, 'id')),
                 'did_group' => $this->stringValue($didGroup['attributes'] ?? [], 'name', $this->stringValue($didGroup, 'id')),
                 'order_id' => $this->stringValue($order, 'id'),

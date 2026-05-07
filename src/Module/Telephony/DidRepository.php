@@ -47,7 +47,11 @@ final class DidRepository
         'setup_rate',
         'currency',
         'status',
+        'provider_code',
         'provider_reference',
+        'provider_trunk_reference',
+        'provider_trunk_name',
+        'order_reference',
         'created_at',
         'updated_at',
     ];
@@ -287,20 +291,29 @@ final class DidRepository
      */
     public function listAssignedToCustomer(int $customerId, int $limit, int $offset): array
     {
+        $inventoryColumns = $this->availableColumns('cc_vectavoip_did_inventory', self::INVENTORY_COLUMNS);
+        $selects = ['a.*'];
+        foreach (['country', 'region', 'monthly_rate', 'setup_rate', 'currency', 'provider_code', 'provider_reference', 'provider_trunk_reference', 'provider_trunk_name', 'order_reference'] as $column) {
+            if (in_array($column, $inventoryColumns, true)) {
+                $selects[] = 'i.' . $this->quoteIdentifier($column) . ' AS ' . $this->quoteIdentifier($column);
+            }
+        }
+
         $countStatement = $this->pdo->prepare(
             "SELECT COUNT(*) FROM cc_did_assignment WHERE customer_id = :customer_id AND status = 'active'"
         );
         $countStatement->bindValue(':customer_id', $customerId, \PDO::PARAM_INT);
         $countStatement->execute();
 
-        $listStatement = $this->pdo->prepare(
-            "SELECT a.*, i.country, i.region, i.monthly_rate, i.setup_rate, i.currency, i.provider_reference
+        $listStatement = $this->pdo->prepare(sprintf(
+            'SELECT %s
              FROM cc_did_assignment a
              LEFT JOIN cc_vectavoip_did_inventory i ON i.did = a.did
-             WHERE a.customer_id = :customer_id AND a.status = 'active'
+             WHERE a.customer_id = :customer_id AND a.status = \'active\'
              ORDER BY a.id DESC
-             LIMIT :limit OFFSET :offset"
-        );
+             LIMIT :limit OFFSET :offset',
+            implode(', ', $selects)
+        ));
         $listStatement->bindValue(':customer_id', $customerId, \PDO::PARAM_INT);
         $listStatement->bindValue(':limit', $limit, \PDO::PARAM_INT);
         $listStatement->bindValue(':offset', $offset, \PDO::PARAM_INT);

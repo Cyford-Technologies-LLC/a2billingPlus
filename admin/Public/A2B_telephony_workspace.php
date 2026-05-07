@@ -238,6 +238,24 @@ function rowValue(array $row, string $column): string
     return is_scalar($value) ? (string)$value : '';
 }
 
+function providerLabel(array $row): string
+{
+    $provider = rowValue($row, 'provider_code');
+    if ($provider !== '') {
+        return strtoupper($provider);
+    }
+
+    $reference = rowValue($row, 'provider_reference');
+    if (str_starts_with($reference, 'didww:')) {
+        return 'DIDWW';
+    }
+    if (str_starts_with($reference, 'vectavoip')) {
+        return 'VECTAVOIP';
+    }
+
+    return 'UNKNOWN';
+}
+
 ?>
 <div class="a2bp-panel">
     <div class="a2bp-panel__header">
@@ -455,10 +473,12 @@ function rowValue(array $row, string $column): string
                 <thead>
                 <tr>
                     <th>DID</th>
+                    <th>Provider</th>
                     <th>Country</th>
                     <th>Region</th>
                     <th>Status</th>
-                    <th>Reference</th>
+                    <th>Inbound Trunk</th>
+                    <th>Order</th>
                     <th>Assign</th>
                 </tr>
                 </thead>
@@ -466,10 +486,12 @@ function rowValue(array $row, string $column): string
                 <?php foreach ($workspace['vectavoip_inventory']['items'] as $inventoryDid): ?>
                     <tr>
                         <td><?php echo h(rowValue($inventoryDid, 'did')); ?></td>
+                        <td><?php echo h(providerLabel($inventoryDid)); ?></td>
                         <td><?php echo h(rowValue($inventoryDid, 'country')); ?></td>
                         <td><?php echo h(rowValue($inventoryDid, 'region')); ?></td>
                         <td><?php echo h(rowValue($inventoryDid, 'status')); ?></td>
-                        <td><?php echo h(rowValue($inventoryDid, 'provider_reference')); ?></td>
+                        <td><?php echo h(rowValue($inventoryDid, 'provider_trunk_name')); ?></td>
+                        <td><?php echo h(rowValue($inventoryDid, 'order_reference')); ?></td>
                         <td>
                             <form method="post" class="a2bp-form-row">
                                 <input type="hidden" name="form_action" value="assign_inventory_did">
@@ -484,7 +506,7 @@ function rowValue(array $row, string $column): string
                 <?php endforeach; ?>
                 <?php if (!$workspace['vectavoip_inventory']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No available provider inventory is ready for assignment.</td>
+                        <td colspan="8" class="a2bp-muted">No available provider inventory is ready for assignment.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
@@ -502,8 +524,10 @@ function rowValue(array $row, string $column): string
                 <tr>
                     <th>DID</th>
                     <th>Customer</th>
+                    <th>Provider</th>
                     <th>Country</th>
                     <th>Region</th>
+                    <th>Inbound Trunk</th>
                     <th>SMS</th>
                     <th>Voice</th>
                     <th>Action</th>
@@ -514,8 +538,10 @@ function rowValue(array $row, string $column): string
                     <tr>
                         <td><?php echo h(rowValue($assignment, 'did')); ?></td>
                         <td><?php echo h(rowValue($assignment, 'customer_id')); ?></td>
+                        <td><?php echo h(providerLabel($assignment)); ?></td>
                         <td><?php echo h(rowValue($assignment, 'country')); ?></td>
                         <td><?php echo h(rowValue($assignment, 'region')); ?></td>
+                        <td><?php echo h(rowValue($assignment, 'provider_trunk_name')); ?></td>
                         <td><?php echo rowValue($assignment, 'sms_enabled') === '1' ? 'Yes' : 'No'; ?></td>
                         <td><?php echo rowValue($assignment, 'voice_enabled') === '1' ? 'Yes' : 'No'; ?></td>
                         <td>
@@ -530,7 +556,7 @@ function rowValue(array $row, string $column): string
                 <?php endforeach; ?>
                 <?php if (!$workspace['customer_assignments']['items']): ?>
                     <tr>
-                        <td colspan="7" class="a2bp-muted">Filter by customer ID to review active VectaVoIP DID assignments.</td>
+                        <td colspan="9" class="a2bp-muted">Filter by customer ID to review active provider DID assignments.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
