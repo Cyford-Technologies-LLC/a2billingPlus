@@ -11,6 +11,7 @@ use A2BillingPlus\Admin\ModernAdminRuntime;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProvisioningService;
 use A2BillingPlus\Module\Telephony\AdminTelephonyWorkspaceService;
 use A2BillingPlus\Module\Telephony\AsteriskConfigCheckService;
+use A2BillingPlus\Module\Telephony\DidAssignmentService;
 use A2BillingPlus\Module\Telephony\DidRepository;
 use A2BillingPlus\Module\Telephony\DidService;
 use A2BillingPlus\Module\Telephony\TelephonyAccountRepository;
@@ -157,6 +158,40 @@ try {
             } catch (Throwable $exception) {
                 $errors[] = 'Could not cancel DID request: ' . $exception->getMessage();
             }
+        } elseif ($action === 'assign_inventory_did' && $canDid) {
+            try {
+                $service = new DidAssignmentService($pdo);
+                $result = $service->assign(
+                    (int)($_POST['customer_id'] ?? 0),
+                    trim((string)($_POST['inventory_did'] ?? '')),
+                    isset($_POST['sms_enabled']),
+                    isset($_POST['voice_enabled']),
+                    $actor
+                );
+                if ($result['success']) {
+                    $messages[] = (string)($result['message'] ?? 'DID assigned from VectaVoIP inventory.');
+                } else {
+                    $errors[] = (string)($result['message'] ?? 'Could not assign inventory DID.');
+                }
+            } catch (Throwable $exception) {
+                $errors[] = 'Could not assign inventory DID: ' . $exception->getMessage();
+            }
+        } elseif ($action === 'release_inventory_did' && $canDid) {
+            try {
+                $service = new DidAssignmentService($pdo);
+                $result = $service->release(
+                    (int)($_POST['customer_id'] ?? 0),
+                    trim((string)($_POST['inventory_did'] ?? '')),
+                    $actor
+                );
+                if ($result['success']) {
+                    $messages[] = (string)($result['message'] ?? 'DID released back to VectaVoIP inventory.');
+                } else {
+                    $errors[] = (string)($result['message'] ?? 'Could not release inventory DID.');
+                }
+            } catch (Throwable $exception) {
+                $errors[] = 'Could not release inventory DID: ' . $exception->getMessage();
+            }
         }
     }
 
@@ -287,6 +322,10 @@ function rowValue(array $row, string $column): string
         <span class="a2bp-metric__label">PJSIP Trunks</span>
         <strong><?php echo h((string)$workspace['summary']['pjsip_trunks']); ?></strong>
     </div>
+    <div class="a2bp-metric">
+        <span class="a2bp-metric__label">VV Inventory</span>
+        <strong><?php echo h((string)($workspace['vectavoip_inventory']['total'] ?? 0)); ?></strong>
+    </div>
 </div>
 
 <div class="a2bp-panel">
@@ -400,6 +439,98 @@ function rowValue(array $row, string $column): string
                 <?php if (!$workspace['pjsip_trunks']['items']): ?>
                     <tr>
                         <td colspan="5" class="a2bp-muted">No PJSIP trunk endpoints have been provisioned yet.</td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="a2bp-panel">
+        <div class="a2bp-panel__header">
+            <h2 class="a2bp-panel__title">VectaVoIP DID Inventory</h2>
+        </div>
+        <div class="a2bp-panel__body">
+            <table class="a2bp-table">
+                <thead>
+                <tr>
+                    <th>DID</th>
+                    <th>Country</th>
+                    <th>Region</th>
+                    <th>Status</th>
+                    <th>Reference</th>
+                    <th>Assign</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($workspace['vectavoip_inventory']['items'] as $inventoryDid): ?>
+                    <tr>
+                        <td><?php echo h(rowValue($inventoryDid, 'did')); ?></td>
+                        <td><?php echo h(rowValue($inventoryDid, 'country')); ?></td>
+                        <td><?php echo h(rowValue($inventoryDid, 'region')); ?></td>
+                        <td><?php echo h(rowValue($inventoryDid, 'status')); ?></td>
+                        <td><?php echo h(rowValue($inventoryDid, 'provider_reference')); ?></td>
+                        <td>
+                            <form method="post" class="a2bp-form-row">
+                                <input type="hidden" name="form_action" value="assign_inventory_did">
+                                <input type="hidden" name="inventory_did" value="<?php echo h(rowValue($inventoryDid, 'did')); ?>">
+                                <input type="text" name="customer_id" value="<?php echo h($workspace['filters']['customer_id']); ?>" placeholder="Customer ID">
+                                <label><input type="checkbox" name="sms_enabled" value="1" checked>SMS</label>
+                                <label><input type="checkbox" name="voice_enabled" value="1" checked>Voice</label>
+                                <button class="a2bp-button" type="submit">Assign</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$workspace['vectavoip_inventory']['items']): ?>
+                    <tr>
+                        <td colspan="6" class="a2bp-muted">No available VectaVoIP inventory is ready for assignment.</td>
+                    </tr>
+                <?php endif; ?>
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="a2bp-panel">
+        <div class="a2bp-panel__header">
+            <h2 class="a2bp-panel__title">Customer DID Assignments</h2>
+        </div>
+        <div class="a2bp-panel__body">
+            <table class="a2bp-table">
+                <thead>
+                <tr>
+                    <th>DID</th>
+                    <th>Customer</th>
+                    <th>Country</th>
+                    <th>Region</th>
+                    <th>SMS</th>
+                    <th>Voice</th>
+                    <th>Action</th>
+                </tr>
+                </thead>
+                <tbody>
+                <?php foreach ($workspace['customer_assignments']['items'] as $assignment): ?>
+                    <tr>
+                        <td><?php echo h(rowValue($assignment, 'did')); ?></td>
+                        <td><?php echo h(rowValue($assignment, 'customer_id')); ?></td>
+                        <td><?php echo h(rowValue($assignment, 'country')); ?></td>
+                        <td><?php echo h(rowValue($assignment, 'region')); ?></td>
+                        <td><?php echo rowValue($assignment, 'sms_enabled') === '1' ? 'Yes' : 'No'; ?></td>
+                        <td><?php echo rowValue($assignment, 'voice_enabled') === '1' ? 'Yes' : 'No'; ?></td>
+                        <td>
+                            <form method="post" class="a2bp-form-row">
+                                <input type="hidden" name="form_action" value="release_inventory_did">
+                                <input type="hidden" name="inventory_did" value="<?php echo h(rowValue($assignment, 'did')); ?>">
+                                <input type="hidden" name="customer_id" value="<?php echo h(rowValue($assignment, 'customer_id')); ?>">
+                                <button class="a2bp-button" type="submit">Release</button>
+                            </form>
+                        </td>
+                    </tr>
+                <?php endforeach; ?>
+                <?php if (!$workspace['customer_assignments']['items']): ?>
+                    <tr>
+                        <td colspan="7" class="a2bp-muted">Filter by customer ID to review active VectaVoIP DID assignments.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>

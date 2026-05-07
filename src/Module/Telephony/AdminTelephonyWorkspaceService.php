@@ -21,6 +21,8 @@ final class AdminTelephonyWorkspaceService
      * @return array{
      *   filters:array{customer_id:string,trunk_status:string,did_reserved:string,did_activated:string,limit:int},
      *   summary:array{dids:int,trunks:int,sip_accounts:int,iax_accounts:int,asterisk_ready:bool,vectavoip_requests:int,pjsip_trunks:int},
+     *   vectavoip_inventory:array{items:list<array<string,mixed>>,columns:list<string>,total:int},
+     *   customer_assignments:array{items:list<array<string,mixed>>,total:int},
      *   dids:array{items:list<array<string,mixed>>,columns:list<string>},
      *   trunks:array{items:list<array<string,mixed>>,columns:list<string>},
      *   sip_accounts:array{items:list<array<string,mixed>>,columns:list<string>},
@@ -51,6 +53,8 @@ final class AdminTelephonyWorkspaceService
         $iaxAccounts = ['items' => [], 'columns' => []];
         $vectavoipRequests = ['items' => [], 'columns' => []];
         $pjsipTrunks = ['items' => [], 'columns' => []];
+        $vectavoipInventory = ['items' => [], 'columns' => [], 'total' => 0];
+        $customerAssignments = ['items' => [], 'total' => 0];
 
         if ($capabilities['did']) {
             $dids = $this->dids->list($limit, 0, $customerIdInt, $didReservedInt, $didActivatedInt);
@@ -67,6 +71,11 @@ final class AdminTelephonyWorkspaceService
         if ($this->pdo !== null) {
             $vectavoipRequests = $this->vectavoipDidRequests($limit);
             $pjsipTrunks = $this->pjsipTrunkEndpoints($limit);
+            $repository = new DidRepository($this->pdo);
+            $vectavoipInventory = $repository->listAvailable($limit, 0);
+            if ($customerIdInt !== null) {
+                $customerAssignments = $repository->listAssignedToCustomer($customerIdInt, $limit, 0);
+            }
         }
 
         return [
@@ -90,6 +99,8 @@ final class AdminTelephonyWorkspaceService
             'trunks' => $trunks,
             'sip_accounts' => $sipAccounts,
             'iax_accounts' => $iaxAccounts,
+            'vectavoip_inventory' => $vectavoipInventory,
+            'customer_assignments' => $customerAssignments,
             'vectavoip_requests' => $vectavoipRequests,
             'pjsip_trunks' => $pjsipTrunks,
             'asterisk' => $asterisk,

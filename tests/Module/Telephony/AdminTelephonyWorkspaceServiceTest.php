@@ -43,11 +43,14 @@ final class AdminTelephonyWorkspaceServiceTest extends TestCase
         $this->assertSame(1, $workspace['summary']['iax_accounts']);
         $this->assertSame(1, $workspace['summary']['vectavoip_requests']);
         $this->assertSame(1, $workspace['summary']['pjsip_trunks']);
+        $this->assertSame(1, $workspace['vectavoip_inventory']['total']);
+        $this->assertSame(0, $workspace['customer_assignments']['total']);
         $this->assertTrue($workspace['summary']['asterisk_ready']);
         $this->assertSame('+15551234567', $workspace['dids']['items'][0]['did']);
         $this->assertSame('DEFAULT', $workspace['trunks']['items'][0]['trunkcode']);
         $this->assertSame('business', $workspace['vectavoip_requests']['items'][0]['package_code']);
         $this->assertSame('trunk-business', $workspace['pjsip_trunks']['items'][0]['endpoint_id']);
+        $this->assertSame('+15551230000', $workspace['vectavoip_inventory']['items'][0]['did']);
     }
 
     public function testWorkspaceRespectsCapabilitiesAndNormalizesBadFilters(): void
@@ -154,6 +157,8 @@ final class AdminTelephonyWorkspaceServiceTest extends TestCase
         $this->createBuddyTable($pdo, 'cc_sip_buddies');
         $this->createBuddyTable($pdo, 'cc_iax_buddies');
         $pdo->exec('CREATE TABLE cc_vectavoip_did_requests (id INTEGER PRIMARY KEY AUTOINCREMENT, package_code TEXT, did_count INTEGER, sms_enabled INTEGER, e911_enabled INTEGER, ratecard_id INTEGER, trunk_id INTEGER, account_number TEXT, registered_ip TEXT, notes TEXT, status TEXT, created_at TEXT, updated_at TEXT)');
+        $pdo->exec('CREATE TABLE cc_vectavoip_did_inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, did TEXT, country TEXT, region TEXT, monthly_rate REAL, setup_rate REAL, currency TEXT, status TEXT, provider_reference TEXT, created_at TEXT, updated_at TEXT)');
+        $pdo->exec('CREATE TABLE cc_did_assignment (id INTEGER PRIMARY KEY AUTOINCREMENT, customer_id INTEGER, did TEXT, status TEXT, sms_enabled INTEGER, voice_enabled INTEGER, provider_reference TEXT, assigned_at TEXT, released_at TEXT)');
         $pdo->exec('CREATE TABLE ps_endpoints (id TEXT PRIMARY KEY, transport TEXT, aors TEXT, auth TEXT, context TEXT, disallow TEXT, allow TEXT, direct_media TEXT, rtp_symmetric TEXT, force_rport TEXT, rewrite_contact TEXT)');
         $pdo->exec('CREATE TABLE cc_a2bp_pjsip_endpoint_map (endpoint_id TEXT PRIMARY KEY, endpoint_type TEXT, owner_id INTEGER, label TEXT, created_at TEXT, updated_at TEXT)');
 
@@ -163,6 +168,7 @@ final class AdminTelephonyWorkspaceServiceTest extends TestCase
         $pdo->exec("INSERT INTO cc_sip_buddies (id, id_cc_card, name, accountcode, regexten, callerid, context, host, qualify, secret, type, username, disallow, allow) VALUES (1, 10, '1001', '1001', '1001', '1001', 'a2billing', 'dynamic', 'yes', 'hidden', 'friend', '1001', 'all', 'ulaw')");
         $pdo->exec("INSERT INTO cc_iax_buddies (id, id_cc_card, name, accountcode, regexten, callerid, context, host, qualify, secret, type, username, disallow, allow) VALUES (1, 10, '2001', '2001', '2001', '2001', 'a2billing', 'dynamic', 'yes', 'hidden', 'friend', '2001', 'all', 'ulaw')");
         $pdo->exec("INSERT INTO cc_vectavoip_did_requests (id, package_code, did_count, sms_enabled, e911_enabled, ratecard_id, trunk_id, account_number, registered_ip, notes, status, created_at, updated_at) VALUES (1, 'business', 3, 1, 0, 5, 2, 'VV12345', '74.208.7.156', 'Provision test', 'requested', '2026-05-05', '2026-05-05')");
+        $pdo->exec("INSERT INTO cc_vectavoip_did_inventory (id, did, country, region, monthly_rate, setup_rate, currency, status, provider_reference, created_at, updated_at) VALUES (1, '+15551230000', 'US', 'NY', 1.25, 0.00, 'USD', 'available', 'vectavoip-request:1', '2026-05-05', '2026-05-05')");
         $pdo->exec("INSERT INTO ps_endpoints (id, transport, aors, auth, context, disallow, allow, direct_media, rtp_symmetric, force_rport, rewrite_contact) VALUES ('trunk-business', 'transport-udp', 'trunk-business', 'trunk-business-auth', 'from-pstn', 'all', 'ulaw,alaw', 'no', 'yes', 'yes', 'yes')");
         $pdo->exec("INSERT INTO cc_a2bp_pjsip_endpoint_map (endpoint_id, endpoint_type, owner_id, label, created_at, updated_at) VALUES ('trunk-business', 'trunk', 0, 'BUSINESSPRIMARY', '2026-05-05', '2026-05-05')");
 
