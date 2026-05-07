@@ -1008,6 +1008,8 @@ if (has_rights (ACX_MODIFY_CUSTOMERS) && !($popup_select>=1)) {
 
     $HD_Form -> FG_INTRO_TEXT_ADITION = '';
     $HD_Form -> FG_TEXT_ADITION_CONFIRMATION = gettext("Your new")." ".$HD_Form->FG_INSTANCE_NAME." ".gettext("has been inserted.")."<br>";
+    $HD_Form -> FG_QUERY_ADITION_HIDDEN_FIELDS = "redial, loginkey, tag";
+    $HD_Form -> FG_QUERY_ADITION_HIDDEN_VALUE = ", , ";
 
 
     $HD_Form -> FG_BUTTON_EDITION_SRC = $HD_Form -> FG_BUTTON_ADITION_SRC  = Images_Path . "/cormfirmboton.gif";
