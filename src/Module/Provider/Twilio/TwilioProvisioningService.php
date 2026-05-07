@@ -88,19 +88,19 @@ final class TwilioProvisioningService
         $trunkSid = $this->stringValue($trunk, 'sid');
         $friendlyName = $this->stringValue($trunk, 'friendly_name', 'Twilio Trunk');
         $domainName = $this->stringValue($trunk, 'domain_name');
-        $trunkCode = $this->trunkCodeFor($friendlyName);
         $parameter = $trunkSid !== '' ? 'twilio_trunk:' . $trunkSid : 'twilio_trunk';
+        $trunkCode = $this->trunkCodeFor($friendlyName, $trunkSid);
 
-        $statement = $this->pdo->prepare('SELECT id_trunk FROM cc_trunk WHERE trunkcode = ? LIMIT 1');
-        $statement->execute([$trunkCode]);
+        $statement = $this->pdo->prepare('SELECT id_trunk FROM cc_trunk WHERE addparameter = ? LIMIT 1');
+        $statement->execute([$parameter]);
         $id = $statement->fetchColumn();
         if ($id !== false) {
             $update = $this->pdo->prepare(
                 'UPDATE cc_trunk
-                 SET providerip = ?, status = ?, id_provider = ?, addparameter = ?
+                 SET trunkcode = ?, providerip = ?, status = ?, id_provider = ?, addparameter = ?
                  WHERE id_trunk = ?'
             );
-            $update->execute([$domainName, 1, $providerId, $parameter, (int) $id]);
+            $update->execute([$trunkCode, $domainName, 1, $providerId, $parameter, (int) $id]);
             return (int) $id;
         }
 
@@ -278,8 +278,15 @@ final class TwilioProvisioningService
         return is_scalar($value) ? trim((string) $value) : $default;
     }
 
-    private function trunkCodeFor(string $value): string
+    private function trunkCodeFor(string $value, string $trunkSid = ''): string
     {
+        if ($trunkSid !== '') {
+            $safeSid = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $trunkSid) ?? '');
+            if ($safeSid !== '') {
+                return substr('TW' . $safeSid, 0, 20);
+            }
+        }
+
         $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $value) ?? 'TWILIO');
         $safe = $safe !== '' ? $safe : 'TWILIO';
         return substr($safe, 0, 20);
