@@ -1391,6 +1391,16 @@ function renderProviderCredentialFields(array $input): void
                     <td>Search and purchase use Twilio Phone Numbers APIs. Trunk creation uses Elastic SIP Trunking.</td>
                 </tr>
                 <tr>
+                    <td><strong>API Key Setup</strong></td>
+                    <td>
+                        Create the key in Twilio Console under
+                        <a href="https://console.twilio.com/us1/develop/api-keys/manage" target="_blank" rel="noopener noreferrer">API Keys &amp; Tokens</a>.
+                        Use a Standard key. Enter the returned <code>SK...</code> value as API Key, the one-time secret as API Secret / Auth Token,
+                        and your <code>AC...</code> value as Account SID.
+                        Reference: <a href="https://www.twilio.com/docs/iam/api-keys/keys-in-console" target="_blank" rel="noopener noreferrer">Twilio API key setup docs</a>.
+                    </td>
+                </tr>
+                <tr>
                     <td><strong>Preferred BYOC Trunk</strong></td>
                     <td><?php echo $input['twilio_byoc_trunk_sid'] !== '' ? h($input['twilio_byoc_trunk_sid']) : 'Not configured'; ?></td>
                 </tr>
