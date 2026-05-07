@@ -67,6 +67,36 @@ define ("ACX_MODIFY_AGENTS",			16777216);	// 1 << 24
 header("Expires: Sat, Jan 01 2000 01:01:01 GMT");
 //echo "PHP_AUTH_USER : $PHP_AUTH_USER";
 
+function admin_login_redirect_url(string $default = 'PP_intro.php'): string
+{
+    $returnTo = trim((string)($_REQUEST['return_to'] ?? ''));
+    if ($returnTo === '') {
+        return $default;
+    }
+
+    $normalized = strtr($returnTo, '-_', '+/');
+    $padding = strlen($normalized) % 4;
+    if ($padding > 0) {
+        $normalized .= str_repeat('=', 4 - $padding);
+    }
+    $decoded = base64_decode($normalized, true);
+    if (!is_string($decoded) || $decoded === '') {
+        return $default;
+    }
+
+    if (preg_match('/^(?:https?:)?\/\//i', $decoded)) {
+        return $default;
+    }
+
+    return $decoded[0] === '/' ? $decoded : $default;
+}
+
+function admin_current_request_return_to(): string
+{
+    $uri = (string)($_SERVER['REQUEST_URI'] ?? '/admin/Public/PP_intro.php');
+    return rtrim(strtr(base64_encode($uri), '+/', '-_'), '=');
+}
+
 if (isset($_GET["logout"]) && $_GET["logout"]=="true") {
     $log = new Logger();
     $log -> insertLog($_SESSION["admin_id"], 1, "USER LOGGED OUT", "User Logged out from website", '', $_SERVER['REMOTE_ADDR'], $_SERVER['REQUEST_URI'],'');
@@ -81,8 +111,9 @@ if (isset($_GET["logout"]) && $_GET["logout"]=="true") {
 getpost_ifset (array('pr_login', 'pr_password'));
 
 $done = $_POST["done"] ?? '';
+$sessionMissing = !isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset($_SESSION['rights']);
 
-if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset($_SESSION['rights']) || $done=="submit_log" )) {
+if (($sessionMissing || $done=="submit_log" )) {
 
     if ($FG_DEBUG == 1) echo "<br>0. HERE WE ARE";
 
@@ -99,7 +130,7 @@ if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset
 
         if (!is_array($loginResult) || a2b_count($loginResult) < 4 || empty($loginResult[1])) {
             header ("HTTP/1.0 401 Unauthorized");
-            Header ("Location: index.php?error=1");
+            Header ("Location: index.php?error=1&return_to=" . rawurlencode((string)($_POST['return_to'] ?? '')));
             die();
         }
         // if groupID egal 1, this user is a root
@@ -134,9 +165,21 @@ if ((!isset($_SESSION['pr_login']) || !isset($_SESSION['pr_password']) || !isset
             $log = new Logger();
             $log -> insertLog($admin_id, 1, "User Logged In", "User Logged in to website", '', $_SERVER['REMOTE_ADDR'], 'PP_Intro.php','');
             $log = null;
+
+            $redirect = admin_login_redirect_url();
+            if ($redirect !== '' && !str_ends_with(strtolower($redirect), '/index.php')) {
+                Header("Location: " . $redirect);
+                die();
+            }
         }
 
     } else {
+        $currentScript = basename((string)($_SERVER['SCRIPT_NAME'] ?? ''));
+        if ($sessionMissing && strtolower($currentScript) !== 'index.php') {
+            Header ("HTTP/1.0 401 Unauthorized");
+            Header ("Location: index.php?return_to=" . rawurlencode(admin_current_request_return_to()) . "&error=2");
+            die();
+        }
         $rights=0;
 
     }

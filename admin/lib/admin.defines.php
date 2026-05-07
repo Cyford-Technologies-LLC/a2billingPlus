@@ -67,6 +67,19 @@ include (dirname(__FILE__)."/Class.NotificationsDAO.php");
 include (dirname(__FILE__)."/Class.Notification.php");
 include (dirname(__FILE__)."/Class.Mail.php");
 
+function a2bp_admin_session_dir(): string
+{
+    return dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . 'var' . DIRECTORY_SEPARATOR . 'sessions' . DIRECTORY_SEPARATOR . 'admin';
+}
+
+$a2bpAdminSessionDir = a2bp_admin_session_dir();
+if (!is_dir($a2bpAdminSessionDir)) {
+    @mkdir($a2bpAdminSessionDir, 0775, true);
+}
+if (is_dir($a2bpAdminSessionDir) && is_writable($a2bpAdminSessionDir)) {
+    session_save_path($a2bpAdminSessionDir);
+}
+
 session_name("UIADMINSESSION");
 session_start();
 
@@ -78,8 +91,11 @@ if (isset($_SESSION['startTime'])) {
     if ($timeDiff > 3600) { // 60 minutes
         //echo "You've been logged in too long. ($timeDiff)";
         $_SESSION = array();
+        if (ini_get('session.use_cookies')) {
+            $params = session_get_cookie_params();
+            setcookie(session_name(), '', time() - 3600, $params['path'] ?? '/', $params['domain'] ?? '', (bool)($params['secure'] ?? false), (bool)($params['httponly'] ?? false));
+        }
         session_destroy();
-        setcookie('PHPSESSID', '', time()-3600, '/', '', 0,0);
     }
 } else {
   $_SESSION['startTime'] = time();

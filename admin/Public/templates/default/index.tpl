@@ -38,6 +38,7 @@
 
 	<form name="form" method="POST" action="PP_intro.php" onsubmit="return test()">
 	<input type="hidden" name="done" value="submit_log">
+	<input type="hidden" name="return_to" value="{$return_to|escape:'html'}">
 
 
 	<div id="login-wrapper" class="login-border-up">
@@ -100,12 +101,14 @@
   	</div>
   	</div>
 
-  	<div style="color:#BC2222;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;padding-left:10px;" >
+    <div style="color:#BC2222;font-family:Arial,Helvetica,sans-serif;font-size:11px;font-weight:bold;padding-left:10px;" >
   	{if ($error == 1)}
 			{$ERROR_AUTH_REFUSED}
     {elseif ($error==2)}
-			{$ERROR_INACTIVE_ACCOUNT}
+			{$ERROR_SESSION_EXPIRED}
     {elseif ($error==3)}
+			{$ERROR_INACTIVE_ACCOUNT}
+    {elseif ($error==4)}
 			{$ERROR_BLOCKED_ACCOUNT}
     {/if}
     </div>

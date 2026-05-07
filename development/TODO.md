@@ -439,6 +439,9 @@ its business rules live outside the page script.
       able to declare a default menu style.
 - [x] Add four menu layouts for modular admin pages and legacy menu chrome:
       side-rail, topbar, compact, and split.
+- [x] Persist admin login sessions across container rebuilds with workspace-
+      backed session storage, and return expired admin sessions to the original
+      requested page after login.
 - [ ] Document the operator workflow for installing, switching, validating, and
       removing custom themes.
 - [ ] Decide whether theme installation stays filesystem-based, becomes module-
