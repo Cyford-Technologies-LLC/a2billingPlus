@@ -447,6 +447,8 @@ final class ProviderApiControllerTest extends TestCase
     {
         $pdo = new PDO('sqlite::memory:');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_did (id INTEGER PRIMARY KEY AUTOINCREMENT, id_cc_didgroup INTEGER NOT NULL DEFAULT 0, id_cc_country INTEGER NOT NULL DEFAULT 0, activated INTEGER NOT NULL DEFAULT 1, reserved INTEGER DEFAULT 0, iduser INTEGER NOT NULL DEFAULT 0, did TEXT NOT NULL UNIQUE, startingdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\', expirationdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\', description TEXT NULL, billingtype INTEGER DEFAULT 0, fixrate REAL NOT NULL DEFAULT 0, max_concurrent INTEGER NOT NULL DEFAULT 10)');
+        $pdo->exec('CREATE TABLE cc_country (id INTEGER PRIMARY KEY AUTOINCREMENT, countrycode TEXT, countryname TEXT)');
 
         $controller = new ProviderApiController(
             ProviderRegistryFactory::createDefault(),
@@ -484,7 +486,9 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertTrue($response->getPayload()['success']);
         $this->assertSame(1, $response->getPayload()['upserted']);
+        $this->assertSame(1, $response->getPayload()['legacy_imported']);
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_did WHERE did = '+12125550100'")->fetchColumn());
     }
 
     public function testDidwwSyncCompletedOrdersPullsCompletedOrderDidsIntoLocalInventory(): void
@@ -715,6 +719,8 @@ final class ProviderApiControllerTest extends TestCase
     {
         $pdo = new PDO('sqlite::memory:');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_did (id INTEGER PRIMARY KEY AUTOINCREMENT, id_cc_didgroup INTEGER NOT NULL DEFAULT 0, id_cc_country INTEGER NOT NULL DEFAULT 0, activated INTEGER NOT NULL DEFAULT 1, reserved INTEGER DEFAULT 0, iduser INTEGER NOT NULL DEFAULT 0, did TEXT NOT NULL UNIQUE, startingdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\', expirationdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\', description TEXT NULL, billingtype INTEGER DEFAULT 0, fixrate REAL NOT NULL DEFAULT 0, max_concurrent INTEGER NOT NULL DEFAULT 10)');
+        $pdo->exec('CREATE TABLE cc_country (id INTEGER PRIMARY KEY AUTOINCREMENT, countrycode TEXT, countryname TEXT)');
 
         $controller = new ProviderApiController(
             ProviderRegistryFactory::createDefault(),
@@ -775,7 +781,9 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertTrue($response->getPayload()['success']);
         $this->assertSame(1, $response->getPayload()['upserted']);
+        $this->assertSame(1, $response->getPayload()['legacy_imported']);
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_did WHERE did = '+12125550100'")->fetchColumn());
     }
 
     public function testTwilioRegisterExistingTrunkLinksPreferredByocSid(): void

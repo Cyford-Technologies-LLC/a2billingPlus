@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace A2BillingPlus\Api;
 
 use A2BillingPlus\Config\AppConfig;
+use A2BillingPlus\Module\Telephony\LegacyDidImportService;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Provider\Didww\DidwwApiClient;
@@ -482,6 +483,8 @@ final class ProviderApiController
             $dids = $client->listDids($credentials, ['page[size]' => (string) max(1, min(100, $request->getInt('page_size', 100)))]);
             $normalized = $this->normalizeDidwwDids($dids);
             $result = (new DidwwProvisioningService($this->pdo()))->syncOwnedDids($normalized);
+            $legacy = (new LegacyDidImportService($this->pdo()))->importMissingFromInventory($normalized);
+            $result['legacy_imported'] = $legacy['imported'];
         } catch (\Throwable $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -535,12 +538,14 @@ final class ProviderApiController
                 ]);
                 $normalizedDids = $this->normalizeDidwwDids($dids);
                 $sync = $provisioning->syncOwnedDids($normalizedDids);
+                $legacy = (new LegacyDidImportService($this->pdo()))->importMissingFromInventory($normalizedDids);
                 $upserted += (int) ($sync['upserted'] ?? 0);
                 $syncedOrders[] = [
                     'id' => $orderId,
                     'reference' => $this->stringValue($detailOrder, 'reference'),
                     'status' => $this->stringValue($detailOrder, 'status'),
                     'upserted' => (string) ($sync['upserted'] ?? 0),
+                    'legacy_imported' => (string) ($legacy['imported'] ?? 0),
                 ];
             }
         } catch (\Throwable $exception) {
@@ -860,6 +865,8 @@ final class ProviderApiController
                 $provisioning->materializeTrunk($preferredTrunk);
             }
             $result = $provisioning->syncOwnedNumbers($numbers);
+            $legacy = (new LegacyDidImportService($this->pdo()))->importMissingFromInventory($numbers);
+            $result['legacy_imported'] = $legacy['imported'];
             if ($preferredTrunk !== []) {
                 $result['preferred_trunk'] = $preferredTrunk;
             }
