@@ -239,6 +239,25 @@ final class DidRepository
     }
 
     /**
+     * @return array<string,mixed>|null
+     */
+    public function findLegacyByNumber(string $did): ?array
+    {
+        $columns = $this->availableColumns('cc_did', self::DID_COLUMNS);
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s WHERE %s = :did',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier('cc_did'),
+            $this->quoteIdentifier('did')
+        ));
+        $statement->bindValue(':did', $did);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
      * @return array{items:list<array<string,mixed>>,total:int,columns:list<string>}
      */
     public function listAvailable(int $limit, int $offset, string $country = '', string $region = ''): array

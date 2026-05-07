@@ -38,8 +38,19 @@ final class DidAssignmentService
             return ['success' => false, 'message' => 'DID is not available for assignment.'];
         }
 
+        $legacyDid = $didRepo->findLegacyByNumber($did);
+        if ($legacyDid === null) {
+            (new LegacyDidImportService($this->pdo))->importMissingFromInventory([$inventory]);
+            $legacyDid = $didRepo->findLegacyByNumber($did);
+        }
+
+        if ($legacyDid === null) {
+            return ['success' => false, 'message' => 'DID could not be projected into the core DID table.'];
+        }
+
         $this->pdo->beginTransaction();
         try {
+            $didRepo->assign((int)$legacyDid['id'], $customerId);
             $didRepo->markAssigned($did);
 
             $now = gmdate('Y-m-d H:i:s');
@@ -96,6 +107,18 @@ final class DidAssignmentService
             return ['success' => false, 'message' => 'Active DID assignment not found for this customer.'];
         }
 
+        $didRepo = new DidRepository($this->pdo);
+        $inventory = $didRepo->findByNumber($did);
+        $legacyDid = $didRepo->findLegacyByNumber($did);
+        if ($legacyDid === null && $inventory !== null) {
+            (new LegacyDidImportService($this->pdo))->importMissingFromInventory([$inventory]);
+            $legacyDid = $didRepo->findLegacyByNumber($did);
+        }
+
+        if ($legacyDid === null) {
+            return ['success' => false, 'message' => 'DID core record was not found for release.'];
+        }
+
         $this->pdo->beginTransaction();
         try {
             $now = gmdate('Y-m-d H:i:s');
@@ -104,7 +127,8 @@ final class DidAssignmentService
             );
             $update->execute([$now, $assignment['id']]);
 
-            (new DidRepository($this->pdo))->markAvailable($did);
+            $didRepo->release((int)$legacyDid['id']);
+            $didRepo->markAvailable($did);
             $this->pdo->commit();
         } catch (\Throwable $exception) {
             $this->pdo->rollBack();

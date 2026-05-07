@@ -81,6 +81,28 @@ final class LegacyDidImportService
         return ['imported' => $imported, 'skipped' => $skipped];
     }
 
+    /**
+     * @return array{imported:int, skipped:int}
+     */
+    public function importAllCachedInventory(): array
+    {
+        if (!$this->tableExists('cc_vectavoip_did_inventory')) {
+            return ['imported' => 0, 'skipped' => 0];
+        }
+
+        $statement = $this->pdo->query(
+            'SELECT did, country, region, monthly_rate, provider_code, provider_trunk_name, provider_reference, provider_trunk_reference, order_reference
+             FROM cc_vectavoip_did_inventory
+             ORDER BY did ASC'
+        );
+        $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+        if (!is_array($rows) || $rows === []) {
+            return ['imported' => 0, 'skipped' => 0];
+        }
+
+        return $this->importMissingFromInventory($rows);
+    }
+
     private function legacyDidExists(string $did): bool
     {
         $statement = $this->pdo->prepare('SELECT id FROM cc_did WHERE did = ? LIMIT 1');

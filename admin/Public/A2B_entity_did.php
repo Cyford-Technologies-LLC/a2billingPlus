@@ -37,6 +37,9 @@ include '../lib/Form/Class.FormHandler.inc.php';
 include './form_data/FG_var_did.inc';
 include '../lib/admin.smarty.php';
 
+use A2BillingPlus\Admin\ModernAdminRuntime;
+use A2BillingPlus\Module\Telephony\LegacyDidImportService;
+
 if (!has_rights(ACX_DID)) {
     Header("HTTP/1.0 401 Unauthorized");
     Header("Location: PP_error.php?c=accessdenied");
@@ -45,6 +48,23 @@ if (!has_rights(ACX_DID)) {
 
 $HD_Form->setDBHandler(DbConnect());
 $HD_Form->init();
+
+$projectionMessages = [];
+$projectionErrors = [];
+if (isset($_REQUEST['project_provider_inventory']) && $_REQUEST['project_provider_inventory'] === '1') {
+    try {
+        $projectRoot = realpath(__DIR__ . '/../..') ?: dirname(__DIR__, 2);
+        $runtime = new ModernAdminRuntime($projectRoot);
+        $result = (new LegacyDidImportService($runtime->pdo()))->importAllCachedInventory();
+        $projectionMessages[] = sprintf(
+            'Projected provider inventory into core DID table. Imported %d, skipped %d.',
+            (int) $result['imported'],
+            (int) $result['skipped']
+        );
+    } catch (Throwable $exception) {
+        $projectionErrors[] = 'Provider inventory projection failed: ' . $exception->getMessage();
+    }
+}
 
 if ($id != "" || !is_null($id)) {
     $HD_Form->FG_EDITION_CLAUSE = str_replace("%id", "$id", $HD_Form->FG_EDITION_CLAUSE);
@@ -66,6 +86,24 @@ if ($form_action == 'list')
     echo $CC_help_list_did;
 else
     echo $CC_help_edit_did;
+
+if ($form_action == 'list') {
+    echo '<div class="a2bp-panel" style="margin:12px 0;padding:12px;border:1px solid #d8dee6;background:#f8fafc;">';
+    echo '<strong>Provider Inventory Projection</strong><br>';
+    echo 'If provider numbers were synchronized but this core DID list is still empty, project cached provider inventory into the core DID table used by the legacy screens. ';
+    echo '<a href="A2B_entity_did.php?section=' . urlencode((string)($_GET['section'] ?? '')) . '&project_provider_inventory=1">Project Provider Inventory</a>';
+    if ($projectionMessages !== []) {
+        foreach ($projectionMessages as $message) {
+            echo '<div style="margin-top:8px;color:#0f5132;">' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
+        }
+    }
+    if ($projectionErrors !== []) {
+        foreach ($projectionErrors as $message) {
+            echo '<div style="margin-top:8px;color:#842029;">' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
+        }
+    }
+    echo '</div>';
+}
 
 // #### TOP SECTION PAGE
 $HD_Form->create_toppage($form_action);

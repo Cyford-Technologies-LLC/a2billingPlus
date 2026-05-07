@@ -214,6 +214,10 @@ its business rules live outside the page script.
       instead of each provider maintaining bespoke local sync logic. Twilio and
       DIDWW now share core trunk projection behavior, and provider inventory
       sync now mirrors missing DIDs into the legacy `cc_did` list.
+- [x] Document the provider projection model explicitly: external provider APIs
+      are the source of truth, `cc_vectavoip_did_inventory` is a cache, and
+      `cc_did` remains the operational DID table used by assignment/routing
+      workflows.
 
 ### Agent And Reseller Module
 

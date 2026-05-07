@@ -40,6 +40,20 @@ final class LegacyDidImportServiceTest extends TestCase
         $this->assertSame('Existing DID', $pdo->query("SELECT description FROM cc_did WHERE did = '+14046090653'")->fetchColumn());
     }
 
+    public function testImportsAllCachedInventoryRowsIntoLegacyDidTable(): void
+    {
+        $pdo = $this->pdo();
+        $pdo->exec('CREATE TABLE cc_did (id INTEGER PRIMARY KEY AUTOINCREMENT, id_cc_didgroup INTEGER NOT NULL DEFAULT 0, id_cc_country INTEGER NOT NULL DEFAULT 0, activated INTEGER NOT NULL DEFAULT 1, reserved INTEGER DEFAULT 0, iduser INTEGER NOT NULL DEFAULT 0, did TEXT NOT NULL UNIQUE, startingdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\', expirationdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\', description TEXT NULL, billingtype INTEGER DEFAULT 0, fixrate REAL NOT NULL DEFAULT 0, max_concurrent INTEGER NOT NULL DEFAULT 10)');
+        $pdo->exec('CREATE TABLE cc_vectavoip_did_inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, did TEXT NOT NULL UNIQUE, country TEXT NOT NULL DEFAULT \'\', region TEXT NOT NULL DEFAULT \'\', monthly_rate TEXT NOT NULL DEFAULT \'0.00000\', provider_code TEXT NOT NULL DEFAULT \'\', provider_trunk_name TEXT NOT NULL DEFAULT \'\', provider_reference TEXT NOT NULL DEFAULT \'\', provider_trunk_reference TEXT NOT NULL DEFAULT \'\', order_reference TEXT NOT NULL DEFAULT \'\')');
+        $pdo->exec("INSERT INTO cc_vectavoip_did_inventory (did, country, monthly_rate, provider_code, provider_trunk_name) VALUES ('+14046090653', 'US', '1.25', 'twilio', 'VectaVoip')");
+
+        $service = new LegacyDidImportService($pdo);
+        $result = $service->importAllCachedInventory();
+
+        $this->assertSame(['imported' => 1, 'skipped' => 0], $result);
+        $this->assertSame('+14046090653', $pdo->query("SELECT did FROM cc_did LIMIT 1")->fetchColumn());
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

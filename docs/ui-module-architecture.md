@@ -88,6 +88,29 @@ Modernized screens should render through module-backed services, use shared UI
 classes from the active theme, hide secrets by default, and remain covered by
 seeded crawl checks before the legacy page is retired.
 
+## Provider Projection Model
+
+Provider-backed telephony data is being standardized around a projection model,
+not a provider-specific runtime model:
+
+- external provider APIs remain the source of truth for provider inventory
+- `cc_vectavoip_did_inventory` is the local cache/projection of provider DID
+  inventory and provider metadata
+- `cc_did` remains the operational core DID table for assignment, routing, and
+  compatibility with legacy/admin workflows
+- provider modules are wrappers over provider API differences and should project
+  normalized trunks/DIDs back into shared core services instead of inventing
+  bespoke local runtime tables per provider
+
+The intended data flow is:
+
+`external provider -> cc_vectavoip_did_inventory -> cc_did`
+
+Core business logic should not treat `cc_vectavoip_did_inventory` as the final
+authoritative runtime table. The inventory table is a refreshable cache. Core
+telephony workflows should execute from `cc_did`, with provider metadata linked
+back to the cache/projection layer where needed.
+
 ## Modular Navigation
 
 Modernized pages should use `A2BillingPlus\Module\Ui\NavigationRegistry` and
