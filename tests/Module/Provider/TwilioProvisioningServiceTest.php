@@ -76,6 +76,24 @@ final class TwilioProvisioningServiceTest extends TestCase
         $this->assertSame('', $pdo->query("SELECT addparameter FROM cc_trunk WHERE id_trunk = 1")->fetchColumn());
         $this->assertSame(2, (int) $pdo->query("SELECT COUNT(*) FROM cc_trunk")->fetchColumn());
         $this->assertSame('twilio_trunk:BYbf0b89b0a20e0aa44f399c29c686ec5e', $pdo->query("SELECT addparameter FROM cc_trunk WHERE id_trunk = 2")->fetchColumn());
+        $this->assertSame('sip.twilio.com', $pdo->query("SELECT providerip FROM cc_trunk WHERE id_trunk = 2")->fetchColumn());
+    }
+
+    public function testMaterializeTrunkUsesFromDomainWhenTwilioProvidesIt(): void
+    {
+        $pdo = $this->pdo();
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
+        $pdo->exec('CREATE TABLE cc_trunk (id_trunk INTEGER PRIMARY KEY AUTOINCREMENT, trunkcode TEXT, trunkprefix TEXT, providertech TEXT, providerip TEXT, removeprefix TEXT, failover_trunk INTEGER, addparameter TEXT, id_provider INTEGER, inuse INTEGER, maxuse INTEGER, status INTEGER, if_max_use INTEGER)');
+
+        $service = new TwilioProvisioningService($pdo);
+        $result = $service->materializeTrunk([
+            'sid' => 'BY11111111111111111111111111111111',
+            'friendly_name' => 'Twilio BYOC',
+            'from_domain' => 'customer.sip.us1.twilio.com',
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('customer.sip.us1.twilio.com', $pdo->query("SELECT providerip FROM cc_trunk WHERE id_trunk = 1")->fetchColumn());
     }
 
     private function pdo(): PDO

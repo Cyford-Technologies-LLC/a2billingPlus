@@ -82,7 +82,6 @@ final class TwilioProvisioningService
     {
         $trunkSid = $this->stringValue($trunk, 'sid');
         $friendlyName = $this->stringValue($trunk, 'friendly_name', 'Twilio Trunk');
-        $domainName = $this->stringValue($trunk, 'domain_name');
         $parameter = $trunkSid !== '' ? 'twilio_trunk:' . $trunkSid : 'twilio_trunk';
         $trunkCode = $this->trunkCodeFor($friendlyName, $trunkSid);
 
@@ -90,7 +89,7 @@ final class TwilioProvisioningService
             'provider_id' => $providerId,
             'trunkcode' => $trunkCode,
             'providertech' => 'SIP',
-            'providerip' => $domainName,
+            'providerip' => $this->trunkHostFor($trunk),
             'addparameter' => $parameter,
             'maxuse' => -1,
             'status' => 1,
@@ -260,6 +259,63 @@ final class TwilioProvisioningService
         $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $value) ?? 'TWILIO');
         $safe = $safe !== '' ? $safe : 'TWILIO';
         return substr($safe, 0, 20);
+    }
+
+    /**
+     * @param array<string, mixed> $trunk
+     */
+    private function trunkHostFor(array $trunk): string
+    {
+        foreach ([
+            'domain_name',
+            'domainName',
+            'from_domain',
+            'fromDomain',
+            'sip_domain',
+            'sipDomain',
+            'termination_uri',
+            'terminationUri',
+            'origination_uri',
+            'originationUri',
+            'uri',
+        ] as $field) {
+            $value = $this->stringValue($trunk, $field);
+            if ($value === '') {
+                continue;
+            }
+
+            $host = $this->hostFromUri($value);
+            if ($host !== '') {
+                return $host;
+            }
+
+            return $value;
+        }
+
+        if (preg_match('/^BY[0-9A-Fa-f]{32}$/', $this->stringValue($trunk, 'sid')) === 1) {
+            return 'sip.twilio.com';
+        }
+
+        return '';
+    }
+
+    private function hostFromUri(string $value): string
+    {
+        $value = trim($value);
+        if ($value === '') {
+            return '';
+        }
+
+        $parsed = parse_url($value);
+        if (is_array($parsed) && is_string($parsed['host'] ?? null) && $parsed['host'] !== '') {
+            return $parsed['host'];
+        }
+
+        if (str_contains($value, ':') && !str_contains($value, '.')) {
+            return '';
+        }
+
+        return preg_replace('#^[A-Za-z]+:#', '', $value) ?? '';
     }
 
     private function ensureSqliteColumn(string $table, string $column, string $definition): void
