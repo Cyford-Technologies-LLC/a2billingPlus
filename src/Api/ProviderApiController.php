@@ -7,6 +7,7 @@ namespace A2BillingPlus\Api;
 use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
+use A2BillingPlus\Module\Provider\Didww\DidwwApiClient;
 use A2BillingPlus\Module\Provider\Didww\DidwwConnector;
 use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
@@ -29,7 +30,8 @@ final class ProviderApiController
         private $registrationClientFactory = null,
         private $pdoFactory = null,
         ?ProviderAccessPolicy $accessPolicy = null,
-        private readonly string $actor = ''
+        private readonly string $actor = '',
+        private $didwwClientFactory = null
     ) {
         $this->accessPolicy = $accessPolicy ?? new ProviderAccessPolicy(AppConfig::fromEnvironment());
     }
@@ -50,6 +52,9 @@ final class ProviderApiController
             'provider_status' => $this->providerStatus($request),
             'register_install' => $this->registerInstall($request),
             'test_connection' => $this->testConnection($request),
+            'didww_inventory_snapshot' => $this->didwwInventorySnapshot($request),
+            'didww_search_available_dids' => $this->didwwSearchAvailableDids($request),
+            'didww_order_did' => $this->didwwOrderDid($request),
             'preview_rates' => $this->previewRates($request),
             'import_preview_rates' => $this->importPreviewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
@@ -258,6 +263,125 @@ final class ProviderApiController
         ], 201);
     }
 
+    private function didwwInventorySnapshot(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+
+        if ($connector->getProviderCode() !== 'didww') {
+            return new JsonResponse(['error' => 'DIDWW inventory actions require the DIDWW provider.'], 422);
+        }
+
+        try {
+            $client = $this->didwwClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $dids = $client->listDids($credentials, ['page[size]' => (string) max(1, min(100, $request->getInt('page_size', 25)))]);
+            $trunks = $client->listInboundTrunks($credentials, ['page[size]' => (string) max(1, min(100, $request->getInt('page_size', 25)))]);
+            $orders = $client->listOrders($credentials, ['page[size]' => (string) max(1, min(50, $request->getInt('orders_page_size', 10)))]);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'dids' => $this->normalizeDidwwDids($dids),
+            'inbound_trunks' => $this->normalizeDidwwInboundTrunks($trunks),
+            'orders' => $this->normalizeDidwwOrders($orders),
+        ]);
+    }
+
+    private function didwwSearchAvailableDids(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+
+        if ($connector->getProviderCode() !== 'didww') {
+            return new JsonResponse(['error' => 'DIDWW number search requires the DIDWW provider.'], 422);
+        }
+
+        $filters = [];
+        foreach ([
+            'filter[number_contains]',
+            'filter[country.id]',
+            'filter[region.id]',
+            'filter[city.id]',
+            'filter[did_group.features]',
+            'filter[did_group.needs_registration]',
+        ] as $key) {
+            $value = $request->getString($key);
+            if ($value !== '') {
+                $filters[$key] = $value;
+            }
+        }
+        $filters['page[size]'] = (string) max(1, min(100, $request->getInt('page_size', 20)));
+
+        try {
+            $client = $this->didwwClient();
+            $results = $client->searchAvailableDids($this->credentialsFromRequest($request), $filters);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'available_dids' => $this->normalizeDidwwAvailableDids($results),
+            'message' => 'DIDWW available DID search completed.',
+        ]);
+    }
+
+    private function didwwOrderDid(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+
+        if ($connector->getProviderCode() !== 'didww') {
+            return new JsonResponse(['error' => 'DIDWW ordering requires the DIDWW provider.'], 422);
+        }
+
+        $availableDidId = $request->getString('available_did_id');
+        $skuId = $request->getString('sku_id');
+        if ($availableDidId === '' || $skuId === '') {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Both available DID ID and SKU ID are required.',
+            ], 422);
+        }
+
+        try {
+            $client = $this->didwwClient();
+            $result = $client->createOrder(
+                $this->credentialsFromRequest($request),
+                $availableDidId,
+                $skuId,
+                $request->getString('callback_url'),
+                $request->getString('allow_back_ordering') === '1'
+            );
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'DIDWW order submitted.',
+            'order' => $this->normalizeDidwwOrder($result['data'] ?? []),
+        ], 201);
+    }
+
     /**
      * @return \A2BillingPlus\Module\Provider\ProviderConnectorInterface|JsonResponse
      */
@@ -343,6 +467,15 @@ final class ProviderApiController
         return new VectaVoIPRegistrationClient($apiBaseUrl);
     }
 
+    private function didwwClient(): DidwwApiClient
+    {
+        if (is_callable($this->didwwClientFactory)) {
+            return ($this->didwwClientFactory)();
+        }
+
+        return new DidwwApiClient();
+    }
+
     private function pdo(): \PDO
     {
         if (is_callable($this->pdoFactory)) {
@@ -389,6 +522,221 @@ final class ProviderApiController
         }
 
         return $mapped;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeDidwwDids(array $payload): array
+    {
+        $included = $this->jsonApiIncludedMap($payload['included'] ?? []);
+        $rows = [];
+        foreach ($payload['data'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $attributes = is_array($item['attributes'] ?? null) ? $item['attributes'] : [];
+            $relationships = is_array($item['relationships'] ?? null) ? $item['relationships'] : [];
+            $didGroup = $this->jsonApiRelationshipResource($relationships, 'did_group', $included);
+            $voiceInTrunk = $this->jsonApiRelationshipResource($relationships, 'voice_in_trunk', $included);
+            $order = $this->jsonApiRelationshipResource($relationships, 'order', $included);
+
+            $rows[] = [
+                'id' => $this->stringValue($item, 'id'),
+                'number' => $this->stringValue($attributes, 'number'),
+                'description' => $this->stringValue($attributes, 'description'),
+                'blocked' => $this->boolString($attributes, 'blocked'),
+                'awaiting_registration' => $this->boolString($attributes, 'awaiting_registration'),
+                'terminated' => $this->boolString($attributes, 'terminated'),
+                'voice_in_trunk' => $this->stringValue($voiceInTrunk['attributes'] ?? [], 'name', $this->stringValue($voiceInTrunk, 'id')),
+                'did_group' => $this->stringValue($didGroup['attributes'] ?? [], 'name', $this->stringValue($didGroup, 'id')),
+                'order_reference' => $this->stringValue($order['attributes'] ?? [], 'reference', $this->stringValue($order, 'id')),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeDidwwInboundTrunks(array $payload): array
+    {
+        $rows = [];
+        foreach ($payload['data'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $attributes = is_array($item['attributes'] ?? null) ? $item['attributes'] : [];
+            $configuration = is_array($attributes['configuration'] ?? null) ? $attributes['configuration'] : [];
+            $configurationAttributes = is_array($configuration['attributes'] ?? null) ? $configuration['attributes'] : [];
+            $rows[] = [
+                'id' => $this->stringValue($item, 'id'),
+                'name' => $this->stringValue($attributes, 'name'),
+                'priority' => $this->stringValue($attributes, 'priority'),
+                'weight' => $this->stringValue($attributes, 'weight'),
+                'capacity_limit' => $this->stringValue($attributes, 'capacity_limit'),
+                'configuration_type' => $this->stringValue($configuration, 'type'),
+                'host' => $this->stringValue($configurationAttributes, 'host'),
+                'username' => $this->stringValue($configurationAttributes, 'username'),
+                'dst' => $this->stringValue($configurationAttributes, 'dst'),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeDidwwOrders(array $payload): array
+    {
+        $rows = [];
+        foreach ($payload['data'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $rows[] = $this->normalizeDidwwOrder($item);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, string>
+     */
+    private function normalizeDidwwOrder(array $item): array
+    {
+        $attributes = is_array($item['attributes'] ?? null) ? $item['attributes'] : [];
+        $items = is_array($attributes['items'] ?? null) ? $attributes['items'] : [];
+
+        return [
+            'id' => $this->stringValue($item, 'id'),
+            'reference' => $this->stringValue($attributes, 'reference'),
+            'status' => $this->stringValue($attributes, 'status'),
+            'created_at' => $this->stringValue($attributes, 'created_at'),
+            'items_count' => (string) count($items),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeDidwwAvailableDids(array $payload): array
+    {
+        $included = $this->jsonApiIncludedMap($payload['included'] ?? []);
+        $rows = [];
+        foreach ($payload['data'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+
+            $attributes = is_array($item['attributes'] ?? null) ? $item['attributes'] : [];
+            $relationships = is_array($item['relationships'] ?? null) ? $item['relationships'] : [];
+            $didGroup = $this->jsonApiRelationshipResource($relationships, 'did_group', $included);
+            $skuOptions = [];
+            $skuRelationship = $didGroup['relationships']['stock_keeping_units']['data'] ?? [];
+            if (is_array($skuRelationship)) {
+                foreach ($skuRelationship as $skuReference) {
+                    if (!is_array($skuReference)) {
+                        continue;
+                    }
+                    $sku = $included[$this->jsonApiKey($this->stringValue($skuReference, 'type'), $this->stringValue($skuReference, 'id'))] ?? null;
+                    if (!is_array($sku)) {
+                        continue;
+                    }
+                    $skuAttributes = is_array($sku['attributes'] ?? null) ? $sku['attributes'] : [];
+                    $price = $this->stringValue($skuAttributes, 'monthly_price');
+                    $setup = $this->stringValue($skuAttributes, 'setup_price');
+                    $currency = $this->stringValue($skuAttributes, 'currency');
+                    $label = $this->stringValue($skuAttributes, 'name', $this->stringValue($sku, 'id'));
+                    $summary = trim($price . ($currency !== '' ? ' ' . $currency : ''));
+                    if ($setup !== '') {
+                        $summary .= ($summary !== '' ? ' / ' : '') . 'setup ' . $setup . ($currency !== '' ? ' ' . $currency : '');
+                    }
+                    if ($summary !== '') {
+                        $label .= ' (' . $summary . ')';
+                    }
+                    $skuOptions[] = [
+                        'id' => $this->stringValue($sku, 'id'),
+                        'label' => $label,
+                    ];
+                }
+            }
+
+            $rows[] = [
+                'id' => $this->stringValue($item, 'id'),
+                'number' => $this->stringValue($attributes, 'number'),
+                'did_group' => $this->stringValue($didGroup['attributes'] ?? [], 'name', $this->stringValue($didGroup, 'id')),
+                'did_group_id' => $this->stringValue($didGroup, 'id'),
+                'sku_options' => $skuOptions,
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param mixed $included
+     * @return array<string, array<string, mixed>>
+     */
+    private function jsonApiIncludedMap(mixed $included): array
+    {
+        if (!is_array($included)) {
+            return [];
+        }
+
+        $map = [];
+        foreach ($included as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $map[$this->jsonApiKey($this->stringValue($item, 'type'), $this->stringValue($item, 'id'))] = $item;
+        }
+
+        return $map;
+    }
+
+    /**
+     * @param array<string, mixed> $relationships
+     * @param array<string, array<string, mixed>> $included
+     * @return array<string, mixed>
+     */
+    private function jsonApiRelationshipResource(array $relationships, string $name, array $included): array
+    {
+        $relationship = $relationships[$name]['data'] ?? null;
+        if (!is_array($relationship)) {
+            return [];
+        }
+
+        return $included[$this->jsonApiKey($this->stringValue($relationship, 'type'), $this->stringValue($relationship, 'id'))] ?? $relationship;
+    }
+
+    private function jsonApiKey(string $type, string $id): string
+    {
+        return $type . ':' . $id;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function stringValue(array $values, string $key, string $default = ''): string
+    {
+        $value = $values[$key] ?? $default;
+        return is_scalar($value) ? (string) $value : $default;
+    }
+
+    /**
+     * @param array<string, mixed> $values
+     */
+    private function boolString(array $values, string $key): string
+    {
+        return !empty($values[$key]) ? 'Yes' : 'No';
     }
 
     /**

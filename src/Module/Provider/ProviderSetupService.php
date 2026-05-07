@@ -81,6 +81,67 @@ final class ProviderSetupService
      * @param array<string, string> $input
      * @return array<string, mixed>
      */
+    public function didwwInventorySnapshot(array $input): array
+    {
+        return $this->post([
+            'action' => 'didww_inventory_snapshot',
+            'provider' => 'didww',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+            'page_size' => $input['didww_page_size'] ?? '25',
+            'orders_page_size' => $input['didww_orders_page_size'] ?? '10',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function didwwSearchAvailableDids(array $input): array
+    {
+        return $this->post([
+            'action' => 'didww_search_available_dids',
+            'provider' => 'didww',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+            'page_size' => $input['didww_search_page_size'] ?? '20',
+            'filter[number_contains]' => $input['didww_number_contains'] ?? '',
+            'filter[country.id]' => $input['didww_country_id'] ?? '',
+            'filter[region.id]' => $input['didww_region_id'] ?? '',
+            'filter[city.id]' => $input['didww_city_id'] ?? '',
+            'filter[did_group.features]' => $input['didww_features'] ?? '',
+            'filter[did_group.needs_registration]' => $input['didww_needs_registration'] ?? '',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function didwwOrderDid(array $input): array
+    {
+        return $this->post([
+            'action' => 'didww_order_did',
+            'provider' => 'didww',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+            'available_did_id' => $input['didww_available_did_id'] ?? '',
+            'sku_id' => $input['didww_sku_id'] ?? '',
+            'callback_url' => $input['didww_order_callback_url'] ?? '',
+            'allow_back_ordering' => $input['didww_allow_back_ordering'] ?? '',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
     public function previewRates(array $input): array
     {
         return $this->post($this->providerRateRequestBody('preview_rates', $input));

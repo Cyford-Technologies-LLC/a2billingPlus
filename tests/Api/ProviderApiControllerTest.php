@@ -6,6 +6,7 @@ use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\JsonRequest;
+use A2BillingPlus\Module\Provider\Didww\DidwwApiClient;
 use A2BillingPlus\Module\Provider\ProviderConnectionResult;
 use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderConnectorInterface;
@@ -231,6 +232,213 @@ final class ProviderApiControllerTest extends TestCase
         } finally {
             putenv('A2BP_LOCKED_PROVIDERS');
         }
+    }
+
+    public function testDidwwInventorySnapshotNormalizesInventoryData(): void
+    {
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            null,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url): array {
+                if ($method === 'GET' && str_contains($url, '/v3/dids')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'data' => [[
+                                'id' => 'did-1',
+                                'type' => 'dids',
+                                'attributes' => [
+                                    'number' => '12125550100',
+                                    'blocked' => false,
+                                    'awaiting_registration' => false,
+                                    'terminated' => false,
+                                ],
+                                'relationships' => [
+                                    'voice_in_trunk' => ['data' => ['type' => 'voice_in_trunks', 'id' => 'trunk-1']],
+                                    'did_group' => ['data' => ['type' => 'did_groups', 'id' => 'group-1']],
+                                    'order' => ['data' => ['type' => 'orders', 'id' => 'order-1']],
+                                ],
+                            ]],
+                            'included' => [
+                                ['id' => 'trunk-1', 'type' => 'voice_in_trunks', 'attributes' => ['name' => 'Main trunk']],
+                                ['id' => 'group-1', 'type' => 'did_groups', 'attributes' => ['name' => 'US Local']],
+                                ['id' => 'order-1', 'type' => 'orders', 'attributes' => ['reference' => 'ORD-1']],
+                            ],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                if ($method === 'GET' && str_contains($url, '/v3/voice_in_trunks')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'data' => [[
+                                'id' => 'trunk-1',
+                                'type' => 'voice_in_trunks',
+                                'attributes' => [
+                                    'name' => 'Main trunk',
+                                    'priority' => 1,
+                                    'weight' => 1,
+                                    'capacity_limit' => 10,
+                                    'configuration' => [
+                                        'type' => 'sip_configurations',
+                                        'attributes' => [
+                                            'host' => 'pbx.example.test',
+                                            'username' => '{DID}',
+                                        ],
+                                    ],
+                                ],
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'data' => [[
+                            'id' => 'order-1',
+                            'type' => 'orders',
+                            'attributes' => [
+                                'reference' => 'ORD-1',
+                                'status' => 'completed',
+                                'created_at' => '2026-05-06T00:00:00Z',
+                                'items' => [['type' => 'did_order_items']],
+                            ],
+                        ]],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'didww_inventory_snapshot',
+            'provider' => 'didww',
+            'base_url' => 'https://api.didww.com',
+            'api_key' => 'didww-key',
+            'api_version' => '2026-04-16',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('12125550100', $response->getPayload()['dids'][0]['number']);
+        $this->assertSame('Main trunk', $response->getPayload()['dids'][0]['voice_in_trunk']);
+        $this->assertSame('pbx.example.test', $response->getPayload()['inbound_trunks'][0]['host']);
+        $this->assertSame('completed', $response->getPayload()['orders'][0]['status']);
+    }
+
+    public function testDidwwAvailableDidSearchReturnsSkuOptions(): void
+    {
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            null,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            fn (): DidwwApiClient => new DidwwApiClient(function (): array {
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'data' => [[
+                            'id' => 'available-1',
+                            'type' => 'available_dids',
+                            'attributes' => ['number' => '12125550101'],
+                            'relationships' => [
+                                'did_group' => ['data' => ['type' => 'did_groups', 'id' => 'group-1']],
+                            ],
+                        ]],
+                        'included' => [
+                            [
+                                'id' => 'group-1',
+                                'type' => 'did_groups',
+                                'attributes' => ['name' => 'US Local'],
+                                'relationships' => [
+                                    'stock_keeping_units' => [
+                                        'data' => [['type' => 'stock_keeping_units', 'id' => 'sku-1']],
+                                    ],
+                                ],
+                            ],
+                            [
+                                'id' => 'sku-1',
+                                'type' => 'stock_keeping_units',
+                                'attributes' => [
+                                    'name' => 'Monthly',
+                                    'monthly_price' => '1.25',
+                                    'setup_price' => '0.50',
+                                    'currency' => 'USD',
+                                ],
+                            ],
+                        ],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'didww_search_available_dids',
+            'provider' => 'didww',
+            'base_url' => 'https://api.didww.com',
+            'api_key' => 'didww-key',
+            'api_version' => '2026-04-16',
+            'filter[country.id]' => 'US',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('12125550101', $response->getPayload()['available_dids'][0]['number']);
+        $this->assertSame('sku-1', $response->getPayload()['available_dids'][0]['sku_options'][0]['id']);
+    }
+
+    public function testDidwwOrderDidReturnsCreatedOrder(): void
+    {
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            null,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
+                $this->assertSame('POST', $method);
+                $this->assertSame('https://api.didww.com/v3/orders', $url);
+                $this->assertSame('didww-key', $credentials->getApiKey());
+                $this->assertSame('available-1', $payload['data']['attributes']['items'][0]['attributes']['available_did_id'] ?? null);
+                $this->assertSame('sku-1', $payload['data']['attributes']['items'][0]['attributes']['sku_id'] ?? null);
+
+                return [
+                    'status' => 201,
+                    'body' => json_encode([
+                        'data' => [
+                            'id' => 'order-1',
+                            'type' => 'orders',
+                            'attributes' => [
+                                'reference' => 'ORD-1',
+                                'status' => 'pending',
+                                'created_at' => '2026-05-06T00:00:00Z',
+                                'items' => [['type' => 'did_order_items']],
+                            ],
+                        ],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'didww_order_did',
+            'provider' => 'didww',
+            'base_url' => 'https://api.didww.com',
+            'api_key' => 'didww-key',
+            'api_version' => '2026-04-16',
+            'available_did_id' => 'available-1',
+            'sku_id' => 'sku-1',
+        ]));
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('order-1', $response->getPayload()['order']['id']);
+        $this->assertSame('pending', $response->getPayload()['order']['status']);
     }
 
     private function previewProviderRegistry(): ProviderRegistry

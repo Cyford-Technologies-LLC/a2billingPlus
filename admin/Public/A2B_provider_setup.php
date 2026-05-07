@@ -40,6 +40,9 @@ $registration = [];
 $ratePreview = [];
 $rateImport = [];
 $provisioningResult = [];
+$didwwSnapshot = [];
+$didwwSearch = [];
+$didwwOrder = [];
 
 $providerSetup = providerSetupService($actor);
 $providers = $providerSetup->providers();
@@ -113,6 +116,38 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = 'API key is required.';
         } else {
             saveProviderCredentials($envPath, $provider, $input, $messages, $errors);
+        }
+    }
+
+    if ($provider === 'didww' && !$errors && $formAction === 'didww_refresh_inventory') {
+        $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
+        if (($didwwSnapshot['success'] ?? false) !== true) {
+            $errors[] = (string)($didwwSnapshot['message'] ?? 'DIDWW inventory refresh failed.');
+        } else {
+            $messages[] = 'DIDWW inventory refreshed.';
+        }
+    }
+
+    if ($provider === 'didww' && !$errors && $formAction === 'didww_search_available_dids') {
+        $didwwSearch = $providerSetup->didwwSearchAvailableDids($input);
+        if (($didwwSearch['success'] ?? false) !== true) {
+            $errors[] = (string)($didwwSearch['message'] ?? 'DIDWW DID search failed.');
+        } else {
+            $messages[] = (string)($didwwSearch['message'] ?? 'DIDWW available DID search completed.');
+        }
+    }
+
+    if ($provider === 'didww' && !$errors && $formAction === 'didww_order_did') {
+        if ($input['didww_available_did_id'] === '' || $input['didww_sku_id'] === '') {
+            $errors[] = 'Choose a DIDWW number and SKU before ordering.';
+        } else {
+            $didwwOrder = $providerSetup->didwwOrderDid($input);
+            if (($didwwOrder['success'] ?? false) !== true) {
+                $errors[] = (string)($didwwOrder['message'] ?? 'DIDWW order failed.');
+            } else {
+                $messages[] = (string)($didwwOrder['message'] ?? 'DIDWW order submitted.');
+                $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
+            }
         }
     }
 
@@ -222,6 +257,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 
 $status = $providerSetup->providerStatus($provider);
+$didwwConfigured = $provider === 'didww' && !empty($status['registered']);
+if ($didwwConfigured && $didwwSnapshot === []) {
+    $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
+    if (($didwwSnapshot['success'] ?? false) !== true) {
+        if (($didwwSnapshot['message'] ?? '') !== '') {
+            $errors[] = (string)$didwwSnapshot['message'];
+        }
+        $didwwSnapshot = [];
+    }
+}
 $ratecards = $provider === 'vectavoip' ? $providerSetup->ratecards() : [];
 $recentImports = $provider === 'vectavoip' ? $providerSetup->recentImports() : [];
 $providerName = providerName($providers, $provider);
@@ -300,6 +345,19 @@ function providerDefaults(string $provider): array
         'rate_deck' => 'retail',
         'currency' => 'USD',
         'destination_filter' => '',
+        'didww_page_size' => '25',
+        'didww_orders_page_size' => '10',
+        'didww_search_page_size' => '20',
+        'didww_number_contains' => '',
+        'didww_country_id' => '',
+        'didww_region_id' => '',
+        'didww_city_id' => '',
+        'didww_features' => 'voice_in',
+        'didww_needs_registration' => '',
+        'didww_available_did_id' => '',
+        'didww_sku_id' => '',
+        'didww_order_callback_url' => '',
+        'didww_allow_back_ordering' => '',
         'update_existing' => '',
         'save_credentials' => '1',
     ];
@@ -677,6 +735,16 @@ function selectedPackageOption(array $packageOptions, string $selectedPackage): 
     return [];
 }
 
+/**
+ * @param array<string, string> $input
+ */
+function renderProviderCredentialFields(array $input): void
+{
+    foreach (['provider', 'base_url', 'api_key', 'api_secret', 'api_version'] as $key) {
+        echo '<input type="hidden" name="' . h($key) . '" value="' . h((string)($input[$key] ?? '')) . '">';
+    }
+}
+
 ?>
 <table width="95%" class="provider_setup_page">
     <tr>
@@ -1027,15 +1095,261 @@ function selectedPackageOption(array $packageOptions, string $selectedPackage): 
             <br>
             <table width="100%" cellspacing="0" cellpadding="8">
                 <tr>
-                    <td class="form_head">DIDWW Integration Notes</td>
+                    <td class="form_head" colspan="2">DIDWW Operations</td>
                 </tr>
                 <tr>
-                    <td>
-                        DIDWW support is configured through API-key authentication and is locked to company admins and licensed users when `A2BP_LOCKED_PROVIDERS=didww`.
-                        This provider integration currently covers credential validation and controlled access first. DID inventory and provisioning flows can be layered onto the telephony workspace after the provider lock is in place.
-                    </td>
+                    <td width="220"><strong>Access Model</strong></td>
+                    <td>Locked to company admins and licensed users when `A2BP_LOCKED_PROVIDERS=didww`.</td>
+                </tr>
+                <tr>
+                    <td><strong>Account State</strong></td>
+                    <td><?php echo $didwwConfigured ? 'Configured and ready for DIDWW API operations.' : 'Save valid DIDWW credentials first.'; ?></td>
+                </tr>
+                <tr>
+                    <td><strong>Available DID Search</strong></td>
+                    <td>The official `/v3/available_dids` endpoint is disabled by default on DIDWW accounts. If search fails, ask DIDWW support or sales to enable it.</td>
                 </tr>
             </table>
+
+            <?php if ($didwwConfigured): ?>
+            <br>
+            <form method="post">
+                <?php renderProviderCredentialFields($input); ?>
+                <input type="hidden" name="didww_page_size" value="<?php echo h($input['didww_page_size']); ?>">
+                <input type="hidden" name="didww_orders_page_size" value="<?php echo h($input['didww_orders_page_size']); ?>">
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td class="form_head" colspan="2">DIDWW Inventory Snapshot</td>
+                    </tr>
+                    <tr>
+                        <td width="220">Owned DIDs</td>
+                        <td><?php echo h((string)count((array)($didwwSnapshot['dids'] ?? []))); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Inbound Trunks</td>
+                        <td><?php echo h((string)count((array)($didwwSnapshot['inbound_trunks'] ?? []))); ?></td>
+                    </tr>
+                    <tr>
+                        <td>Recent Orders</td>
+                        <td><?php echo h((string)count((array)($didwwSnapshot['orders'] ?? []))); ?></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button class="form_input_button" name="form_action" type="submit" value="didww_refresh_inventory">Refresh DIDWW Data</button></td>
+                    </tr>
+                </table>
+            </form>
+
+            <?php if (!empty($didwwSnapshot['dids'])): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                <tr>
+                    <td class="form_head" colspan="6">DIDWW Owned DIDs</td>
+                </tr>
+                <tr style="font-weight:bold;">
+                    <td>Number</td>
+                    <td>DID Group</td>
+                    <td>Inbound Trunk</td>
+                    <td>Blocked</td>
+                    <td>Awaiting Registration</td>
+                    <td>Order</td>
+                </tr>
+                <?php foreach (($didwwSnapshot['dids'] ?? []) as $didwwDid): ?>
+                    <?php if (is_array($didwwDid)): ?>
+                            <tr>
+                                <td><?php echo h((string)($didwwDid['number'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwDid['did_group'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwDid['voice_in_trunk'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwDid['blocked'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwDid['awaiting_registration'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwDid['order_reference'] ?? '')); ?></td>
+                            </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </table>
+            <?php endif; ?>
+
+            <?php if (!empty($didwwSnapshot['inbound_trunks'])): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                <tr>
+                    <td class="form_head" colspan="6">DIDWW Inbound Trunks</td>
+                </tr>
+                <tr style="font-weight:bold;">
+                    <td>Name</td>
+                    <td>Type</td>
+                    <td>Host</td>
+                    <td>Username</td>
+                    <td>Capacity</td>
+                    <td>Priority / Weight</td>
+                </tr>
+                <?php foreach (($didwwSnapshot['inbound_trunks'] ?? []) as $didwwTrunk): ?>
+                    <?php if (is_array($didwwTrunk)): ?>
+                            <tr>
+                                <td><?php echo h((string)($didwwTrunk['name'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwTrunk['configuration_type'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwTrunk['host'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwTrunk['username'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwTrunk['capacity_limit'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwTrunk['priority'] ?? '')); ?> / <?php echo h((string)($didwwTrunk['weight'] ?? '')); ?></td>
+                            </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </table>
+            <?php endif; ?>
+
+            <?php if (!empty($didwwSnapshot['orders'])): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                <tr>
+                    <td class="form_head" colspan="5">DIDWW Recent Orders</td>
+                </tr>
+                <tr style="font-weight:bold;">
+                    <td>Reference</td>
+                    <td>Status</td>
+                    <td>Created</td>
+                    <td>Items</td>
+                    <td>Order ID</td>
+                </tr>
+                <?php foreach (($didwwSnapshot['orders'] ?? []) as $didwwOrderRow): ?>
+                    <?php if (is_array($didwwOrderRow)): ?>
+                            <tr>
+                                <td><?php echo h((string)($didwwOrderRow['reference'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwOrderRow['status'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwOrderRow['created_at'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwOrderRow['items_count'] ?? '')); ?></td>
+                                <td><?php echo h((string)($didwwOrderRow['id'] ?? '')); ?></td>
+                            </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </table>
+            <?php endif; ?>
+
+            <br>
+            <form method="post">
+                <?php renderProviderCredentialFields($input); ?>
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td class="form_head" colspan="2">Search DIDWW Available DIDs</td>
+                    </tr>
+                    <tr>
+                        <td width="220"><label for="didww_number_contains">Number Contains</label></td>
+                        <td><input id="didww_number_contains" name="didww_number_contains" type="text" size="24" value="<?php echo h($input['didww_number_contains']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_country_id">Country ID</label></td>
+                        <td><input id="didww_country_id" name="didww_country_id" type="text" size="24" value="<?php echo h($input['didww_country_id']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_region_id">Region ID</label></td>
+                        <td><input id="didww_region_id" name="didww_region_id" type="text" size="24" value="<?php echo h($input['didww_region_id']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_city_id">City ID</label></td>
+                        <td><input id="didww_city_id" name="didww_city_id" type="text" size="24" value="<?php echo h($input['didww_city_id']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_features">Features</label></td>
+                        <td><input id="didww_features" name="didww_features" type="text" size="32" value="<?php echo h($input['didww_features']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_needs_registration">Needs Registration</label></td>
+                        <td>
+                            <select id="didww_needs_registration" name="didww_needs_registration">
+                                <option value="" <?php echo $input['didww_needs_registration'] === '' ? 'selected' : ''; ?>>Any</option>
+                                <option value="true" <?php echo $input['didww_needs_registration'] === 'true' ? 'selected' : ''; ?>>Yes</option>
+                                <option value="false" <?php echo $input['didww_needs_registration'] === 'false' ? 'selected' : ''; ?>>No</option>
+                            </select>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_search_page_size">Result Limit</label></td>
+                        <td><input id="didww_search_page_size" name="didww_search_page_size" type="number" min="1" max="100" step="1" size="8" value="<?php echo h($input['didww_search_page_size']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_order_callback_url">Order Callback URL</label></td>
+                        <td><input id="didww_order_callback_url" name="didww_order_callback_url" type="text" size="70" value="<?php echo h($input['didww_order_callback_url']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><label><input name="didww_allow_back_ordering" type="checkbox" value="1" <?php echo $input['didww_allow_back_ordering'] === '1' ? 'checked' : ''; ?>> Allow back ordering</label></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button class="form_input_button" name="form_action" type="submit" value="didww_search_available_dids">Search Available DIDs</button></td>
+                    </tr>
+                </table>
+            </form>
+
+            <?php if ($didwwOrder): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8">
+                <tr>
+                    <td class="form_head" colspan="2">DIDWW Order Result</td>
+                </tr>
+                <tr>
+                    <td width="220">Order ID</td>
+                    <td><?php echo h((string)($didwwOrder['order']['id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Status</td>
+                    <td><?php echo h((string)($didwwOrder['order']['status'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Reference</td>
+                    <td><?php echo h((string)($didwwOrder['order']['reference'] ?? '')); ?></td>
+                </tr>
+            </table>
+            <?php endif; ?>
+
+            <?php if (!empty($didwwSearch['available_dids'])): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                <tr>
+                    <td class="form_head" colspan="5">DIDWW Available DID Results</td>
+                </tr>
+                <tr style="font-weight:bold;">
+                    <td>Number</td>
+                    <td>DID Group</td>
+                    <td>SKU</td>
+                    <td>DID ID</td>
+                    <td>Action</td>
+                </tr>
+                <?php foreach (($didwwSearch['available_dids'] ?? []) as $availableDidRow): ?>
+                    <?php if (is_array($availableDidRow)): ?>
+                            <tr>
+                                <td><?php echo h((string)($availableDidRow['number'] ?? '')); ?></td>
+                                <td><?php echo h((string)($availableDidRow['did_group'] ?? '')); ?></td>
+                                <td>
+                                    <?php $skuOptions = is_array($availableDidRow['sku_options'] ?? null) ? $availableDidRow['sku_options'] : []; ?>
+                                    <?php echo $skuOptions ? h((string)($skuOptions[0]['label'] ?? $skuOptions[0]['id'] ?? '')) : 'No SKU returned'; ?>
+                                </td>
+                                <td><?php echo h((string)($availableDidRow['id'] ?? '')); ?></td>
+                                <td>
+                                    <?php if ($skuOptions): ?>
+                                    <form method="post" style="margin:0;">
+                                        <?php renderProviderCredentialFields($input); ?>
+                                        <input type="hidden" name="didww_number_contains" value="<?php echo h($input['didww_number_contains']); ?>">
+                                        <input type="hidden" name="didww_country_id" value="<?php echo h($input['didww_country_id']); ?>">
+                                        <input type="hidden" name="didww_region_id" value="<?php echo h($input['didww_region_id']); ?>">
+                                        <input type="hidden" name="didww_city_id" value="<?php echo h($input['didww_city_id']); ?>">
+                                        <input type="hidden" name="didww_features" value="<?php echo h($input['didww_features']); ?>">
+                                        <input type="hidden" name="didww_needs_registration" value="<?php echo h($input['didww_needs_registration']); ?>">
+                                        <input type="hidden" name="didww_search_page_size" value="<?php echo h($input['didww_search_page_size']); ?>">
+                                        <input type="hidden" name="didww_order_callback_url" value="<?php echo h($input['didww_order_callback_url']); ?>">
+                                        <input type="hidden" name="didww_allow_back_ordering" value="<?php echo h($input['didww_allow_back_ordering']); ?>">
+                                        <input type="hidden" name="didww_available_did_id" value="<?php echo h((string)($availableDidRow['id'] ?? '')); ?>">
+                                        <input type="hidden" name="didww_sku_id" value="<?php echo h((string)($skuOptions[0]['id'] ?? '')); ?>">
+                                        <button class="form_input_button" name="form_action" type="submit" value="didww_order_did">Order DID</button>
+                                    </form>
+                                    <?php endif; ?>
+                                </td>
+                            </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </table>
+            <?php endif; ?>
+            <?php endif; ?>
             <?php endif; ?>
 
             <?php if ($ratePreview): ?>
