@@ -52,6 +52,8 @@ final class LegacyDidImportServiceTest extends TestCase
 
         $this->assertSame(['imported' => 1, 'skipped' => 0], $result);
         $this->assertSame('+14046090653', $pdo->query("SELECT did FROM cc_did LIMIT 1")->fetchColumn());
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM pragma_table_info('cc_did') WHERE name = 'selling_rate'")->fetchColumn());
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM pragma_table_info('cc_did') WHERE name = 'connection_charge'")->fetchColumn());
     }
 
     private function pdo(): PDO

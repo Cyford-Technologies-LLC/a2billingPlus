@@ -20,6 +20,8 @@ final class LegacyDidImportService
             return ['imported' => 0, 'skipped' => count($inventoryRows)];
         }
 
+        $this->ensureLegacyDidSchema();
+
         $columns = $this->availableColumns('cc_did', [
             'id_cc_didgroup',
             'id_cc_country',
@@ -88,6 +90,10 @@ final class LegacyDidImportService
     {
         if (!$this->tableExists('cc_vectavoip_did_inventory')) {
             return ['imported' => 0, 'skipped' => 0];
+        }
+
+        if ($this->tableExists('cc_did')) {
+            $this->ensureLegacyDidSchema();
         }
 
         $statement = $this->pdo->query(
@@ -221,6 +227,47 @@ final class LegacyDidImportService
     private function columnExists(string $table, string $column): bool
     {
         return in_array($column, $this->availableColumns($table, [$column]), true);
+    }
+
+    private function ensureLegacyDidSchema(): void
+    {
+        $driver = (string) $this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME);
+        if ($driver === 'sqlite') {
+            $this->ensureSqliteColumn('cc_did', 'connection_charge', "REAL NOT NULL DEFAULT 0");
+            $this->ensureSqliteColumn('cc_did', 'selling_rate', "REAL NOT NULL DEFAULT 0");
+            return;
+        }
+
+        $this->ensureMysqlColumn('cc_did', 'connection_charge', "FLOAT NOT NULL DEFAULT 0");
+        $this->ensureMysqlColumn('cc_did', 'selling_rate', "FLOAT NOT NULL DEFAULT 0");
+    }
+
+    private function ensureSqliteColumn(string $table, string $column, string $definition): void
+    {
+        if ($this->columnExists($table, $column)) {
+            return;
+        }
+
+        $this->pdo->exec(sprintf(
+            'ALTER TABLE %s ADD COLUMN %s %s',
+            $this->quoteIdentifier($table),
+            $this->quoteIdentifier($column),
+            $definition
+        ));
+    }
+
+    private function ensureMysqlColumn(string $table, string $column, string $definition): void
+    {
+        if ($this->columnExists($table, $column)) {
+            return;
+        }
+
+        $this->pdo->exec(sprintf(
+            'ALTER TABLE %s ADD COLUMN %s %s',
+            $this->quoteIdentifier($table),
+            $this->quoteIdentifier($column),
+            $definition
+        ));
     }
 
     private function quoteIdentifier(string $identifier): string
