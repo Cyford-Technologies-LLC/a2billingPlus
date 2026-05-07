@@ -196,9 +196,9 @@ its business rules live outside the page script.
       granted and revoked without editing environment variables by hand.
 - [ ] Finish DIDWW operational support beyond credential validation. Owned DID,
       inbound trunk, order, available-DID search, DID ordering, inbound trunk
-      creation, and local inventory synchronization are now in the provider UI;
-      remaining work is trunk-group/deeper provisioning, post-order fulfillment
-      automation, and broader telephony workspace surfacing.
+      creation, local inventory synchronization, and completed-order auto-sync
+      are now in the provider UI; remaining work is trunk-group/deeper
+      provisioning and broader telephony workspace surfacing.
 
 ### Agent And Reseller Module
 

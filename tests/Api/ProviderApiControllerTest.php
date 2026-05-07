@@ -485,6 +485,100 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
     }
 
+    public function testDidwwSyncCompletedOrdersPullsCompletedOrderDidsIntoLocalInventory(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            fn (): PDO => $pdo,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url): array {
+                if ($method === 'GET' && str_contains($url, '/v3/orders?')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'data' => [[
+                                'id' => 'order-1',
+                                'type' => 'orders',
+                                'attributes' => [
+                                    'reference' => 'ORD-1',
+                                    'status' => 'pending',
+                                    'created_at' => '2026-05-06T00:00:00Z',
+                                    'items' => [['type' => 'did_order_items']],
+                                ],
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                if ($method === 'GET' && str_contains($url, '/v3/orders/order-1')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'data' => [
+                                'id' => 'order-1',
+                                'type' => 'orders',
+                                'attributes' => [
+                                    'reference' => 'ORD-1',
+                                    'status' => 'completed',
+                                    'created_at' => '2026-05-06T00:00:00Z',
+                                    'items' => [['type' => 'did_order_items']],
+                                ],
+                            ],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                if ($method === 'GET' && str_contains($url, 'filter%5Border.id%5D=order-1')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'data' => [[
+                                'id' => 'did-1',
+                                'type' => 'dids',
+                                'attributes' => [
+                                    'number' => '+12125550199',
+                                    'blocked' => false,
+                                    'awaiting_registration' => false,
+                                    'terminated' => false,
+                                ],
+                                'relationships' => [
+                                    'order' => ['data' => ['type' => 'orders', 'id' => 'order-1']],
+                                ],
+                            ]],
+                            'included' => [[
+                                'id' => 'order-1',
+                                'type' => 'orders',
+                                'attributes' => ['reference' => 'ORD-1'],
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                throw new RuntimeException('Unexpected DIDWW request: ' . $method . ' ' . $url);
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'didww_sync_completed_orders',
+            'provider' => 'didww',
+            'base_url' => 'https://api.didww.com',
+            'api_key' => 'didww-key',
+            'api_version' => '2026-04-16',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame(1, $response->getPayload()['checked_orders']);
+        $this->assertSame(1, $response->getPayload()['completed_orders']);
+        $this->assertSame(1, $response->getPayload()['upserted']);
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550199'")->fetchColumn());
+    }
+
     public function testDidwwCreateInboundTrunkProvisionReturnsRemoteAndLocalIds(): void
     {
         $pdo = new PDO('sqlite::memory:');

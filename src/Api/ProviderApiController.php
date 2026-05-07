@@ -58,6 +58,7 @@ final class ProviderApiController
             'didww_order_did' => $this->didwwOrderDid($request),
             'didww_create_inbound_trunk' => $this->didwwCreateInboundTrunk($request),
             'didww_sync_inventory' => $this->didwwSyncInventory($request),
+            'didww_sync_completed_orders' => $this->didwwSyncCompletedOrders($request),
             'preview_rates' => $this->previewRates($request),
             'import_preview_rates' => $this->importPreviewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
@@ -481,6 +482,76 @@ final class ProviderApiController
         return new JsonResponse($result);
     }
 
+    private function didwwSyncCompletedOrders(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'didww') {
+            return new JsonResponse(['error' => 'DIDWW completed-order sync requires the DIDWW provider.'], 422);
+        }
+
+        try {
+            $client = $this->didwwClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $provisioning = new DidwwProvisioningService($this->pdo());
+            $ordersPayload = $client->listOrders($credentials, [
+                'page[size]' => (string) max(1, min(100, $request->getInt('orders_page_size', 25))),
+            ]);
+            $orders = $this->normalizeDidwwOrders($ordersPayload);
+            $checked = 0;
+            $completed = 0;
+            $upserted = 0;
+            $syncedOrders = [];
+
+            foreach ($orders as $order) {
+                $orderId = $this->stringValue($order, 'id');
+                if ($orderId === '') {
+                    continue;
+                }
+                $checked++;
+
+                $detail = $client->getOrder($credentials, $orderId);
+                $detailOrder = $this->normalizeDidwwOrder(is_array($detail['data'] ?? null) ? $detail['data'] : []);
+                if ($this->stringValue($detailOrder, 'status') !== 'completed') {
+                    continue;
+                }
+
+                $completed++;
+                $dids = $client->listDids($credentials, [
+                    'filter[order.id]' => $orderId,
+                    'page[size]' => (string) max(1, min(100, $request->getInt('page_size', 100))),
+                ]);
+                $normalizedDids = $this->normalizeDidwwDids($dids);
+                $sync = $provisioning->syncOwnedDids($normalizedDids);
+                $upserted += (int) ($sync['upserted'] ?? 0);
+                $syncedOrders[] = [
+                    'id' => $orderId,
+                    'reference' => $this->stringValue($detailOrder, 'reference'),
+                    'status' => $this->stringValue($detailOrder, 'status'),
+                    'upserted' => (string) ($sync['upserted'] ?? 0),
+                ];
+            }
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'checked_orders' => $checked,
+            'completed_orders' => $completed,
+            'upserted' => $upserted,
+            'synced_orders' => $syncedOrders,
+            'message' => $completed > 0
+                ? 'Completed DIDWW orders were synchronized into local inventory.'
+                : 'No completed DIDWW orders were ready to synchronize.',
+        ]);
+    }
+
     /**
      * @return \A2BillingPlus\Module\Provider\ProviderConnectorInterface|JsonResponse
      */
@@ -650,6 +721,7 @@ final class ProviderApiController
                 'terminated' => $this->boolString($attributes, 'terminated'),
                 'voice_in_trunk' => $this->stringValue($voiceInTrunk['attributes'] ?? [], 'name', $this->stringValue($voiceInTrunk, 'id')),
                 'did_group' => $this->stringValue($didGroup['attributes'] ?? [], 'name', $this->stringValue($didGroup, 'id')),
+                'order_id' => $this->stringValue($order, 'id'),
                 'order_reference' => $this->stringValue($order['attributes'] ?? [], 'reference', $this->stringValue($order, 'id')),
             ];
         }

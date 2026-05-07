@@ -189,6 +189,24 @@ final class ProviderSetupService
      * @param array<string, string> $input
      * @return array<string, mixed>
      */
+    public function didwwSyncCompletedOrders(array $input): array
+    {
+        return $this->post([
+            'action' => 'didww_sync_completed_orders',
+            'provider' => 'didww',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+            'orders_page_size' => $input['didww_orders_page_size'] ?? '25',
+            'page_size' => $input['didww_sync_page_size'] ?? '100',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
     public function previewRates(array $input): array
     {
         return $this->post($this->providerRateRequestBody('preview_rates', $input));

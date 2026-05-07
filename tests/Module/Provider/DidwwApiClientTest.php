@@ -71,6 +71,34 @@ final class DidwwApiClientTest extends TestCase
         $this->assertSame('order-1', $response['data']['id']);
     }
 
+    public function testGetOrderUsesOfficialOrderDetailEndpoint(): void
+    {
+        $client = new DidwwApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
+            $this->assertSame('GET', $method);
+            $this->assertSame('https://api.didww.com/v3/orders/order-1', $url);
+            $this->assertSame('didww-key', $credentials->getApiKey());
+            $this->assertNull($payload);
+
+            return [
+                'status' => 200,
+                'body' => json_encode([
+                    'data' => [
+                        'id' => 'order-1',
+                        'type' => 'orders',
+                        'attributes' => ['status' => 'completed'],
+                    ],
+                ], JSON_THROW_ON_ERROR),
+            ];
+        });
+
+        $response = $client->getOrder(
+            new ProviderCredentials('https://api.didww.com', 'didww-key', '', ['api_version' => '2026-04-16']),
+            'order-1'
+        );
+
+        $this->assertSame('completed', $response['data']['attributes']['status']);
+    }
+
     public function testThrowsReadableErrorMessageForApiErrors(): void
     {
         $client = new DidwwApiClient(function (): array {

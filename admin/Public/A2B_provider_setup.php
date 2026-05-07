@@ -45,6 +45,7 @@ $didwwSearch = [];
 $didwwOrder = [];
 $didwwLocalSync = [];
 $didwwTrunkProvision = [];
+$didwwOrderSync = [];
 
 $providerSetup = providerSetupService($actor);
 $providers = $providerSetup->providers();
@@ -163,6 +164,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $errors[] = formatDidwwErrorMessage((string)($didwwLocalSync['message'] ?? 'DIDWW inventory sync failed.'));
         } else {
             $messages[] = (string)($didwwLocalSync['message'] ?? 'DIDWW inventory synchronized.');
+            $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
+        }
+    }
+
+    if ($provider === 'didww' && !$errors && $formAction === 'didww_sync_completed_orders') {
+        $didwwOrderSync = $providerSetup->didwwSyncCompletedOrders($input);
+        if (($didwwOrderSync['success'] ?? false) !== true) {
+            $errors[] = formatDidwwErrorMessage((string)($didwwOrderSync['message'] ?? 'DIDWW completed-order sync failed.'));
+        } else {
+            $messages[] = (string)($didwwOrderSync['message'] ?? 'Completed DIDWW orders were synchronized.');
             $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
         }
     }
@@ -1264,6 +1275,7 @@ function renderProviderCredentialFields(array $input): void
                         <td>
                             <button class="form_input_button" name="form_action" type="submit" value="didww_refresh_inventory">Refresh DIDWW Data</button>
                             <button class="form_input_button" name="form_action" type="submit" value="didww_sync_inventory">Sync to Local Inventory</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="didww_sync_completed_orders">Auto-Sync Completed Orders</button>
                         </td>
                     </tr>
                 </table>
@@ -1278,6 +1290,27 @@ function renderProviderCredentialFields(array $input): void
                 <tr>
                     <td width="220">Upserted DIDs</td>
                     <td><?php echo h((string)($didwwLocalSync['upserted'] ?? '0')); ?></td>
+                </tr>
+            </table>
+            <?php endif; ?>
+
+            <?php if ($didwwOrderSync): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8">
+                <tr>
+                    <td class="form_head" colspan="2">DIDWW Completed Order Sync</td>
+                </tr>
+                <tr>
+                    <td width="220">Checked Orders</td>
+                    <td><?php echo h((string)($didwwOrderSync['checked_orders'] ?? '0')); ?></td>
+                </tr>
+                <tr>
+                    <td>Completed Orders</td>
+                    <td><?php echo h((string)($didwwOrderSync['completed_orders'] ?? '0')); ?></td>
+                </tr>
+                <tr>
+                    <td>Upserted DIDs</td>
+                    <td><?php echo h((string)($didwwOrderSync['upserted'] ?? '0')); ?></td>
                 </tr>
             </table>
             <?php endif; ?>

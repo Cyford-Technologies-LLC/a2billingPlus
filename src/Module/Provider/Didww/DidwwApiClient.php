@@ -47,6 +47,14 @@ final class DidwwApiClient
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function getOrder(ProviderCredentials $credentials, string $orderId): array
+    {
+        return $this->request('GET', '/v3/orders/' . rawurlencode($orderId), $credentials);
+    }
+
+    /**
      * @param array<string, string> $filters
      * @return array<string, mixed>
      */
