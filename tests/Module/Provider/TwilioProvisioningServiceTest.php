@@ -40,6 +40,22 @@ final class TwilioProvisioningServiceTest extends TestCase
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
     }
 
+    public function testSyncOwnedNumbersUpgradesLegacyInventoryTable(): void
+    {
+        $pdo = $this->pdo();
+        $pdo->exec('CREATE TABLE cc_vectavoip_did_inventory (id INTEGER PRIMARY KEY AUTOINCREMENT, did TEXT NOT NULL UNIQUE, country TEXT NOT NULL DEFAULT \'\', region TEXT NOT NULL DEFAULT \'\', monthly_rate TEXT NOT NULL DEFAULT \'0.00000\', setup_rate TEXT NOT NULL DEFAULT \'0.00000\', currency TEXT NOT NULL DEFAULT \'USD\', status TEXT NOT NULL DEFAULT \'available\', created_at TEXT NOT NULL, updated_at TEXT NOT NULL)');
+
+        $service = new TwilioProvisioningService($pdo);
+        $result = $service->syncOwnedNumbers([
+            ['sid' => 'PN2', 'phone_number' => '+12125550101', 'country_code' => 'US', 'trunk_sid' => 'TK2', 'trunk_name' => 'Backup Twilio Trunk'],
+        ]);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame('twilio', $pdo->query("SELECT provider_code FROM cc_vectavoip_did_inventory WHERE did = '+12125550101'")->fetchColumn());
+        $this->assertSame('PN2', $pdo->query("SELECT provider_reference FROM cc_vectavoip_did_inventory WHERE did = '+12125550101'")->fetchColumn());
+        $this->assertSame('TK2', $pdo->query("SELECT provider_trunk_reference FROM cc_vectavoip_did_inventory WHERE did = '+12125550101'")->fetchColumn());
+    }
+
     private function pdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');

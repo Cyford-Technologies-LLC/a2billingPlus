@@ -232,6 +232,11 @@ final class TwilioProvisioningService
                     updated_at TEXT NOT NULL
                 )'
             );
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_code', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_reference', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_trunk_reference', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'provider_trunk_name', "TEXT NOT NULL DEFAULT ''");
+            $this->ensureSqliteColumn('cc_vectavoip_did_inventory', 'order_reference', "TEXT NOT NULL DEFAULT ''");
             return;
         }
 
@@ -257,6 +262,11 @@ final class TwilioProvisioningService
                 KEY idx_vectavoip_did_inventory_status (status)
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci'
         );
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_code', "VARCHAR(32) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_reference', "VARCHAR(128) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_trunk_reference', "VARCHAR(128) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'provider_trunk_name', "VARCHAR(128) NOT NULL DEFAULT ''");
+        $this->ensureMysqlColumn('cc_vectavoip_did_inventory', 'order_reference', "VARCHAR(128) NOT NULL DEFAULT ''");
     }
 
     /**
@@ -273,5 +283,31 @@ final class TwilioProvisioningService
         $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $value) ?? 'TWILIO');
         $safe = $safe !== '' ? $safe : 'TWILIO';
         return substr($safe, 0, 20);
+    }
+
+    private function ensureSqliteColumn(string $table, string $column, string $definition): void
+    {
+        $statement = $this->pdo->query('PRAGMA table_info(' . $table . ')');
+        $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $row) {
+            if ((string) ($row['name'] ?? '') === $column) {
+                return;
+            }
+        }
+
+        $this->pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
+    }
+
+    private function ensureMysqlColumn(string $table, string $column, string $definition): void
+    {
+        $statement = $this->pdo->prepare(
+            'SELECT COUNT(*) FROM INFORMATION_SCHEMA.COLUMNS WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ? AND COLUMN_NAME = ?'
+        );
+        $statement->execute([$table, $column]);
+        if ((int) $statement->fetchColumn() > 0) {
+            return;
+        }
+
+        $this->pdo->exec(sprintf('ALTER TABLE %s ADD COLUMN %s %s', $table, $column, $definition));
     }
 }
