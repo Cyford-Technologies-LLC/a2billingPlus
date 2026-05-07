@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace A2BillingPlus\Module\Provider\Twilio;
 
+use A2BillingPlus\Module\Telephony\CoreTrunkProjectionService;
+
 final class TwilioProvisioningService
 {
     public function __construct(private readonly \PDO $pdo)
@@ -67,17 +69,10 @@ final class TwilioProvisioningService
 
     private function ensureProvider(): int
     {
-        $statement = $this->pdo->prepare('SELECT id FROM cc_provider WHERE provider_name = ? LIMIT 1');
-        $statement->execute(['Twilio']);
-        $id = $statement->fetchColumn();
-        if ($id !== false) {
-            return (int) $id;
-        }
-
-        $insert = $this->pdo->prepare('INSERT INTO cc_provider (provider_name, description) VALUES (?, ?)');
-        $insert->execute(['Twilio', 'Twilio automatically provisioned provider.']);
-
-        return (int) $this->pdo->lastInsertId();
+        return (new CoreTrunkProjectionService($this->pdo))->ensureProvider(
+            'Twilio',
+            'Twilio automatically provisioned provider.'
+        );
     }
 
     /**
@@ -91,41 +86,16 @@ final class TwilioProvisioningService
         $parameter = $trunkSid !== '' ? 'twilio_trunk:' . $trunkSid : 'twilio_trunk';
         $trunkCode = $this->trunkCodeFor($friendlyName, $trunkSid);
 
-        $statement = $this->pdo->prepare('SELECT id_trunk FROM cc_trunk WHERE addparameter = ? LIMIT 1');
-        $statement->execute([$parameter]);
-        $id = $statement->fetchColumn();
-        if ($id !== false) {
-            $update = $this->pdo->prepare(
-                'UPDATE cc_trunk
-                 SET trunkcode = ?, providerip = ?, status = ?, id_provider = ?, addparameter = ?
-                 WHERE id_trunk = ?'
-            );
-            $update->execute([$trunkCode, $domainName, 1, $providerId, $parameter, (int) $id]);
-            return (int) $id;
-        }
-
-        $insert = $this->pdo->prepare(
-            'INSERT INTO cc_trunk
-                (trunkcode, trunkprefix, providertech, providerip, removeprefix, failover_trunk, addparameter,
-                 id_provider, inuse, maxuse, status, if_max_use)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)'
-        );
-        $insert->execute([
-            $trunkCode,
-            '',
-            'SIP',
-            $domainName,
-            '',
-            0,
-            $parameter,
-            $providerId,
-            0,
-            -1,
-            1,
-            0,
+        return (new CoreTrunkProjectionService($this->pdo))->upsertBySyncKey([
+            'provider_id' => $providerId,
+            'trunkcode' => $trunkCode,
+            'providertech' => 'SIP',
+            'providerip' => $domainName,
+            'addparameter' => $parameter,
+            'maxuse' => -1,
+            'status' => 1,
+            'if_max_use' => 0,
         ]);
-
-        return (int) $this->pdo->lastInsertId();
     }
 
     /**

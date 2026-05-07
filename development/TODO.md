@@ -209,6 +209,11 @@ its business rules live outside the page script.
 - [x] Align Twilio BYOC handling with Twilio's Voice BYOC Trunking API so
       BY-prefixed trunk SIDs resolve through the correct endpoint and remain
       case-safe in the UI.
+- [x] Start converging provider wrappers onto shared core projection services so
+      provider-backed trunk and DID sync flows land in common A2Billing tables
+      instead of each provider maintaining bespoke local sync logic. Twilio and
+      DIDWW now share core trunk projection behavior, and provider inventory
+      sync now mirrors missing DIDs into the legacy `cc_did` list.
 
 ### Agent And Reseller Module
 
