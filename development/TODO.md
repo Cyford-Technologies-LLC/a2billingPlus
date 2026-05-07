@@ -206,6 +206,9 @@ its business rules live outside the page script.
 - [x] Add Twilio BYOC trunk support so operators can persist a preferred trunk
       SID, link an existing BYOC trunk locally, and auto-attach purchased
       numbers to that trunk.
+- [x] Align Twilio BYOC handling with Twilio's Voice BYOC Trunking API so
+      BY-prefixed trunk SIDs resolve through the correct endpoint and remain
+      case-safe in the UI.
 
 ### Agent And Reseller Module
 

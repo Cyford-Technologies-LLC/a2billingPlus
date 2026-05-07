@@ -667,6 +667,19 @@ final class ProviderApiControllerTest extends TestCase
                     ];
                 }
 
+                if ($method === 'GET' && str_contains($url, 'voice.twilio.com/v1/ByocTrunks/BYbf0b89b0a20e0aa44f399c29c686ec5e')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+                            'friendly_name' => 'Main BYOC',
+                            'domain_name' => 'main-byoc.pstn.twilio.com',
+                            'connection_policy_sid' => 'NY123',
+                            'date_created' => '2026-05-07T00:00:00Z',
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
                 return [
                     'status' => 200,
                     'body' => json_encode([
@@ -688,12 +701,14 @@ final class ProviderApiControllerTest extends TestCase
             'account_sid' => 'AC123',
             'api_key' => 'SK123',
             'api_secret' => 'secret',
+            'byoc_trunk_sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
         ]));
 
         $this->assertSame(200, $response->getStatusCode());
         $this->assertTrue($response->getPayload()['success']);
         $this->assertSame('+12125550100', $response->getPayload()['numbers'][0]['phone_number']);
         $this->assertSame('Main trunk', $response->getPayload()['trunks'][0]['friendly_name']);
+        $this->assertSame('Main BYOC', $response->getPayload()['byoc_trunks'][0]['friendly_name']);
     }
 
     public function testTwilioSyncInventoryWritesOwnedNumbersIntoLocalInventory(): void
@@ -795,7 +810,7 @@ final class ProviderApiControllerTest extends TestCase
             null,
             fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
                 $this->assertSame('GET', $method);
-                $this->assertStringContainsString('/v1/Trunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
+                $this->assertStringContainsString('voice.twilio.com/v1/ByocTrunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
 
                 return [
                     'status' => 200,
@@ -858,7 +873,7 @@ final class ProviderApiControllerTest extends TestCase
                 }
 
                 $this->assertSame('GET', $method);
-                $this->assertStringContainsString('/v1/Trunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
+                $this->assertStringContainsString('voice.twilio.com/v1/ByocTrunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
 
                 return [
                     'status' => 200,

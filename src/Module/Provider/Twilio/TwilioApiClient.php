@@ -10,6 +10,7 @@ final class TwilioApiClient
 {
     public const API_BASE_URL = 'https://api.twilio.com';
     public const TRUNKING_BASE_URL = 'https://trunking.twilio.com';
+    public const VOICE_BASE_URL = 'https://voice.twilio.com';
 
     /**
      * @param null|callable(string, string, ProviderCredentials, array<string, mixed>|null, array<string, string>): array{status:int, body:string} $transport
@@ -99,6 +100,31 @@ final class TwilioApiClient
         return $this->request(
             'GET',
             self::TRUNKING_BASE_URL . '/v1/Trunks/' . rawurlencode($trunkSid),
+            $credentials
+        );
+    }
+
+    /**
+     * @param array<string, string> $filters
+     * @return array<string, mixed>
+     */
+    public function listByocTrunks(ProviderCredentials $credentials, array $filters = []): array
+    {
+        return $this->request('GET', self::VOICE_BASE_URL . '/v1/ByocTrunks', $credentials, $filters);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function getByocTrunk(ProviderCredentials $credentials, string $trunkSid): array
+    {
+        if (trim($trunkSid) === '') {
+            throw new \RuntimeException('Twilio BYOC trunk SID is required.');
+        }
+
+        return $this->request(
+            'GET',
+            self::VOICE_BASE_URL . '/v1/ByocTrunks/' . rawurlencode($trunkSid),
             $credentials
         );
     }

@@ -559,9 +559,13 @@ function providerDefaults(string $provider): array
 
 function normalizeTwilioByocTrunkSid(string $value): string
 {
-    $value = strtoupper(trim($value));
-    if (str_starts_with($value, 'SIDBY')) {
-        return substr($value, 3);
+    $value = trim($value);
+    if (preg_match('/^sidby/i', $value) === 1) {
+        $value = substr($value, 3);
+    }
+
+    if (preg_match('/^by/i', $value) === 1) {
+        return 'BY' . substr($value, 2);
     }
 
     return $value;
@@ -1442,6 +1446,10 @@ function renderProviderCredentialFields(array $input): void
                         <td><?php echo h((string)count((array)($twilioSnapshot['trunks'] ?? []))); ?></td>
                     </tr>
                     <tr>
+                        <td>BYOC Trunks</td>
+                        <td><?php echo h((string)count((array)($twilioSnapshot['byoc_trunks'] ?? []))); ?></td>
+                    </tr>
+                    <tr>
                         <td></td>
                         <td>
                             <button class="form_input_button" name="form_action" type="submit" value="twilio_refresh_inventory">Refresh Twilio Data</button>
@@ -1515,6 +1523,33 @@ function renderProviderCredentialFields(array $input): void
                                 <td><?php echo h((string)($twilioTrunk['friendly_name'] ?? '')); ?></td>
                                 <td><?php echo h((string)($twilioTrunk['sid'] ?? '')); ?></td>
                                 <td><?php echo h((string)($twilioTrunk['domain_name'] ?? '')); ?></td>
+                                <td><?php echo h((string)($twilioTrunk['date_created'] ?? '')); ?></td>
+                            </tr>
+                    <?php endif; ?>
+                <?php endforeach; ?>
+            </table>
+            <?php endif; ?>
+
+            <?php if (!empty($twilioSnapshot['byoc_trunks'])): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                <tr>
+                    <td class="form_head" colspan="5">Twilio BYOC Trunks</td>
+                </tr>
+                <tr style="font-weight:bold;">
+                    <td>Friendly Name</td>
+                    <td>SID</td>
+                    <td>Domain Name</td>
+                    <td>Connection Policy</td>
+                    <td>Created</td>
+                </tr>
+                <?php foreach (($twilioSnapshot['byoc_trunks'] ?? []) as $twilioTrunk): ?>
+                    <?php if (is_array($twilioTrunk)): ?>
+                            <tr>
+                                <td><?php echo h((string)($twilioTrunk['friendly_name'] ?? '')); ?></td>
+                                <td><?php echo h((string)($twilioTrunk['sid'] ?? '')); ?></td>
+                                <td><?php echo h((string)($twilioTrunk['domain_name'] ?? '')); ?></td>
+                                <td><?php echo h((string)($twilioTrunk['connection_policy_sid'] ?? '')); ?></td>
                                 <td><?php echo h((string)($twilioTrunk['date_created'] ?? '')); ?></td>
                             </tr>
                     <?php endif; ?>

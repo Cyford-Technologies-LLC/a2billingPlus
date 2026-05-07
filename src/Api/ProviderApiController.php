@@ -581,6 +581,13 @@ final class ProviderApiController
             $trunks = $client->listTrunks($credentials, [
                 'PageSize' => (string) max(1, min(100, $request->getInt('trunks_page_size', 25))),
             ]);
+            $byocTrunks = [];
+            $preferredTrunkSid = $this->preferredTwilioTrunkSid($request);
+            if ($preferredTrunkSid !== '') {
+                $byocTrunks[] = $this->normalizeTwilioTrunk(
+                    $this->findTwilioTrunkBySid($client, $credentials, $preferredTrunkSid)
+                );
+            }
         } catch (\Throwable $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -592,6 +599,7 @@ final class ProviderApiController
             'success' => true,
             'numbers' => $this->normalizeTwilioIncomingNumbers($numbers),
             'trunks' => $this->normalizeTwilioTrunks($trunks),
+            'byoc_trunks' => $byocTrunks,
         ]);
     }
 
@@ -990,6 +998,26 @@ final class ProviderApiController
             throw new \RuntimeException('Twilio trunk SID is required.');
         }
 
+        if (preg_match('/^BY[0-9A-Fa-f]{32}$/', $trunkSid) === 1) {
+            try {
+                $trunk = $client->getByocTrunk($credentials, $trunkSid);
+                if ($this->stringValue($trunk, 'sid') !== '') {
+                    return $trunk;
+                }
+            } catch (\Throwable) {
+                // Fall back to the BYOC collection API if the direct fetch is unavailable.
+            }
+
+            $payload = $client->listByocTrunks($credentials, ['PageSize' => '100']);
+            foreach ($payload['byoc_trunks'] ?? [] as $item) {
+                if (is_array($item) && $this->stringValue($item, 'sid') === $trunkSid) {
+                    return $item;
+                }
+            }
+
+            throw new \RuntimeException('Twilio BYOC trunk SID was not found on this account.');
+        }
+
         try {
             $trunk = $client->getTrunk($credentials, $trunkSid);
             if ($this->stringValue($trunk, 'sid') !== '') {
@@ -1364,6 +1392,8 @@ final class ProviderApiController
             'friendly_name' => $this->stringValue($item, 'friendly_name'),
             'domain_name' => $this->stringValue($item, 'domain_name'),
             'date_created' => $this->stringValue($item, 'date_created'),
+            'connection_policy_sid' => $this->stringValue($item, 'connection_policy_sid'),
+            'type' => preg_match('/^BY[0-9A-Fa-f]{32}$/', $this->stringValue($item, 'sid')) === 1 ? 'byoc' : 'sip',
         ];
     }
 

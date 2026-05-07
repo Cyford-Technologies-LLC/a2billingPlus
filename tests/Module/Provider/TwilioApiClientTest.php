@@ -90,6 +90,31 @@ final class TwilioApiClientTest extends TestCase
         $this->assertSame('BYOC Main', $response['friendly_name']);
     }
 
+    public function testGetByocTrunkBuildsOfficialEndpoint(): void
+    {
+        $client = new TwilioApiClient(function (string $method, string $url, ProviderCredentials $credentials): array {
+            $this->assertSame('GET', $method);
+            $this->assertSame('https://voice.twilio.com/v1/ByocTrunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
+            $this->assertSame('SK123', $credentials->getApiKey());
+
+            return [
+                'status' => 200,
+                'body' => json_encode([
+                    'sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+                    'friendly_name' => 'Main BYOC',
+                    'domain_name' => 'main-byoc.pstn.twilio.com',
+                ], JSON_THROW_ON_ERROR),
+            ];
+        });
+
+        $response = $client->getByocTrunk(
+            new ProviderCredentials('https://api.twilio.com', 'SK123', 'secret', ['account_sid' => 'AC123']),
+            'BYbf0b89b0a20e0aa44f399c29c686ec5e'
+        );
+
+        $this->assertSame('BYbf0b89b0a20e0aa44f399c29c686ec5e', $response['sid']);
+    }
+
     public function testThrowsReadableTwilioError(): void
     {
         $client = new TwilioApiClient(function (): array {
