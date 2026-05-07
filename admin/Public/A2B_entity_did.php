@@ -52,6 +52,7 @@ $HD_Form->init();
 $projectionMessages = [];
 $projectionErrors = [];
 $projectionDiagnostics = [];
+$projectionSamples = [];
 if (isset($_REQUEST['project_provider_inventory']) && $_REQUEST['project_provider_inventory'] === '1') {
     try {
         $legacyPdo = legacyAdminPdo();
@@ -85,6 +86,15 @@ try {
     }
 } catch (Throwable $exception) {
     $projectionDiagnostics[] = 'Could not resolve DB diagnostics: ' . $exception->getMessage();
+}
+
+try {
+    $legacyPdo = legacyAdminPdo();
+    $projectionDiagnostics[] = 'Legacy cc_did count: ' . legacyCount($legacyPdo, 'cc_did');
+    $projectionDiagnostics[] = 'Legacy provider cache count: ' . legacyCount($legacyPdo, 'cc_vectavoip_did_inventory');
+    $projectionSamples = legacyProjectionSamples($legacyPdo);
+} catch (Throwable $exception) {
+    $projectionDiagnostics[] = 'Could not load projection samples: ' . $exception->getMessage();
 }
 
 if ($id != "" || !is_null($id)) {
@@ -128,6 +138,21 @@ if ($form_action == 'list') {
             echo '<div style="margin-top:8px;color:#555;">' . htmlspecialchars($message, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</div>';
         }
     }
+    if ($projectionSamples !== []) {
+        echo '<div style="margin-top:10px;">';
+        echo '<table style="width:100%;border-collapse:collapse;font-size:12px;">';
+        echo '<thead><tr><th style="text-align:left;border-bottom:1px solid #d8dee6;">Source</th><th style="text-align:left;border-bottom:1px solid #d8dee6;">DID</th><th style="text-align:left;border-bottom:1px solid #d8dee6;">Status</th><th style="text-align:left;border-bottom:1px solid #d8dee6;">Description</th></tr></thead><tbody>';
+        foreach ($projectionSamples as $sample) {
+            echo '<tr>';
+            echo '<td style="padding:4px 0;">' . htmlspecialchars($sample['source'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>';
+            echo '<td style="padding:4px 0;">' . htmlspecialchars($sample['did'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>';
+            echo '<td style="padding:4px 0;">' . htmlspecialchars($sample['status'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>';
+            echo '<td style="padding:4px 0;">' . htmlspecialchars($sample['description'], ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8') . '</td>';
+            echo '</tr>';
+        }
+        echo '</tbody></table>';
+        echo '</div>';
+    }
     echo '</div>';
 }
 
@@ -161,4 +186,64 @@ function legacyAdminPdo(): PDO
         PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION,
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
     ]);
+}
+
+function legacyCount(PDO $pdo, string $table): int
+{
+    $statement = $pdo->query('SELECT COUNT(*) FROM `' . preg_replace('/[^A-Za-z0-9_]/', '', $table) . '`');
+    return $statement ? (int) $statement->fetchColumn() : 0;
+}
+
+/**
+ * @return list<array{source:string,did:string,status:string,description:string}>
+ */
+function legacyProjectionSamples(PDO $pdo): array
+{
+    $samples = [];
+
+    if (legacyTableExists($pdo, 'cc_vectavoip_did_inventory')) {
+        $statement = $pdo->query(
+            'SELECT did, status, provider_code, provider_trunk_name
+             FROM cc_vectavoip_did_inventory
+             ORDER BY id DESC
+             LIMIT 3'
+        );
+        $rows = $statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $row) {
+            $samples[] = [
+                'source' => 'provider_cache',
+                'did' => (string) ($row['did'] ?? ''),
+                'status' => (string) ($row['status'] ?? ''),
+                'description' => trim((string) ($row['provider_code'] ?? '') . ' ' . (string) ($row['provider_trunk_name'] ?? '')),
+            ];
+        }
+    }
+
+    if (legacyTableExists($pdo, 'cc_did')) {
+        $statement = $pdo->query(
+            'SELECT did, activated, description
+             FROM cc_did
+             ORDER BY id DESC
+             LIMIT 3'
+        );
+        $rows = $statement ? $statement->fetchAll(PDO::FETCH_ASSOC) : [];
+        foreach ($rows as $row) {
+            $samples[] = [
+                'source' => 'core_did',
+                'did' => (string) ($row['did'] ?? ''),
+                'status' => ((string) ($row['activated'] ?? '')) === '1' ? 'active' : 'inactive',
+                'description' => (string) ($row['description'] ?? ''),
+            ];
+        }
+    }
+
+    return $samples;
+}
+
+function legacyTableExists(PDO $pdo, string $table): bool
+{
+    $safe = preg_replace('/[^A-Za-z0-9_]/', '', $table);
+    $statement = $pdo->prepare('SHOW TABLES LIKE ?');
+    $statement->execute([$safe]);
+    return $statement->fetchColumn() !== false;
 }
