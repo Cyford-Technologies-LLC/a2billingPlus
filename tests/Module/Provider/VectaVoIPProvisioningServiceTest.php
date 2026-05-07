@@ -56,6 +56,41 @@ final class VectaVoIPProvisioningServiceTest extends TestCase
         $this->assertSame('requested', $didRequest['status']);
     }
 
+    public function testFulfillDidRequestMovesIssuedNumbersIntoInventory(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $this->createBaseTables($pdo);
+
+        $service = new VectaVoIPProvisioningService($pdo);
+        $request = $service->applyPackageProvisioning([
+            'selected_package' => 'starter',
+            'package_did_count' => '2',
+            'package_channels' => '2',
+            'package_sms_enabled' => '0',
+            'package_911_enabled' => '0',
+            'package_ratecard_id' => '',
+            'package_trunk_label' => 'Starter Primary',
+            'package_notes' => '',
+            'account_number' => 'VV20001',
+            'portal_username' => 'starter-admin',
+            'api_secret' => 'secret-234',
+            'registered_ip' => '74.208.7.156',
+        ]);
+
+        $result = $service->fulfillDidRequest((int)$request['did_request_id'], ['+15550000001', '+15550000002']);
+
+        $this->assertTrue($result['success']);
+        $this->assertSame(2, (int)$result['fulfilled_count']);
+
+        $requestRow = $pdo->query("SELECT status, notes FROM cc_vectavoip_did_requests WHERE id = " . (int)$request['did_request_id'])->fetch(PDO::FETCH_ASSOC);
+        $this->assertSame('fulfilled', $requestRow['status']);
+        $this->assertStringContainsString('+15550000001', $requestRow['notes']);
+
+        $inventoryCount = (int)$pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE provider_reference = 'vectavoip-request:" . (int)$request['did_request_id'] . "'")->fetchColumn();
+        $this->assertSame(2, $inventoryCount);
+    }
+
     private function createBaseTables(PDO $pdo): void
     {
         $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT NOT NULL, description TEXT NOT NULL)');

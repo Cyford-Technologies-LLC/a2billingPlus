@@ -8,6 +8,7 @@ include_once '../lib/admin.smarty.php';
 
 use A2BillingPlus\Admin\ModernAdminPageRenderer;
 use A2BillingPlus\Admin\ModernAdminRuntime;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProvisioningService;
 use A2BillingPlus\Module\Telephony\AdminTelephonyWorkspaceService;
 use A2BillingPlus\Module\Telephony\AsteriskConfigCheckService;
 use A2BillingPlus\Module\Telephony\DidRepository;
@@ -139,6 +140,22 @@ try {
                 $messages[] = 'Updated ' . strtoupper((string)($_POST['technology'] ?? '')) . ' account ' . ((string)($result['body']['account']['username'] ?? '')) . '.';
             } else {
                 $errors[] = (string)($result['body']['message'] ?? 'Could not update telephony account.');
+            }
+        } elseif ($action === 'fulfill_vectavoip_request' && $canDid) {
+            $issued = preg_split('/\r\n|\r|\n|,/', trim((string)($_POST['issued_dids'] ?? '')));
+            $issued = is_array($issued) ? array_values(array_filter(array_map('trim', $issued), static fn (string $value): bool => $value !== '')) : [];
+            try {
+                $result = (new VectaVoIPProvisioningService($pdo))->fulfillDidRequest((int)($_POST['request_id'] ?? 0), $issued);
+                $messages[] = (string)($result['message'] ?? 'VectaVoIP DID request fulfilled.');
+            } catch (Throwable $exception) {
+                $errors[] = 'Could not fulfill DID request: ' . $exception->getMessage();
+            }
+        } elseif ($action === 'cancel_vectavoip_request' && $canDid) {
+            try {
+                $result = (new VectaVoIPProvisioningService($pdo))->cancelDidRequest((int)($_POST['request_id'] ?? 0), trim((string)($_POST['request_note'] ?? '')));
+                $messages[] = (string)($result['message'] ?? 'VectaVoIP DID request cancelled.');
+            } catch (Throwable $exception) {
+                $errors[] = 'Could not cancel DID request: ' . $exception->getMessage();
             }
         }
     }
@@ -313,6 +330,7 @@ function rowValue(array $row, string $column): string
                     <th>Account</th>
                     <th>IP</th>
                     <th>Status</th>
+                    <th>Action</th>
                 </tr>
                 </thead>
                 <tbody>
@@ -324,11 +342,29 @@ function rowValue(array $row, string $column): string
                         <td><?php echo h(rowValue($request, 'account_number')); ?></td>
                         <td><?php echo h(rowValue($request, 'registered_ip')); ?></td>
                         <td><?php echo h(rowValue($request, 'status')); ?></td>
+                        <td>
+                            <?php if (rowValue($request, 'status') === 'requested'): ?>
+                                <form method="post" class="a2bp-form-row">
+                                    <input type="hidden" name="form_action" value="fulfill_vectavoip_request">
+                                    <input type="hidden" name="request_id" value="<?php echo h(rowValue($request, 'id')); ?>">
+                                    <input type="text" name="issued_dids" placeholder="+15551230001,+15551230002">
+                                    <button class="a2bp-button" type="submit">Fulfill</button>
+                                </form>
+                                <form method="post" class="a2bp-form-row">
+                                    <input type="hidden" name="form_action" value="cancel_vectavoip_request">
+                                    <input type="hidden" name="request_id" value="<?php echo h(rowValue($request, 'id')); ?>">
+                                    <input type="text" name="request_note" placeholder="Reason">
+                                    <button class="a2bp-button" type="submit">Cancel</button>
+                                </form>
+                            <?php else: ?>
+                                <span class="a2bp-muted">No action</span>
+                            <?php endif; ?>
+                        </td>
                     </tr>
                 <?php endforeach; ?>
                 <?php if (!$workspace['vectavoip_requests']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No VectaVoIP DID requests have been created yet.</td>
+                        <td colspan="7" class="a2bp-muted">No VectaVoIP DID requests have been created yet.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>

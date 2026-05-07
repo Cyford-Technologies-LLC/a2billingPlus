@@ -135,6 +135,105 @@ final class VectaVoIPProvisioningService
         ];
     }
 
+    /**
+     * @param list<string> $dids
+     * @return array<string,mixed>
+     */
+    public function fulfillDidRequest(int $requestId, array $dids): array
+    {
+        $request = $this->findDidRequest($requestId);
+        if ($request === null) {
+            throw new \InvalidArgumentException('DID request was not found.');
+        }
+        if (($request['status'] ?? '') === 'cancelled') {
+            throw new \InvalidArgumentException('Cancelled DID requests cannot be fulfilled.');
+        }
+
+        $normalized = [];
+        foreach ($dids as $did) {
+            $did = trim($did);
+            if ($did === '') {
+                continue;
+            }
+            $normalized[] = $did;
+        }
+        if ($normalized === []) {
+            throw new \InvalidArgumentException('At least one DID is required to fulfill the request.');
+        }
+
+        $this->pdo->beginTransaction();
+        try {
+            foreach ($normalized as $did) {
+                $this->upsertDid([
+                    'did' => $did,
+                    'country' => '',
+                    'region' => '',
+                    'monthly_rate' => '0.00000',
+                    'setup_rate' => '0.00000',
+                    'currency' => 'USD',
+                    'status' => 'available',
+                    'provider_reference' => 'vectavoip-request:' . $requestId,
+                ]);
+            }
+
+            $notes = trim((string)($request['notes'] ?? ''));
+            $fulfilledNote = 'Issued DIDs: ' . implode(', ', $normalized);
+            $update = $this->pdo->prepare(
+                'UPDATE cc_vectavoip_did_requests SET status = ?, notes = ?, updated_at = ? WHERE id = ?'
+            );
+            $update->execute([
+                'fulfilled',
+                $notes !== '' ? $notes . PHP_EOL . $fulfilledNote : $fulfilledNote,
+                gmdate('Y-m-d H:i:s'),
+                $requestId,
+            ]);
+            $this->pdo->commit();
+        } catch (\Throwable $exception) {
+            $this->pdo->rollBack();
+            throw $exception;
+        }
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'fulfilled_count' => count($normalized),
+            'message' => 'VectaVoIP DID request fulfilled and inventory updated.',
+        ];
+    }
+
+    /**
+     * @return array<string,mixed>
+     */
+    public function cancelDidRequest(int $requestId, string $note = ''): array
+    {
+        $request = $this->findDidRequest($requestId);
+        if ($request === null) {
+            throw new \InvalidArgumentException('DID request was not found.');
+        }
+
+        $notes = trim((string)($request['notes'] ?? ''));
+        $cancelNote = trim($note);
+        if ($cancelNote !== '') {
+            $notes = $notes !== '' ? $notes . PHP_EOL . $cancelNote : $cancelNote;
+        }
+
+        $update = $this->pdo->prepare(
+            'UPDATE cc_vectavoip_did_requests SET status = ?, notes = ?, updated_at = ? WHERE id = ?'
+        );
+        $update->execute([
+            'cancelled',
+            $notes,
+            gmdate('Y-m-d H:i:s'),
+            $requestId,
+        ]);
+
+        return [
+            'success' => true,
+            'request_id' => $requestId,
+            'message' => 'VectaVoIP DID request cancelled.',
+        ];
+    }
+
     private function ensureProvider(): int
     {
         $statement = $this->pdo->prepare('SELECT id FROM cc_provider WHERE provider_name = ? LIMIT 1');
@@ -318,6 +417,18 @@ final class VectaVoIPProvisioningService
         ]);
 
         return (int)$this->pdo->lastInsertId();
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    private function findDidRequest(int $requestId): ?array
+    {
+        $statement = $this->pdo->prepare('SELECT * FROM cc_vectavoip_did_requests WHERE id = ? LIMIT 1');
+        $statement->execute([$requestId]);
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+
+        return is_array($row) ? $row : null;
     }
 
     /**
