@@ -13,6 +13,7 @@ services:
         required: false
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html
+      A2BP_SANDBOX_BOOTSTRAP: "1"
       A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
       A2BP_SOURCE_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
       A2BP_SOURCE_USER: ${A2BP_DB_USER:-a2billinguser}
@@ -48,6 +49,7 @@ services:
         required: false
     environment:
       APACHE_DOCUMENT_ROOT: /var/www/html
+      A2BP_SANDBOX_BOOTSTRAP: "1"
       A2BP_DB_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
       A2BP_SOURCE_DSN: mysql:host=${A2BP_DB_HOST:-db};dbname=${A2BP_DB_NAME:-mya2billing};charset=utf8mb4
       A2BP_SOURCE_USER: ${A2BP_DB_USER:-a2billinguser}
@@ -83,6 +85,8 @@ services:
         required: false
       - path: .env.stripe
         required: false
+    environment:
+      A2BP_SANDBOX_BOOTSTRAP: "1"
     command: ["php", "-v"]
     depends_on:
       db:

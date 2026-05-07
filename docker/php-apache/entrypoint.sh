@@ -61,4 +61,8 @@ if [ -f composer.json ] && [ ! -f vendor/autoload.php ]; then
   ) 200>/tmp/a2billingplus/composer-install.lock
 fi
 
+if [ "${A2BP_SANDBOX_BOOTSTRAP:-0}" = "1" ] && [ -f bin/sandbox-bootstrap.php ]; then
+  php bin/sandbox-bootstrap.php || true
+fi
+
 exec "$@"

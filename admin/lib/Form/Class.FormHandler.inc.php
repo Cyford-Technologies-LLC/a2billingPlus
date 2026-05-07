@@ -30,6 +30,19 @@ class FormHandler
 
 	var $pqp;
 
+	function logAddFailure($details = '')
+	{
+		$message = '[FormHandler:add] table=' . $this->FG_TABLE_NAME;
+		if (!empty($this->FG_INSTANCE_NAME)) {
+			$message .= ' instance=' . $this->FG_INSTANCE_NAME;
+		}
+		if (!empty($details)) {
+			$message .= ' details=' . $details;
+		}
+
+		error_log($message);
+	}
+
 
 	/* CONFIG THE VIEWER : CV */
 	var $CV_TOPVIEWER = '';
@@ -1600,6 +1613,7 @@ class FormHandler
 					if ($this->VALID_SQL_REG_EXP) $this -> RESULT_QUERY = $instance_table -> Add_table ($this->DBHandle, $param_add_value_replaced, null, null, $this->FG_TABLE_ID);
 					if (!$this->RESULT_QUERY) {
 						$this->LAST_DB_ERROR = $instance_table->errstr;
+						$this->logAddFailure($this->LAST_DB_ERROR);
 						break;
 					}
 				}
@@ -1607,6 +1621,7 @@ class FormHandler
 				if ($this->VALID_SQL_REG_EXP) $this -> RESULT_QUERY = $instance_table -> Add_table ($this->DBHandle, $param_add_value, null, null, $this->FG_TABLE_ID);
 				if (!$this->RESULT_QUERY) {
 					$this->LAST_DB_ERROR = $instance_table->errstr;
+					$this->logAddFailure($this->LAST_DB_ERROR);
 				}
 			}
 			if($this -> FG_ENABLE_LOG == 1) {

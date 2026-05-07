@@ -74,6 +74,7 @@ http://localhost:8080/install.php
 For a full portal crawl, seed sandbox agent/customer accounts first:
 
 ```powershell
+docker compose exec -T app php bin/sandbox-bootstrap.php
 powershell -ExecutionPolicy Bypass -File development\tools\seed-crawl-accounts.ps1
 powershell -ExecutionPolicy Bypass -File development\tools\crawl-all-portals.ps1 -BaseUrl http://localhost:8080 -AgentLogin crawlagent -AgentPassword crawlpass -CustomerLogin crawlcustomer@example.test -CustomerPassword crawlpass
 ```
