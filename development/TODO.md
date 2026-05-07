@@ -203,6 +203,9 @@ its business rules live outside the page script.
 - [x] Add a first-pass Twilio provider integration covering credential testing,
       owned-number snapshot, available-number search, number purchase, SIP trunk
       creation, and local inventory synchronization.
+- [x] Add Twilio BYOC trunk support so operators can persist a preferred trunk
+      SID, link an existing BYOC trunk locally, and auto-attach purchased
+      numbers to that trunk.
 
 ### Agent And Reseller Module
 

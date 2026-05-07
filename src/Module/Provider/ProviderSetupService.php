@@ -54,6 +54,7 @@ final class ProviderSetupService
             'api_secret' => $input['api_secret'],
             'api_version' => $input['api_version'] ?? '',
             'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
         ]);
     }
 
@@ -217,6 +218,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
             'page_size' => $input['twilio_page_size'] ?? '25',
             'trunks_page_size' => $input['twilio_trunks_page_size'] ?? '25',
         ]);
@@ -257,6 +259,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
             'phone_number' => $input['twilio_phone_number'] ?? '',
             'voice_url' => $input['twilio_voice_url'] ?? '',
             'sms_url' => $input['twilio_sms_url'] ?? '',
@@ -276,9 +279,27 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
             'friendly_name' => $input['twilio_trunk_friendly_name'] ?? '',
             'domain_name' => $input['twilio_trunk_domain_name'] ?? '',
             'cnam_lookup_enabled' => $input['twilio_trunk_cnam_lookup_enabled'] ?? '',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function twilioRegisterExistingTrunk(array $input): array
+    {
+        return $this->post([
+            'action' => 'twilio_register_existing_trunk',
+            'provider' => 'twilio',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
         ]);
     }
 
@@ -295,6 +316,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
             'page_size' => $input['twilio_sync_page_size'] ?? '100',
             'trunks_page_size' => $input['twilio_trunks_page_size'] ?? '100',
             'trunk_numbers_page_size' => $input['twilio_trunk_numbers_page_size'] ?? '100',

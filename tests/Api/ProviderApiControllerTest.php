@@ -763,6 +763,131 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
     }
 
+    public function testTwilioRegisterExistingTrunkLinksPreferredByocSid(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
+        $pdo->exec(
+            'CREATE TABLE cc_trunk (
+                id_trunk INTEGER PRIMARY KEY AUTOINCREMENT,
+                trunkcode TEXT,
+                trunkprefix TEXT,
+                providertech TEXT,
+                providerip TEXT,
+                removeprefix TEXT,
+                failover_trunk INTEGER,
+                addparameter TEXT,
+                id_provider INTEGER,
+                inuse INTEGER,
+                maxuse INTEGER,
+                status INTEGER,
+                if_max_use INTEGER
+            )'
+        );
+
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            fn (): PDO => $pdo,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            null,
+            fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
+                $this->assertSame('GET', $method);
+                $this->assertStringContainsString('/v1/Trunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+                        'friendly_name' => 'Main BYOC',
+                        'domain_name' => 'main-byoc.pstn.twilio.com',
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'twilio_register_existing_trunk',
+            'provider' => 'twilio',
+            'base_url' => 'https://api.twilio.com',
+            'account_sid' => 'AC123',
+            'api_key' => 'SK123',
+            'api_secret' => 'secret',
+            'byoc_trunk_sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('BYbf0b89b0a20e0aa44f399c29c686ec5e', $response->getPayload()['remote_trunk']['sid']);
+        $this->assertGreaterThan(0, (int) $response->getPayload()['local_trunk']['trunk_id']);
+    }
+
+    public function testTwilioPurchaseNumberAttachesToPreferredByocTrunk(): void
+    {
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            null,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            null,
+            fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
+                if ($method === 'POST' && str_contains($url, '/IncomingPhoneNumbers.json')) {
+                    $this->assertSame('+12125550100', $payload['PhoneNumber'] ?? null);
+
+                    return [
+                        'status' => 201,
+                        'body' => json_encode([
+                            'sid' => 'PN123',
+                            'phone_number' => '+12125550100',
+                            'friendly_name' => '(212) 555-0100',
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                if ($method === 'POST' && str_contains($url, '/v1/Trunks/BYbf0b89b0a20e0aa44f399c29c686ec5e/PhoneNumbers')) {
+                    $this->assertSame('PN123', $payload['PhoneNumberSid'] ?? null);
+                    $this->assertSame('SK123', $credentials->getApiKey());
+
+                    return [
+                        'status' => 201,
+                        'body' => json_encode(['sid' => 'TN123', 'phone_number_sid' => 'PN123'], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                $this->assertSame('GET', $method);
+                $this->assertStringContainsString('/v1/Trunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+                        'friendly_name' => 'Main BYOC',
+                        'domain_name' => 'main-byoc.pstn.twilio.com',
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'twilio_purchase_number',
+            'provider' => 'twilio',
+            'base_url' => 'https://api.twilio.com',
+            'account_sid' => 'AC123',
+            'api_key' => 'SK123',
+            'api_secret' => 'secret',
+            'phone_number' => '+12125550100',
+            'byoc_trunk_sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+        ]));
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('BYbf0b89b0a20e0aa44f399c29c686ec5e', $response->getPayload()['attached_trunk']['sid']);
+        $this->assertSame('Main BYOC', $response->getPayload()['number']['trunk_name']);
+    }
+
     private function previewProviderRegistry(): ProviderRegistry
     {
         $importer = new class implements RateImporterInterface {

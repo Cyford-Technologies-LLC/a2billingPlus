@@ -257,6 +257,20 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($provider === 'twilio' && !$errors && $formAction === 'twilio_register_existing_trunk') {
+        if ($input['twilio_byoc_trunk_sid'] === '') {
+            $errors[] = 'Twilio BYOC trunk SID is required.';
+        } else {
+            $twilioTrunkProvision = $providerSetup->twilioRegisterExistingTrunk($input);
+            if (($twilioTrunkProvision['success'] ?? false) !== true) {
+                $errors[] = (string)($twilioTrunkProvision['message'] ?? 'Twilio BYOC trunk registration failed.');
+            } else {
+                $messages[] = (string)($twilioTrunkProvision['message'] ?? 'Twilio BYOC trunk linked.');
+                $twilioSnapshot = $providerSetup->twilioInventorySnapshot($input);
+            }
+        }
+    }
+
     if ($provider === 'twilio' && !$errors && $formAction === 'twilio_sync_inventory') {
         $twilioLocalSync = $providerSetup->twilioSyncInventory($input);
         if (($twilioLocalSync['success'] ?? false) !== true) {
@@ -516,6 +530,7 @@ function providerDefaults(string $provider): array
         'twilio_trunk_friendly_name' => '',
         'twilio_trunk_domain_name' => '',
         'twilio_trunk_cnam_lookup_enabled' => '',
+        'twilio_byoc_trunk_sid' => providerEnvString($provider, 'BYOC_TRUNK_SID'),
         'owner_admins' => envString('A2BP_PROVIDER_OWNER_ADMINS'),
         'licensed_admins' => envString('A2BP_PROVIDER_LICENSED_ADMINS'),
         'update_existing' => '',
@@ -650,6 +665,9 @@ function saveProviderCredentials(string $envPath, string $provider, array $input
     }
     if (($input['account_sid'] ?? '') !== '') {
         $values[$prefix . '_ACCOUNT_SID'] = $input['account_sid'];
+    }
+    if ($provider === 'twilio') {
+        $values[$prefix . '_BYOC_TRUNK_SID'] = trim((string)($input['twilio_byoc_trunk_sid'] ?? ''));
     }
 
     writeSecretFileValues($values, [$prefix . '_API_KEY', $prefix . '_API_SECRET'], $messages, $errors);
@@ -959,7 +977,7 @@ function selectedPackageOption(array $packageOptions, string $selectedPackage): 
  */
 function renderProviderCredentialFields(array $input): void
 {
-    foreach (['provider', 'base_url', 'api_key', 'api_secret', 'api_version', 'account_sid'] as $key) {
+    foreach (['provider', 'base_url', 'api_key', 'api_secret', 'api_version', 'account_sid', 'twilio_byoc_trunk_sid'] as $key) {
         echo '<input type="hidden" name="' . h($key) . '" value="' . h((string)($input[$key] ?? '')) . '">';
     }
 }
@@ -1066,6 +1084,10 @@ function renderProviderCredentialFields(array $input): void
                     <tr>
                         <td><label for="api_secret">API Secret / Auth Token</label></td>
                         <td><input id="api_secret" name="api_secret" type="password" size="70" value="<?php echo h($input['api_secret']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_byoc_trunk_sid">Preferred BYOC Trunk SID</label></td>
+                        <td><input id="twilio_byoc_trunk_sid" name="twilio_byoc_trunk_sid" type="text" size="70" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>"></td>
                     </tr>
                     <?php elseif ($provider === 'vectavoip'): ?>
                     <tr>
@@ -1368,6 +1390,10 @@ function renderProviderCredentialFields(array $input): void
                     <td><strong>Numbers API</strong></td>
                     <td>Search and purchase use Twilio Phone Numbers APIs. Trunk creation uses Elastic SIP Trunking.</td>
                 </tr>
+                <tr>
+                    <td><strong>Preferred BYOC Trunk</strong></td>
+                    <td><?php echo $input['twilio_byoc_trunk_sid'] !== '' ? h($input['twilio_byoc_trunk_sid']) : 'Not configured'; ?></td>
+                </tr>
             </table>
 
             <?php if ($twilioConfigured): ?>
@@ -1410,6 +1436,12 @@ function renderProviderCredentialFields(array $input): void
                     <td width="220">Upserted Numbers</td>
                     <td><?php echo h((string)($twilioLocalSync['upserted'] ?? '0')); ?></td>
                 </tr>
+                <?php if (!empty($twilioLocalSync['preferred_trunk']) && is_array($twilioLocalSync['preferred_trunk'])): ?>
+                <tr>
+                    <td>Preferred Trunk</td>
+                    <td><?php echo h((string)($twilioLocalSync['preferred_trunk']['friendly_name'] ?? $twilioLocalSync['preferred_trunk']['sid'] ?? '')); ?></td>
+                </tr>
+                <?php endif; ?>
             </table>
             <?php endif; ?>
 
@@ -1519,6 +1551,24 @@ function renderProviderCredentialFields(array $input): void
                     <tr>
                         <td></td>
                         <td><button class="form_input_button" name="form_action" type="submit" value="twilio_search_available_numbers">Search Available Numbers</button></td>
+                    </tr>
+                </table>
+            </form>
+
+            <br>
+            <form method="post">
+                <?php renderProviderCredentialFields($input); ?>
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td class="form_head" colspan="2">Register Existing Twilio BYOC Trunk</td>
+                    </tr>
+                    <tr>
+                        <td width="220"><label for="twilio_byoc_trunk_sid_register">BYOC Trunk SID</label></td>
+                        <td><input id="twilio_byoc_trunk_sid_register" name="twilio_byoc_trunk_sid" type="text" size="70" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button class="form_input_button" name="form_action" type="submit" value="twilio_register_existing_trunk">Link Existing BYOC Trunk</button></td>
                     </tr>
                 </table>
             </form>

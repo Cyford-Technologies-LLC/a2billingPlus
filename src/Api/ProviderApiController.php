@@ -67,6 +67,7 @@ final class ProviderApiController
             'twilio_search_available_numbers' => $this->twilioSearchAvailableNumbers($request),
             'twilio_purchase_number' => $this->twilioPurchaseNumber($request),
             'twilio_create_trunk' => $this->twilioCreateTrunk($request),
+            'twilio_register_existing_trunk' => $this->twilioRegisterExistingTrunk($request),
             'twilio_sync_inventory' => $this->twilioSyncInventory($request),
             'preview_rates' => $this->previewRates($request),
             'import_preview_rates' => $this->importPreviewRates($request),
@@ -671,7 +672,18 @@ final class ProviderApiController
 
         try {
             $client = $this->twilioClient();
-            $result = $client->purchaseIncomingPhoneNumber($this->credentialsFromRequest($request), $payload);
+            $credentials = $this->credentialsFromRequest($request);
+            $result = $client->purchaseIncomingPhoneNumber($credentials, $payload);
+            $preferredTrunkSid = $this->preferredTwilioTrunkSid($request);
+            $attachedTrunk = [];
+            if ($preferredTrunkSid !== '' && $this->stringValue($result, 'sid') !== '') {
+                $client->attachPhoneNumberToTrunk($credentials, $preferredTrunkSid, $this->stringValue($result, 'sid'));
+                $attachedTrunk = $this->normalizeTwilioTrunk(
+                    $this->findTwilioTrunkBySid($client, $credentials, $preferredTrunkSid)
+                );
+                $result['trunk_sid'] = $this->stringValue($attachedTrunk, 'sid');
+                $result['trunk_name'] = $this->stringValue($attachedTrunk, 'friendly_name');
+            }
         } catch (\Throwable $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -681,8 +693,11 @@ final class ProviderApiController
 
         return new JsonResponse([
             'success' => true,
-            'message' => 'Twilio phone number purchased.',
+            'message' => $attachedTrunk === []
+                ? 'Twilio phone number purchased.'
+                : 'Twilio phone number purchased and attached to the preferred BYOC trunk.',
             'number' => $this->normalizeTwilioIncomingNumber($result),
+            'attached_trunk' => $attachedTrunk,
         ], 201);
     }
 
@@ -731,6 +746,44 @@ final class ProviderApiController
         ], 201);
     }
 
+    private function twilioRegisterExistingTrunk(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio trunk registration requires the Twilio provider.'], 422);
+        }
+
+        $trunkSid = $this->preferredTwilioTrunkSid($request);
+        if ($trunkSid === '') {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Twilio BYOC trunk SID is required.',
+            ], 422);
+        }
+
+        try {
+            $client = $this->twilioClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $result = $this->findTwilioTrunkBySid($client, $credentials, $trunkSid);
+            $local = (new TwilioProvisioningService($this->pdo()))->materializeTrunk($result);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'Twilio BYOC trunk linked locally.',
+            'remote_trunk' => $this->normalizeTwilioTrunk($result),
+            'local_trunk' => $local,
+        ]);
+    }
+
     private function twilioSyncInventory(JsonRequest $request): JsonResponse
     {
         $connector = $this->getConnector($request);
@@ -777,7 +830,21 @@ final class ProviderApiController
                 }
             }
 
-            $result = (new TwilioProvisioningService($this->pdo()))->syncOwnedNumbers($numbers);
+            $preferredTrunkSid = $this->preferredTwilioTrunkSid($request);
+            $preferredTrunk = [];
+            if ($preferredTrunkSid !== '') {
+                $preferredTrunk = $trunks[$preferredTrunkSid]
+                    ?? $this->normalizeTwilioTrunk($this->findTwilioTrunkBySid($client, $credentials, $preferredTrunkSid));
+            }
+
+            $provisioning = new TwilioProvisioningService($this->pdo());
+            if ($preferredTrunk !== []) {
+                $provisioning->materializeTrunk($preferredTrunk);
+            }
+            $result = $provisioning->syncOwnedNumbers($numbers);
+            if ($preferredTrunk !== []) {
+                $result['preferred_trunk'] = $preferredTrunk;
+            }
         } catch (\Throwable $exception) {
             return new JsonResponse([
                 'success' => false,
@@ -818,6 +885,7 @@ final class ProviderApiController
                 [
                     'api_version' => $request->getString('api_version', $this->envString($this->providerEnvKey($providerCode, 'API_VERSION'))),
                     'account_sid' => $request->getString('account_sid', $this->envString($this->providerEnvKey($providerCode, 'ACCOUNT_SID'))),
+                    'byoc_trunk_sid' => $request->getString('byoc_trunk_sid', $this->envString($this->providerEnvKey($providerCode, 'BYOC_TRUNK_SID'))),
                 ]
             )
         );
@@ -902,6 +970,44 @@ final class ProviderApiController
         }
 
         return new TwilioApiClient();
+    }
+
+    private function preferredTwilioTrunkSid(JsonRequest $request): string
+    {
+        return trim($request->getString('byoc_trunk_sid', $this->envString($this->providerEnvKey('twilio', 'BYOC_TRUNK_SID'))));
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function findTwilioTrunkBySid(
+        TwilioApiClient $client,
+        ProviderCredentials $credentials,
+        string $trunkSid
+    ): array {
+        $trunkSid = trim($trunkSid);
+        if ($trunkSid === '') {
+            throw new \RuntimeException('Twilio trunk SID is required.');
+        }
+
+        try {
+            $trunk = $client->getTrunk($credentials, $trunkSid);
+            if ($this->stringValue($trunk, 'sid') !== '') {
+                return $trunk;
+            }
+        } catch (\Throwable) {
+            // Fall back to the collection API because some accounts return trunk
+            // details only through the list route.
+        }
+
+        $payload = $client->listTrunks($credentials, ['PageSize' => '100']);
+        foreach ($payload['trunks'] ?? [] as $item) {
+            if (is_array($item) && $this->stringValue($item, 'sid') === $trunkSid) {
+                return $item;
+            }
+        }
+
+        throw new \RuntimeException('Twilio trunk SID was not found on this account.');
     }
 
     private function pdo(): \PDO

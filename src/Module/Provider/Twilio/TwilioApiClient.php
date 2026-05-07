@@ -88,6 +88,22 @@ final class TwilioApiClient
     }
 
     /**
+     * @return array<string, mixed>
+     */
+    public function getTrunk(ProviderCredentials $credentials, string $trunkSid): array
+    {
+        if (trim($trunkSid) === '') {
+            throw new \RuntimeException('Twilio trunk SID is required.');
+        }
+
+        return $this->request(
+            'GET',
+            self::TRUNKING_BASE_URL . '/v1/Trunks/' . rawurlencode($trunkSid),
+            $credentials
+        );
+    }
+
+    /**
      * @param array<string, string> $filters
      * @return array<string, mixed>
      */
