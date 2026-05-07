@@ -8,6 +8,7 @@ use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Module\Provider\Didww\DidwwProviderModule;
 use A2BillingPlus\Module\Provider\ProviderModuleInterface;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
+use A2BillingPlus\Module\Provider\Twilio\TwilioProviderModule;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProviderModule;
 
 final class ProviderRegistryFactory
@@ -38,6 +39,7 @@ final class ProviderRegistryFactory
         return [
             new VectaVoIPProviderModule($config),
             new DidwwProviderModule($config),
+            new TwilioProviderModule($config),
         ];
     }
 }

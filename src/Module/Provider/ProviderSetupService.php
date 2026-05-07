@@ -53,6 +53,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'api_version' => $input['api_version'] ?? '',
+            'account_sid' => $input['account_sid'] ?? '',
         ]);
     }
 
@@ -200,6 +201,103 @@ final class ProviderSetupService
             'api_version' => $input['api_version'] ?? '',
             'orders_page_size' => $input['didww_orders_page_size'] ?? '25',
             'page_size' => $input['didww_sync_page_size'] ?? '100',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function twilioInventorySnapshot(array $input): array
+    {
+        return $this->post([
+            'action' => 'twilio_inventory_snapshot',
+            'provider' => 'twilio',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'account_sid' => $input['account_sid'] ?? '',
+            'page_size' => $input['twilio_page_size'] ?? '25',
+            'trunks_page_size' => $input['twilio_trunks_page_size'] ?? '25',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function twilioSearchAvailableNumbers(array $input): array
+    {
+        return $this->post([
+            'action' => 'twilio_search_available_numbers',
+            'provider' => 'twilio',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'account_sid' => $input['account_sid'] ?? '',
+            'country_code' => $input['twilio_country_code'] ?? 'US',
+            'contains' => $input['twilio_contains'] ?? '',
+            'area_code' => $input['twilio_area_code'] ?? '',
+            'sms_enabled' => $input['twilio_sms_enabled'] ?? '',
+            'voice_enabled' => $input['twilio_voice_enabled'] ?? '',
+            'page_size' => $input['twilio_search_page_size'] ?? '20',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function twilioPurchaseNumber(array $input): array
+    {
+        return $this->post([
+            'action' => 'twilio_purchase_number',
+            'provider' => 'twilio',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'account_sid' => $input['account_sid'] ?? '',
+            'phone_number' => $input['twilio_phone_number'] ?? '',
+            'voice_url' => $input['twilio_voice_url'] ?? '',
+            'sms_url' => $input['twilio_sms_url'] ?? '',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function twilioCreateTrunk(array $input): array
+    {
+        return $this->post([
+            'action' => 'twilio_create_trunk',
+            'provider' => 'twilio',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'account_sid' => $input['account_sid'] ?? '',
+            'friendly_name' => $input['twilio_trunk_friendly_name'] ?? '',
+            'domain_name' => $input['twilio_trunk_domain_name'] ?? '',
+            'cnam_lookup_enabled' => $input['twilio_trunk_cnam_lookup_enabled'] ?? '',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function twilioSyncInventory(array $input): array
+    {
+        return $this->post([
+            'action' => 'twilio_sync_inventory',
+            'provider' => 'twilio',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'account_sid' => $input['account_sid'] ?? '',
+            'page_size' => $input['twilio_sync_page_size'] ?? '100',
+            'trunks_page_size' => $input['twilio_trunks_page_size'] ?? '100',
+            'trunk_numbers_page_size' => $input['twilio_trunk_numbers_page_size'] ?? '100',
         ]);
     }
 

@@ -200,6 +200,9 @@ its business rules live outside the page script.
       are now in the provider UI; provider/trunk/order inventory context is now
       visible in the modular telephony workspace. Remaining work is
       trunk-group/deeper provisioning and write-side DIDWW telephony actions.
+- [x] Add a first-pass Twilio provider integration covering credential testing,
+      owned-number snapshot, available-number search, number purchase, SIP trunk
+      creation, and local inventory synchronization.
 
 ### Agent And Reseller Module
 

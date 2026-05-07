@@ -16,6 +16,7 @@ use A2BillingPlus\Module\Provider\RateImporterInterface;
 use A2BillingPlus\Module\Provider\RateImportPreview;
 use A2BillingPlus\Module\Provider\RateImportRequest;
 use A2BillingPlus\Module\Provider\RateImportResult;
+use A2BillingPlus\Module\Provider\Twilio\TwilioApiClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use PHPUnit\Framework\TestCase;
 
@@ -37,6 +38,7 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame(200, $response->getStatusCode());
         $this->assertContains('vectavoip', $codes);
         $this->assertContains('didww', $codes);
+        $this->assertContains('twilio', $codes);
     }
 
     public function testTestsProviderConnection(): void
@@ -639,6 +641,126 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertTrue($response->getPayload()['success']);
         $this->assertSame('trunk-1', $response->getPayload()['remote_trunk']['id']);
         $this->assertGreaterThan(0, (int) $response->getPayload()['local_trunk']['trunk_id']);
+    }
+
+    public function testTwilioInventorySnapshotNormalizesNumbersAndTrunks(): void
+    {
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            null,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            null,
+            fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
+                if ($method === 'GET' && str_contains($url, '/IncomingPhoneNumbers.json')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'incoming_phone_numbers' => [[
+                                'sid' => 'PN1',
+                                'phone_number' => '+12125550100',
+                                'friendly_name' => '(212) 555-0100',
+                                'iso_country' => 'US',
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'trunks' => [[
+                            'sid' => 'TK1',
+                            'friendly_name' => 'Main trunk',
+                            'domain_name' => 'example.pstn.twilio.com',
+                            'date_created' => 'Thu, 07 May 2026 00:00:00 +0000',
+                        ]],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'twilio_inventory_snapshot',
+            'provider' => 'twilio',
+            'base_url' => 'https://api.twilio.com',
+            'account_sid' => 'AC123',
+            'api_key' => 'SK123',
+            'api_secret' => 'secret',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('+12125550100', $response->getPayload()['numbers'][0]['phone_number']);
+        $this->assertSame('Main trunk', $response->getPayload()['trunks'][0]['friendly_name']);
+    }
+
+    public function testTwilioSyncInventoryWritesOwnedNumbersIntoLocalInventory(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            fn (): PDO => $pdo,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            null,
+            fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
+                if ($method === 'GET' && str_contains($url, '/IncomingPhoneNumbers.json')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'incoming_phone_numbers' => [[
+                                'sid' => 'PN1',
+                                'phone_number' => '+12125550100',
+                                'friendly_name' => '(212) 555-0100',
+                                'iso_country' => 'US',
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                if ($method === 'GET' && str_contains($url, 'trunking.twilio.com/v1/Trunks?')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'trunks' => [[
+                                'sid' => 'TK1',
+                                'friendly_name' => 'Main trunk',
+                                'domain_name' => 'example.pstn.twilio.com',
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'phone_numbers' => [[
+                            'sid' => 'TN1',
+                            'phone_number_sid' => 'PN1',
+                        ]],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'twilio_sync_inventory',
+            'provider' => 'twilio',
+            'base_url' => 'https://api.twilio.com',
+            'account_sid' => 'AC123',
+            'api_key' => 'SK123',
+            'api_secret' => 'secret',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame(1, $response->getPayload()['upserted']);
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
     }
 
     private function previewProviderRegistry(): ProviderRegistry

@@ -15,6 +15,9 @@ use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
 use A2BillingPlus\Module\Provider\RateImportRequest;
+use A2BillingPlus\Module\Provider\Twilio\TwilioApiClient;
+use A2BillingPlus\Module\Provider\Twilio\TwilioConnector;
+use A2BillingPlus\Module\Provider\Twilio\TwilioProvisioningService;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
@@ -32,7 +35,8 @@ final class ProviderApiController
         private $pdoFactory = null,
         ?ProviderAccessPolicy $accessPolicy = null,
         private readonly string $actor = '',
-        private $didwwClientFactory = null
+        private $didwwClientFactory = null,
+        private $twilioClientFactory = null
     ) {
         $this->accessPolicy = $accessPolicy ?? new ProviderAccessPolicy(AppConfig::fromEnvironment());
     }
@@ -59,6 +63,11 @@ final class ProviderApiController
             'didww_create_inbound_trunk' => $this->didwwCreateInboundTrunk($request),
             'didww_sync_inventory' => $this->didwwSyncInventory($request),
             'didww_sync_completed_orders' => $this->didwwSyncCompletedOrders($request),
+            'twilio_inventory_snapshot' => $this->twilioInventorySnapshot($request),
+            'twilio_search_available_numbers' => $this->twilioSearchAvailableNumbers($request),
+            'twilio_purchase_number' => $this->twilioPurchaseNumber($request),
+            'twilio_create_trunk' => $this->twilioCreateTrunk($request),
+            'twilio_sync_inventory' => $this->twilioSyncInventory($request),
             'preview_rates' => $this->previewRates($request),
             'import_preview_rates' => $this->importPreviewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
@@ -130,7 +139,7 @@ final class ProviderApiController
 
         return new JsonResponse([
             'provider' => $connector->getProviderCode(),
-            'registered' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'API_KEY')) !== '',
+            'registered' => $this->providerConfigured($connector->getProviderCode()),
             'installation_id' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'INSTALLATION_ID')),
             'api_base_url' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'API_BASE_URL'), $connector->getApiBaseUrl()),
             'support_email' => $connector->getSupportEmail(),
@@ -552,6 +561,233 @@ final class ProviderApiController
         ]);
     }
 
+    private function twilioInventorySnapshot(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio inventory actions require the Twilio provider.'], 422);
+        }
+
+        try {
+            $client = $this->twilioClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $numbers = $client->listIncomingPhoneNumbers($credentials, [
+                'PageSize' => (string) max(1, min(100, $request->getInt('page_size', 25))),
+            ]);
+            $trunks = $client->listTrunks($credentials, [
+                'PageSize' => (string) max(1, min(100, $request->getInt('trunks_page_size', 25))),
+            ]);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'numbers' => $this->normalizeTwilioIncomingNumbers($numbers),
+            'trunks' => $this->normalizeTwilioTrunks($trunks),
+        ]);
+    }
+
+    private function twilioSearchAvailableNumbers(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio number search requires the Twilio provider.'], 422);
+        }
+
+        $filters = [
+            'PageSize' => (string) max(1, min(100, $request->getInt('page_size', 20))),
+        ];
+        foreach ([
+            'Contains' => 'contains',
+            'AreaCode' => 'area_code',
+            'SmsEnabled' => 'sms_enabled',
+            'VoiceEnabled' => 'voice_enabled',
+        ] as $twilioKey => $requestKey) {
+            $value = $request->getString($requestKey);
+            if ($value !== '') {
+                $filters[$twilioKey] = $value;
+            }
+        }
+
+        try {
+            $client = $this->twilioClient();
+            $results = $client->searchAvailableLocalNumbers(
+                $this->credentialsFromRequest($request),
+                $request->getString('country_code', 'US'),
+                $filters
+            );
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'available_numbers' => $this->normalizeTwilioAvailableNumbers($results),
+            'message' => 'Twilio available number search completed.',
+        ]);
+    }
+
+    private function twilioPurchaseNumber(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio number purchase requires the Twilio provider.'], 422);
+        }
+
+        $phoneNumber = $request->getString('phone_number');
+        if ($phoneNumber === '') {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Twilio phone number is required.',
+            ], 422);
+        }
+
+        $payload = ['PhoneNumber' => $phoneNumber];
+        foreach ([
+            'VoiceUrl' => 'voice_url',
+            'SmsUrl' => 'sms_url',
+        ] as $twilioKey => $requestKey) {
+            $value = $request->getString($requestKey);
+            if ($value !== '') {
+                $payload[$twilioKey] = $value;
+            }
+        }
+
+        try {
+            $client = $this->twilioClient();
+            $result = $client->purchaseIncomingPhoneNumber($this->credentialsFromRequest($request), $payload);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'Twilio phone number purchased.',
+            'number' => $this->normalizeTwilioIncomingNumber($result),
+        ], 201);
+    }
+
+    private function twilioCreateTrunk(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio trunk provisioning requires the Twilio provider.'], 422);
+        }
+
+        $friendlyName = $request->getString('friendly_name');
+        if ($friendlyName === '') {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Twilio friendly name is required.',
+            ], 422);
+        }
+
+        $payload = ['FriendlyName' => $friendlyName];
+        if ($request->getString('domain_name') !== '') {
+            $payload['DomainName'] = $request->getString('domain_name');
+        }
+        if ($request->getString('cnam_lookup_enabled') !== '') {
+            $payload['CnamLookupEnabled'] = $request->getString('cnam_lookup_enabled');
+        }
+
+        try {
+            $client = $this->twilioClient();
+            $result = $client->createTrunk($this->credentialsFromRequest($request), $payload);
+            $local = (new TwilioProvisioningService($this->pdo()))->materializeTrunk($result);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'Twilio SIP trunk created.',
+            'remote_trunk' => $this->normalizeTwilioTrunk($result),
+            'local_trunk' => $local,
+        ], 201);
+    }
+
+    private function twilioSyncInventory(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio inventory sync requires the Twilio provider.'], 422);
+        }
+
+        try {
+            $client = $this->twilioClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $numbersPayload = $client->listIncomingPhoneNumbers($credentials, [
+                'PageSize' => (string) max(1, min(100, $request->getInt('page_size', 100))),
+            ]);
+            $numbers = $this->normalizeTwilioIncomingNumbers($numbersPayload);
+
+            $trunksPayload = $client->listTrunks($credentials, [
+                'PageSize' => (string) max(1, min(100, $request->getInt('trunks_page_size', 100))),
+            ]);
+            $trunks = [];
+            foreach ($this->normalizeTwilioTrunks($trunksPayload) as $trunk) {
+                $sid = $this->stringValue($trunk, 'sid');
+                if ($sid !== '') {
+                    $trunks[$sid] = $trunk;
+                }
+            }
+
+            foreach ($trunks as $sid => $trunk) {
+                $phonesPayload = $client->listTrunkPhoneNumbers($credentials, $sid, [
+                    'PageSize' => (string) max(1, min(100, $request->getInt('trunk_numbers_page_size', 100))),
+                ]);
+                foreach ($this->normalizeTwilioTrunkPhoneNumbers($phonesPayload) as $attached) {
+                    $numberSid = $this->stringValue($attached, 'phone_number_sid');
+                    foreach ($numbers as &$number) {
+                        if ($this->stringValue($number, 'sid') === $numberSid) {
+                            $number['trunk_sid'] = $sid;
+                            $number['trunk_name'] = $this->stringValue($trunk, 'friendly_name');
+                            break;
+                        }
+                    }
+                    unset($number);
+                }
+            }
+
+            $result = (new TwilioProvisioningService($this->pdo()))->syncOwnedNumbers($numbers);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse($result);
+    }
+
     /**
      * @return \A2BillingPlus\Module\Provider\ProviderConnectorInterface|JsonResponse
      */
@@ -579,7 +815,10 @@ final class ProviderApiController
             $request->getString('api_secret', $this->envString($this->providerEnvKey($providerCode, 'API_SECRET'))),
             array_merge(
                 $this->stringMap($request->getArray('metadata')),
-                ['api_version' => $request->getString('api_version', $this->envString($this->providerEnvKey($providerCode, 'API_VERSION')))]
+                [
+                    'api_version' => $request->getString('api_version', $this->envString($this->providerEnvKey($providerCode, 'API_VERSION'))),
+                    'account_sid' => $request->getString('account_sid', $this->envString($this->providerEnvKey($providerCode, 'ACCOUNT_SID'))),
+                ]
             )
         );
     }
@@ -589,6 +828,7 @@ final class ProviderApiController
         return match ($providerCode) {
             'vectavoip' => VectaVoIPConnector::API_BASE_URL,
             'didww' => DidwwConnector::API_BASE_URL,
+            'twilio' => TwilioConnector::API_BASE_URL,
             default => '',
         };
     }
@@ -596,6 +836,15 @@ final class ProviderApiController
     private function providerEnvKey(string $providerCode, string $suffix): string
     {
         return strtoupper($providerCode) . '_' . $suffix;
+    }
+
+    private function providerConfigured(string $providerCode): bool
+    {
+        return match ($providerCode) {
+            'twilio' => $this->envString($this->providerEnvKey($providerCode, 'ACCOUNT_SID')) !== ''
+                && $this->envString($this->providerEnvKey($providerCode, 'API_SECRET')) !== '',
+            default => $this->envString($this->providerEnvKey($providerCode, 'API_KEY')) !== '',
+        };
     }
 
     private function envString(string $key, string $default = ''): string
@@ -644,6 +893,15 @@ final class ProviderApiController
         }
 
         return new DidwwApiClient();
+    }
+
+    private function twilioClient(): TwilioApiClient
+    {
+        if (is_callable($this->twilioClientFactory)) {
+            return ($this->twilioClientFactory)();
+        }
+
+        return new TwilioApiClient();
     }
 
     private function pdo(): \PDO
@@ -909,6 +1167,118 @@ final class ProviderApiController
     private function boolString(array $values, string $key): string
     {
         return !empty($values[$key]) ? 'Yes' : 'No';
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeTwilioIncomingNumbers(array $payload): array
+    {
+        $rows = [];
+        foreach ($payload['incoming_phone_numbers'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $rows[] = $this->normalizeTwilioIncomingNumber($item);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, string>
+     */
+    private function normalizeTwilioIncomingNumber(array $item): array
+    {
+        return [
+            'sid' => $this->stringValue($item, 'sid'),
+            'friendly_name' => $this->stringValue($item, 'friendly_name'),
+            'phone_number' => $this->stringValue($item, 'phone_number'),
+            'country_code' => $this->stringValue($item, 'iso_country', $this->stringValue($item, 'country_code')),
+            'voice_url' => $this->stringValue($item, 'voice_url'),
+            'sms_url' => $this->stringValue($item, 'sms_url'),
+            'trunk_sid' => $this->stringValue($item, 'trunk_sid'),
+            'trunk_name' => $this->stringValue($item, 'trunk_name'),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeTwilioAvailableNumbers(array $payload): array
+    {
+        $rows = [];
+        foreach ($payload['available_phone_numbers'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $capabilities = is_array($item['capabilities'] ?? null) ? $item['capabilities'] : [];
+            $rows[] = [
+                'friendly_name' => $this->stringValue($item, 'friendly_name'),
+                'phone_number' => $this->stringValue($item, 'phone_number'),
+                'locality' => $this->stringValue($item, 'locality'),
+                'region' => $this->stringValue($item, 'region'),
+                'postal_code' => $this->stringValue($item, 'postal_code'),
+                'beta' => $this->boolString($item, 'beta'),
+                'capabilities' => implode(', ', array_keys(array_filter($capabilities))),
+            ];
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeTwilioTrunks(array $payload): array
+    {
+        $rows = [];
+        foreach ($payload['trunks'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $rows[] = $this->normalizeTwilioTrunk($item);
+        }
+
+        return $rows;
+    }
+
+    /**
+     * @param array<string, mixed> $item
+     * @return array<string, string>
+     */
+    private function normalizeTwilioTrunk(array $item): array
+    {
+        return [
+            'sid' => $this->stringValue($item, 'sid'),
+            'friendly_name' => $this->stringValue($item, 'friendly_name'),
+            'domain_name' => $this->stringValue($item, 'domain_name'),
+            'date_created' => $this->stringValue($item, 'date_created'),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     * @return list<array<string, string>>
+     */
+    private function normalizeTwilioTrunkPhoneNumbers(array $payload): array
+    {
+        $rows = [];
+        foreach ($payload['phone_numbers'] ?? [] as $item) {
+            if (!is_array($item)) {
+                continue;
+            }
+            $rows[] = [
+                'sid' => $this->stringValue($item, 'sid'),
+                'phone_number_sid' => $this->stringValue($item, 'phone_number_sid'),
+            ];
+        }
+
+        return $rows;
     }
 
     /**
