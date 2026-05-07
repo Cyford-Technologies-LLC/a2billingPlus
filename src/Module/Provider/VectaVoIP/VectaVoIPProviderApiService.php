@@ -16,13 +16,18 @@ final class VectaVoIPProviderApiService
      */
     public function registerInstallation(array $payload): array
     {
+        $contactEmail = $this->stringValue($payload, 'contact_email');
+        if ($contactEmail !== '' && filter_var($contactEmail, FILTER_VALIDATE_EMAIL) === false) {
+            throw new \InvalidArgumentException('contact_email is invalid.');
+        }
+
         $request = new VectaVoIPRegistrationRequest(
             $this->requiredString($payload, 'install_key'),
             $this->requiredString($payload, 'username'),
             $this->requiredString($payload, 'password'),
             $this->stringValue($payload, 'company_name', $this->requiredString($payload, 'username')),
             $this->stringValue($payload, 'company_domain'),
-            $this->stringValue($payload, 'contact_email'),
+            $contactEmail,
             $this->stringValue($payload, 'request_ip'),
             $this->stringValue($payload, 'app_name', 'A2BillingPlus'),
             $this->stringValue($payload, 'app_version', '0.1.0-alpha')

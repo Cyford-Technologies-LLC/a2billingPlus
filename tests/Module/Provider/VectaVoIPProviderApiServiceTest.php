@@ -117,12 +117,12 @@ final class VectaVoIPProviderApiServiceTest extends TestCase
     {
         return [
             'install_key' => 'a2bp_test',
+            'username' => 'jane-admin',
+            'password' => 'SecretPass123!',
             'company_name' => 'Example Co',
             'company_domain' => 'example.test',
-            'contact_name' => 'Jane Admin',
             'contact_email' => 'jane@example.test',
-            'contact_phone' => '+15551234567',
-            'details' => 'Sandbox migration',
+            'request_ip' => '127.0.0.1',
             'app_name' => 'A2BillingPlus',
             'app_version' => '0.1.0-alpha',
         ];

@@ -11,6 +11,11 @@ final class ModernAdminRuntimeTest extends TestCase
 {
     public function testReadsAndUpdatesThemeFromLocalEnvFile(): void
     {
+        $previousTheme = getenv('A2BP_UI_THEME');
+        $previousMenuStyle = getenv('A2BP_UI_MENU_STYLE');
+        putenv('A2BP_UI_THEME');
+        putenv('A2BP_UI_MENU_STYLE');
+
         $root = sys_get_temp_dir() . DIRECTORY_SEPARATOR . 'a2bp-runtime-' . bin2hex(random_bytes(4));
         mkdir($root);
         file_put_contents($root . DIRECTORY_SEPARATOR . '.env', "A2BP_UI_THEME=classic\n");
@@ -28,6 +33,8 @@ final class ModernAdminRuntimeTest extends TestCase
             self::assertSame('topbar', $style);
             self::assertSame('topbar', $runtime->activeMenuStyle($theme));
         } finally {
+            $previousTheme === false ? putenv('A2BP_UI_THEME') : putenv('A2BP_UI_THEME=' . $previousTheme);
+            $previousMenuStyle === false ? putenv('A2BP_UI_MENU_STYLE') : putenv('A2BP_UI_MENU_STYLE=' . $previousMenuStyle);
             @unlink($root . DIRECTORY_SEPARATOR . '.env');
             @rmdir($root);
         }

@@ -87,12 +87,12 @@ Invoke-Step 'VectaVoIP production-compatible registration smoke' {
     $installKey = 'a2bp_verify_' + [guid]::NewGuid().ToString('N')
     $body = @{
         install_key = $installKey
+        username = 'verify-admin'
+        password = 'VerifyPass123!'
         company_name = 'Verify Co'
         company_domain = 'verify.example'
-        contact_name = 'Verify Admin'
         contact_email = 'verify@example.test'
-        contact_phone = '+15551234567'
-        details = 'Build verification registration'
+        request_ip = '127.0.0.1'
         app_name = 'A2BillingPlus'
         app_version = '0.1.0-alpha'
     } | ConvertTo-Json -Compress

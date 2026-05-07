@@ -13,7 +13,8 @@ final class VectaVoIPRegistrationClientTest extends TestCase
         $client = new VectaVoIPRegistrationClient('https://api.vectavoip.com', function (string $url, array $payload): array {
             $this->assertSame('https://api.vectavoip.com/v1/installations/register', $url);
             $this->assertSame('install-key', $payload['install_key']);
-            $this->assertSame('Jane Admin', $payload['contact_name']);
+            $this->assertSame('jane-admin', $payload['username']);
+            $this->assertSame('SecretPass123!', $payload['password']);
             $this->assertSame('jane@example.test', $payload['contact_email']);
 
             return [
@@ -30,12 +31,12 @@ final class VectaVoIPRegistrationClientTest extends TestCase
 
         $result = $client->register(new VectaVoIPRegistrationRequest(
             'install-key',
+            'jane-admin',
+            'SecretPass123!',
             'VectaVoIP',
             'VectaVoIP.com',
-            'Jane Admin',
             'jane@example.test',
-            '+15551234567',
-            'Sandbox install',
+            '127.0.0.1',
             'A2BillingPlus',
             '0.1.0-alpha'
         ));
@@ -56,12 +57,12 @@ final class VectaVoIPRegistrationClientTest extends TestCase
 
         $result = $client->register(new VectaVoIPRegistrationRequest(
             'install-key',
+            'jane-admin',
+            'SecretPass123!',
             'VectaVoIP',
             'VectaVoIP.com',
             '',
-            '',
-            '',
-            '',
+            '127.0.0.1',
             'A2BillingPlus',
             '0.1.0-alpha'
         ));
@@ -87,12 +88,12 @@ final class VectaVoIPRegistrationClientTest extends TestCase
 
         $result = $client->register(new VectaVoIPRegistrationRequest(
             'install-key',
+            'jane-admin',
+            'SecretPass123!',
             'VectaVoIP',
             'VectaVoIP.com',
-            'Jane Admin',
             'jane@example.test',
-            '+15551234567',
-            'Sandbox install',
+            '127.0.0.1',
             'A2BillingPlus',
             '0.1.0-alpha'
         ));
