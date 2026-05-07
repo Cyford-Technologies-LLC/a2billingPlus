@@ -839,6 +839,90 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertGreaterThan(0, (int) $response->getPayload()['local_trunk']['trunk_id']);
     }
 
+    public function testTwilioSyncInventoryAssignsPreferredByocTrunkContextToNumbers(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
+        $pdo->exec(
+            'CREATE TABLE cc_trunk (
+                id_trunk INTEGER PRIMARY KEY AUTOINCREMENT,
+                trunkcode TEXT,
+                trunkprefix TEXT,
+                providertech TEXT,
+                providerip TEXT,
+                removeprefix TEXT,
+                failover_trunk INTEGER,
+                addparameter TEXT,
+                id_provider INTEGER,
+                inuse INTEGER,
+                maxuse INTEGER,
+                status INTEGER,
+                if_max_use INTEGER
+            )'
+        );
+
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            fn (): PDO => $pdo,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            null,
+            fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
+                if ($method === 'GET' && str_contains($url, '/IncomingPhoneNumbers.json')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode([
+                            'incoming_phone_numbers' => [[
+                                'sid' => 'PN1',
+                                'phone_number' => '+12125550100',
+                                'friendly_name' => '(212) 555-0100',
+                                'voice_url' => 'https://demo.twilio.com/welcome/voice/',
+                                'sms_url' => 'https://demo.twilio.com/welcome/sms/reply',
+                            ]],
+                        ], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                if ($method === 'GET' && str_contains($url, 'trunking.twilio.com/v1/Trunks?')) {
+                    return [
+                        'status' => 200,
+                        'body' => json_encode(['trunks' => []], JSON_THROW_ON_ERROR),
+                    ];
+                }
+
+                $this->assertSame('GET', $method);
+                $this->assertStringContainsString('voice.twilio.com/v1/ByocTrunks/BYbf0b89b0a20e0aa44f399c29c686ec5e', $url);
+
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+                        'friendly_name' => 'VectaVoip',
+                        'domain_name' => '',
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'twilio_sync_inventory',
+            'provider' => 'twilio',
+            'base_url' => 'https://api.twilio.com',
+            'account_sid' => 'AC123',
+            'api_key' => 'SK123',
+            'api_secret' => 'secret',
+            'byoc_trunk_sid' => 'BYbf0b89b0a20e0aa44f399c29c686ec5e',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('VectaVoip', $response->getPayload()['preferred_trunk']['friendly_name']);
+        $this->assertSame('BYbf0b89b0a20e0aa44f399c29c686ec5e', $pdo->query("SELECT provider_trunk_reference FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        $this->assertSame('VectaVoip', $pdo->query("SELECT provider_trunk_name FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+    }
+
     public function testTwilioPurchaseNumberAttachesToPreferredByocTrunk(): void
     {
         $controller = new ProviderApiController(

@@ -843,6 +843,16 @@ final class ProviderApiController
             if ($preferredTrunkSid !== '') {
                 $preferredTrunk = $trunks[$preferredTrunkSid]
                     ?? $this->normalizeTwilioTrunk($this->findTwilioTrunkBySid($client, $credentials, $preferredTrunkSid));
+
+                foreach ($numbers as &$number) {
+                    if ($this->stringValue($number, 'trunk_sid') !== '') {
+                        continue;
+                    }
+
+                    $number['trunk_sid'] = $this->stringValue($preferredTrunk, 'sid');
+                    $number['trunk_name'] = $this->stringValue($preferredTrunk, 'friendly_name');
+                }
+                unset($number);
             }
 
             $provisioning = new TwilioProvisioningService($this->pdo());
