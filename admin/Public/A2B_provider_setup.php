@@ -121,10 +121,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
     }
 
+    if ($formAction === 'save_locked_provider_admins' && !$errors) {
+        saveLockedProviderAdmins($envPath, $input['licensed_admins'], $messages, $errors);
+    }
+
     if ($provider === 'didww' && !$errors && $formAction === 'didww_refresh_inventory') {
         $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
         if (($didwwSnapshot['success'] ?? false) !== true) {
-            $errors[] = (string)($didwwSnapshot['message'] ?? 'DIDWW inventory refresh failed.');
+            $errors[] = formatDidwwErrorMessage((string)($didwwSnapshot['message'] ?? 'DIDWW inventory refresh failed.'));
         } else {
             $messages[] = 'DIDWW inventory refreshed.';
         }
@@ -133,7 +137,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($provider === 'didww' && !$errors && $formAction === 'didww_search_available_dids') {
         $didwwSearch = $providerSetup->didwwSearchAvailableDids($input);
         if (($didwwSearch['success'] ?? false) !== true) {
-            $errors[] = (string)($didwwSearch['message'] ?? 'DIDWW DID search failed.');
+            $errors[] = formatDidwwErrorMessage((string)($didwwSearch['message'] ?? 'DIDWW DID search failed.'));
         } else {
             $messages[] = (string)($didwwSearch['message'] ?? 'DIDWW available DID search completed.');
         }
@@ -145,7 +149,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $didwwOrder = $providerSetup->didwwOrderDid($input);
             if (($didwwOrder['success'] ?? false) !== true) {
-                $errors[] = (string)($didwwOrder['message'] ?? 'DIDWW order failed.');
+                $errors[] = formatDidwwErrorMessage((string)($didwwOrder['message'] ?? 'DIDWW order failed.'));
             } else {
                 $messages[] = (string)($didwwOrder['message'] ?? 'DIDWW order submitted.');
                 $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
@@ -156,7 +160,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($provider === 'didww' && !$errors && $formAction === 'didww_sync_inventory') {
         $didwwLocalSync = $providerSetup->didwwSyncInventory($input);
         if (($didwwLocalSync['success'] ?? false) !== true) {
-            $errors[] = (string)($didwwLocalSync['message'] ?? 'DIDWW inventory sync failed.');
+            $errors[] = formatDidwwErrorMessage((string)($didwwLocalSync['message'] ?? 'DIDWW inventory sync failed.'));
         } else {
             $messages[] = (string)($didwwLocalSync['message'] ?? 'DIDWW inventory synchronized.');
             $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
@@ -169,7 +173,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
             $didwwTrunkProvision = $providerSetup->didwwCreateInboundTrunk($input);
             if (($didwwTrunkProvision['success'] ?? false) !== true) {
-                $errors[] = (string)($didwwTrunkProvision['message'] ?? 'DIDWW inbound trunk provisioning failed.');
+                $errors[] = formatDidwwErrorMessage((string)($didwwTrunkProvision['message'] ?? 'DIDWW inbound trunk provisioning failed.'));
             } else {
                 $messages[] = (string)($didwwTrunkProvision['message'] ?? 'DIDWW inbound trunk created.');
                 $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
@@ -399,6 +403,8 @@ function providerDefaults(string $provider): array
         'didww_trunk_resolve_ruri' => '1',
         'didww_trunk_enabled_sip_registration' => '',
         'didww_trunk_use_did_in_ruri' => '1',
+        'owner_admins' => envString('A2BP_PROVIDER_OWNER_ADMINS'),
+        'licensed_admins' => envString('A2BP_PROVIDER_LICENSED_ADMINS'),
         'update_existing' => '',
         'save_credentials' => '1',
     ];
@@ -680,6 +686,27 @@ function saveProviderPackageProvisioning(string $envPath, string $provider, arra
     $messages[] = 'Saved VectaVoIP provisioning options for package: ' . $input['selected_package'] . '.';
 }
 
+function saveLockedProviderAdmins(string $envPath, string $licensedAdmins, array &$messages, array &$errors): void
+{
+    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
+        $errors[] = '.env is not writable. Locked provider admin list was not saved.';
+        return;
+    }
+
+    $normalized = implode(',', csvActors($licensedAdmins));
+    $values = ['A2BP_PROVIDER_LICENSED_ADMINS' => $normalized];
+    $contents = is_file($envPath) ? (string)file_get_contents($envPath) : '';
+    $contents = mergeEnvValues($contents, $values);
+
+    if (@file_put_contents($envPath, $contents) === false) {
+        $errors[] = 'Could not write .env. Locked provider admin list was not saved.';
+        return;
+    }
+
+    putenv('A2BP_PROVIDER_LICENSED_ADMINS=' . $normalized);
+    $messages[] = 'Saved licensed admin access for locked providers.';
+}
+
 function mergeEnvValues(string $contents, array $values): string
 {
     $lines = preg_split('/\r\n|\r|\n/', $contents);
@@ -714,6 +741,36 @@ function envValue(string $value): string
     }
 
     return $value;
+}
+
+function formatDidwwErrorMessage(string $message): string
+{
+    $normalized = strtolower(trim($message));
+    if ($normalized === '') {
+        return 'DIDWW request failed.';
+    }
+    if (str_contains($normalized, 'access for customer is denied')) {
+        return 'DIDWW API denied this request for the current account. The account/API key can read inventory but is not allowed to use this operation yet.';
+    }
+    if (str_contains($normalized, 'endpoint not enabled')) {
+        return 'DIDWW API endpoint is not enabled on this account: ' . $message;
+    }
+    if (str_contains($normalized, 'forbidden') || str_contains($normalized, 'permission') || str_contains($normalized, 'denied')) {
+        return 'DIDWW API permission denied: ' . $message;
+    }
+
+    return $message;
+}
+
+/**
+ * @return list<string>
+ */
+function csvActors(string $value): array
+{
+    $parts = preg_split('/[\r\n,]+/', $value) ?: [];
+    $parts = array_map(static fn (string $item): string => strtolower(trim($item)), $parts);
+    $parts = array_values(array_filter($parts, static fn (string $item): bool => $item !== ''));
+    return array_values(array_unique($parts));
 }
 
 function h(string $value): string
@@ -832,6 +889,33 @@ function renderProviderCredentialFields(array $input): void
                 </tr>
                 <?php endif; ?>
             </table>
+
+            <?php if ($providerLocked): ?>
+            <br>
+            <form method="post">
+                <input type="hidden" name="provider" value="<?php echo h($provider); ?>">
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td class="form_head" colspan="2">Locked Provider Admin Access</td>
+                    </tr>
+                    <tr>
+                        <td width="220">Owner Admins</td>
+                        <td><?php echo h($input['owner_admins']); ?></td>
+                    </tr>
+                    <tr>
+                        <td><label for="licensed_admins">Licensed Admins</label></td>
+                        <td>
+                            <textarea id="licensed_admins" name="licensed_admins" rows="3" cols="72"><?php echo h($input['licensed_admins']); ?></textarea>
+                            <div class="a2bp-muted">Enter admin logins separated by commas or new lines. These admins will be allowed to use locked providers such as DIDWW.</div>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button class="form_input_button" name="form_action" type="submit" value="save_locked_provider_admins">Save Locked Provider Access</button></td>
+                    </tr>
+                </table>
+            </form>
+            <?php endif; ?>
 
             <br>
             <form method="post">

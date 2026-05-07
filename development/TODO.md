@@ -192,7 +192,7 @@ its business rules live outside the page script.
       connection testing and locked-access enforcement.
 - [x] Add provider access policy support so selected providers can be locked to
       company admins and licensed individuals.
-- [ ] Add licensed-admin management for locked providers so paid access can be
+- [x] Add licensed-admin management for locked providers so paid access can be
       granted and revoked without editing environment variables by hand.
 - [ ] Finish DIDWW operational support beyond credential validation. Owned DID,
       inbound trunk, order, available-DID search, DID ordering, inbound trunk
