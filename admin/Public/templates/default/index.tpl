@@ -38,7 +38,7 @@
 
 	<form name="form" method="POST" action="PP_intro.php" onsubmit="return test()">
 	<input type="hidden" name="done" value="submit_log">
-	<input type="hidden" name="return_to" value="{$return_to|escape:'html'}">
+	<input type="hidden" name="return_to" value="{$return_to}">
 
 
 	<div id="login-wrapper" class="login-border-up">
