@@ -60,6 +60,7 @@ $HD_Form->setDBHandler(DbConnect());
 
 $nb_error = 0;
 $msg_error = '';
+$creation_failures = array();
 $group_error = false;
 $tariff_error = false;
 $credit_error = false;
@@ -68,10 +69,20 @@ $expdate_error = false;
 $expday_error = false;
 
 if ($action == "generate") {
+    $instance_table_tariff_check = new Table("cc_tariffgroup", "id");
+    $tariff_count = (int) $instance_table_tariff_check->Table_count($HD_Form->DBHandle);
+    if ($tariff_count < 1) {
+        $nb_error++;
+        $tariff_error = true;
+        $msg_error = gettext("- No CALL PLAN exists yet. Create at least one call plan before generating customers.");
+    }
     if (!is_numeric($id_group) || $id_group < 1) {
         $nb_error++;
         $group_error = true;
-        $msg_error = gettext("- Choose a GROUP for the customers!");
+        if (!empty($msg_error)) {
+            $msg_error .= "<br/>";
+        }
+        $msg_error .= gettext("- Choose a GROUP for the customers!");
     }
     if (!is_numeric($choose_tariff) || $choose_tariff < 1) {
         $nb_error++;
@@ -159,6 +170,10 @@ if ($nbcard > 0 && $action == "generate" && $nb_error == 0) {
             $FG_ADITION_SECOND_ADD_VALUE .= ", now() ";
 
         $id_cc_card = $instance_sub_table->Add_table($HD_Form->DBHandle, $FG_ADITION_SECOND_ADD_VALUE, null, null, $HD_Form->FG_TABLE_ID);
+        if (!$id_cc_card) {
+            $creation_failures[] = $instance_sub_table->errstr;
+            continue;
+        }
         //create refill for each cards
 
         if ($addcredit > 0) {
@@ -167,6 +182,17 @@ if ($nbcard > 0 && $action == "generate" && $nb_error == 0) {
         }
 
         $instance_realtime -> insert_voip_config ($sip, $iax, $id_cc_card, $accountnumber, $passui_secret);
+    }
+
+    if (!empty($creation_failures)) {
+        $creation_failures = array_unique(array_filter($creation_failures));
+        $formatted_failures = array();
+        foreach ($creation_failures as $creation_failure) {
+            $formatted_failures[] = htmlspecialchars($creation_failure, ENT_QUOTES, 'UTF-8');
+        }
+        $nb_error += count($creation_failures);
+        $msg_error = gettext("- Customer generation failed for one or more rows.") . "<br/>" .
+            implode("<br/>", $formatted_failures);
     }
 
     // Save Sip accounts to file

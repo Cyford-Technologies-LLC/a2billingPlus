@@ -26,6 +26,7 @@ class FormHandler
 	var $DBHandle;
 	var $VALID_SQL_REG_EXP = true;
 	var $RESULT_QUERY = false;
+	var $LAST_DB_ERROR = '';
 
 	var $pqp;
 
@@ -1588,17 +1589,25 @@ class FormHandler
 		if (strlen($this->FG_ADDITIONAL_FUNCTION_BEFORE_ADD)>0 && ($this->VALID_SQL_REG_EXP))
 				$res_funct = call_user_func(array('FormBO', $this->FG_ADDITIONAL_FUNCTION_BEFORE_ADD));
 
-		if ($res_funct) {
+ 		if ($res_funct) {
 
-			$instance_table = new Table($this->FG_TABLE_NAME, $param_add_fields);
-			// CHECK IF WE HAD FOUND A SPLITABLE FIELD THEN WE MIGHT HAVE %TAGPREFIX%
+ 			$instance_table = new Table($this->FG_TABLE_NAME, $param_add_fields);
+			$this->LAST_DB_ERROR = '';
+ 			// CHECK IF WE HAD FOUND A SPLITABLE FIELD THEN WE MIGHT HAVE %TAGPREFIX%
 			if (strpos($param_add_value, '%TAGPREFIX%')) {
 				foreach ($arr_value_to_import as $current_value) {
 					$param_add_value_replaced = str_replace("%TAGPREFIX%", $current_value, $param_add_value);
 					if ($this->VALID_SQL_REG_EXP) $this -> RESULT_QUERY = $instance_table -> Add_table ($this->DBHandle, $param_add_value_replaced, null, null, $this->FG_TABLE_ID);
+					if (!$this->RESULT_QUERY) {
+						$this->LAST_DB_ERROR = $instance_table->errstr;
+						break;
+					}
 				}
 			} else {
 				if ($this->VALID_SQL_REG_EXP) $this -> RESULT_QUERY = $instance_table -> Add_table ($this->DBHandle, $param_add_value, null, null, $this->FG_TABLE_ID);
+				if (!$this->RESULT_QUERY) {
+					$this->LAST_DB_ERROR = $instance_table->errstr;
+				}
 			}
 			if($this -> FG_ENABLE_LOG == 1) {
 				$this -> logger -> insertLog_Add($_SESSION["admin_id"], 2, "NEW ".strtoupper($this->FG_INSTANCE_NAME)." CREATED" , "User added a new record in database", $this->FG_TABLE_NAME, $_SERVER['REMOTE_ADDR'], $_SERVER['REQUEST_URI'], $param_add_fields, $param_add_value);
@@ -1972,6 +1981,9 @@ class FormHandler
 					 		echo $this->FG_TEXT_ADITION_CONFIRMATION;
 					 	} else {
 					 		echo $this->FG_TEXT_ADITION_ERROR;
+					 		if (!empty($this->LAST_DB_ERROR)) {
+					 			echo '<br><span class="error-message">'.htmlspecialchars($this->LAST_DB_ERROR, ENT_QUOTES, 'UTF-8').'</span>';
+					 		}
 					 	}
 					}
 				?>

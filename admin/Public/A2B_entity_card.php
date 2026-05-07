@@ -46,6 +46,12 @@ if (! has_rights (ACX_CUSTOMER)) {
 $HD_Form -> setDBHandler (DbConnect());
 $HD_Form -> init();
 
+$customer_setup_warnings = array();
+$tariff_setup_table = new Table("cc_tariffgroup", "id");
+if ((int) $tariff_setup_table->Table_count($HD_Form->DBHandle) < 1) {
+    $customer_setup_warnings[] = gettext("No CALL PLAN exists yet. Customer creation and customer generation require at least one call plan.");
+}
+
 /********************************* BATCH UPDATE ***********************************/
 getpost_ifset(array('popup_select', 'popup_formname', 'popup_fieldname', 'upd_inuse', 'upd_status', 'upd_language',
               'upd_tariff', 'upd_credit', 'upd_credittype', 'upd_simultaccess', 'upd_currency', 'upd_typepaid',
@@ -149,6 +155,12 @@ $list = $HD_Form -> perform_action($form_action);
 
 // #### HEADER SECTION
 $smarty->display('main.tpl');
+
+foreach ($customer_setup_warnings as $customer_setup_warning) {
+    echo '<div class="msg_error" style="width:70%;margin:0 auto 12px auto;text-align:left;">' .
+        htmlspecialchars($customer_setup_warning, ENT_QUOTES, 'UTF-8') .
+        '</div>';
+}
 
 if ($popup_select) {
 ?>
