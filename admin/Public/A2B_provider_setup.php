@@ -106,6 +106,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     foreach ($defaults as $key => $default) {
         $input[$key] = trim((string)($_POST[$key] ?? ''));
     }
+    if ($provider === 'twilio') {
+        $input['twilio_byoc_trunk_sid'] = normalizeTwilioByocTrunkSid($input['twilio_byoc_trunk_sid'] ?? '');
+    }
     $input['provider'] = $provider;
     $input['save_credentials'] = isset($_POST['save_credentials']) ? '1' : '';
     $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
@@ -136,7 +139,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
         } elseif ($input['api_key'] === '') {
             $errors[] = 'API key is required.';
-        } else {
+        }
+
+        if (!$errors) {
             saveProviderCredentials($envPath, $provider, $input, $messages, $errors);
         }
     }
@@ -550,6 +555,16 @@ function providerDefaults(string $provider): array
     }
 
     return $defaults;
+}
+
+function normalizeTwilioByocTrunkSid(string $value): string
+{
+    $value = strtoupper(trim($value));
+    if (str_starts_with($value, 'SIDBY')) {
+        return substr($value, 3);
+    }
+
+    return $value;
 }
 
 function providerName(array $providers, string $providerCode): string
