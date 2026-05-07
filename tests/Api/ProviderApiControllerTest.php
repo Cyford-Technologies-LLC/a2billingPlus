@@ -441,6 +441,112 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame('pending', $response->getPayload()['order']['status']);
     }
 
+    public function testDidwwSyncInventoryWritesOwnedDidsIntoLocalInventory(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            fn (): PDO => $pdo,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            fn (): DidwwApiClient => new DidwwApiClient(function (): array {
+                return [
+                    'status' => 200,
+                    'body' => json_encode([
+                        'data' => [[
+                            'id' => 'did-1',
+                            'type' => 'dids',
+                            'attributes' => [
+                                'number' => '+12125550100',
+                                'blocked' => false,
+                                'awaiting_registration' => false,
+                                'terminated' => false,
+                            ],
+                        ]],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'didww_sync_inventory',
+            'provider' => 'didww',
+            'base_url' => 'https://api.didww.com',
+            'api_key' => 'didww-key',
+            'api_version' => '2026-04-16',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame(1, $response->getPayload()['upserted']);
+        $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+    }
+
+    public function testDidwwCreateInboundTrunkProvisionReturnsRemoteAndLocalIds(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
+        $pdo->exec('CREATE TABLE cc_trunk (id_trunk INTEGER PRIMARY KEY AUTOINCREMENT, trunkcode TEXT, trunkprefix TEXT, providertech TEXT, providerip TEXT, removeprefix TEXT, failover_trunk INTEGER, addparameter TEXT, id_provider INTEGER, inuse INTEGER, maxuse INTEGER, status INTEGER, if_max_use INTEGER)');
+
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            null,
+            fn (): PDO => $pdo,
+            new ProviderAccessPolicy(new AppConfig()),
+            'root',
+            fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
+                $this->assertSame('POST', $method);
+                $this->assertSame('https://api.didww.com/v3/voice_in_trunks', $url);
+                $this->assertSame('didww-key', $credentials->getApiKey());
+                $this->assertSame('Office SIP', $payload['data']['attributes']['name'] ?? null);
+                $this->assertSame('pbx.example.test', $payload['data']['attributes']['configuration']['attributes']['host'] ?? null);
+
+                return [
+                    'status' => 201,
+                    'body' => json_encode([
+                        'data' => [
+                            'id' => 'trunk-1',
+                            'type' => 'voice_in_trunks',
+                            'attributes' => [
+                                'name' => 'Office SIP',
+                                'capacity_limit' => 10,
+                                'priority' => 10,
+                                'weight' => 10,
+                                'configuration' => [
+                                    'type' => 'sip_configurations',
+                                    'attributes' => [
+                                        'host' => 'pbx.example.test',
+                                        'username' => 'office',
+                                    ],
+                                ],
+                            ],
+                        ],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            })
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'didww_create_inbound_trunk',
+            'provider' => 'didww',
+            'base_url' => 'https://api.didww.com',
+            'api_key' => 'didww-key',
+            'api_version' => '2026-04-16',
+            'trunk_name' => 'Office SIP',
+            'trunk_host' => 'pbx.example.test',
+            'trunk_username' => 'office',
+        ]));
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertTrue($response->getPayload()['success']);
+        $this->assertSame('trunk-1', $response->getPayload()['remote_trunk']['id']);
+        $this->assertGreaterThan(0, (int) $response->getPayload()['local_trunk']['trunk_id']);
+    }
+
     private function previewProviderRegistry(): ProviderRegistry
     {
         $importer = new class implements RateImporterInterface {

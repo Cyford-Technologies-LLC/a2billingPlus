@@ -9,6 +9,7 @@ use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Provider\Didww\DidwwApiClient;
 use A2BillingPlus\Module\Provider\Didww\DidwwConnector;
+use A2BillingPlus\Module\Provider\Didww\DidwwProvisioningService;
 use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
@@ -55,6 +56,8 @@ final class ProviderApiController
             'didww_inventory_snapshot' => $this->didwwInventorySnapshot($request),
             'didww_search_available_dids' => $this->didwwSearchAvailableDids($request),
             'didww_order_did' => $this->didwwOrderDid($request),
+            'didww_create_inbound_trunk' => $this->didwwCreateInboundTrunk($request),
+            'didww_sync_inventory' => $this->didwwSyncInventory($request),
             'preview_rates' => $this->previewRates($request),
             'import_preview_rates' => $this->importPreviewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
@@ -380,6 +383,102 @@ final class ProviderApiController
             'message' => 'DIDWW order submitted.',
             'order' => $this->normalizeDidwwOrder($result['data'] ?? []),
         ], 201);
+    }
+
+    private function didwwCreateInboundTrunk(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'didww') {
+            return new JsonResponse(['error' => 'DIDWW trunk provisioning requires the DIDWW provider.'], 422);
+        }
+
+        $name = $request->getString('trunk_name');
+        $host = $request->getString('trunk_host');
+        $username = $request->getString('trunk_username');
+        if ($name === '' || $host === '' || $username === '') {
+            return new JsonResponse([
+                'success' => false,
+                'message' => 'Trunk name, host, and username are required.',
+            ], 422);
+        }
+
+        $attributes = [
+            'name' => $name,
+            'priority' => max(0, min(65535, $request->getInt('trunk_priority', 10))),
+            'weight' => max(0, min(65535, $request->getInt('trunk_weight', 10))),
+            'capacity_limit' => max(1, $request->getInt('trunk_capacity_limit', 10)),
+            'cli_format' => $request->getString('trunk_cli_format', 'e164'),
+            'cli_prefix' => $request->getString('trunk_cli_prefix'),
+            'configuration' => [
+                'type' => 'sip_configurations',
+                'attributes' => [
+                    'username' => $username,
+                    'host' => $host,
+                    'codec_ids' => [9, 7],
+                    'rx_dtmf_format_id' => 1,
+                    'tx_dtmf_format_id' => 1,
+                    'resolve_ruri' => $request->getString('trunk_resolve_ruri', '1') === '1',
+                    'auth_enabled' => $request->getString('trunk_auth_enabled') === '1',
+                    'enabled_sip_registration' => $request->getString('trunk_enabled_sip_registration') === '1',
+                    'use_did_in_ruri' => $request->getString('trunk_use_did_in_ruri', '1') === '1',
+                ],
+            ],
+        ];
+        if ($attributes['configuration']['attributes']['auth_enabled']) {
+            $attributes['configuration']['attributes']['auth_user'] = $request->getString('trunk_auth_user', $username);
+            $attributes['configuration']['attributes']['auth_password'] = $request->getString('trunk_auth_password');
+        }
+
+        try {
+            $client = $this->didwwClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $result = $client->createInboundTrunk($credentials, $attributes);
+            $local = (new DidwwProvisioningService($this->pdo()))->materializeInboundTrunk(
+                is_array($result['data'] ?? null) ? $result['data'] : [],
+                $attributes
+            );
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'DIDWW inbound trunk created.',
+            'remote_trunk' => $this->normalizeDidwwInboundTrunks(['data' => [$result['data'] ?? []]])[0] ?? [],
+            'local_trunk' => $local,
+        ], 201);
+    }
+
+    private function didwwSyncInventory(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'didww') {
+            return new JsonResponse(['error' => 'DIDWW inventory sync requires the DIDWW provider.'], 422);
+        }
+
+        try {
+            $client = $this->didwwClient();
+            $credentials = $this->credentialsFromRequest($request);
+            $dids = $client->listDids($credentials, ['page[size]' => (string) max(1, min(100, $request->getInt('page_size', 100)))]);
+            $normalized = $this->normalizeDidwwDids($dids);
+            $result = (new DidwwProvisioningService($this->pdo()))->syncOwnedDids($normalized);
+        } catch (\Throwable $exception) {
+            return new JsonResponse([
+                'success' => false,
+                'message' => $exception->getMessage(),
+            ], 422);
+        }
+
+        return new JsonResponse($result);
     }
 
     /**

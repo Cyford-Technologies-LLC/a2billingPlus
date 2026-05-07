@@ -43,6 +43,8 @@ $provisioningResult = [];
 $didwwSnapshot = [];
 $didwwSearch = [];
 $didwwOrder = [];
+$didwwLocalSync = [];
+$didwwTrunkProvision = [];
 
 $providerSetup = providerSetupService($actor);
 $providers = $providerSetup->providers();
@@ -146,6 +148,30 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = (string)($didwwOrder['message'] ?? 'DIDWW order failed.');
             } else {
                 $messages[] = (string)($didwwOrder['message'] ?? 'DIDWW order submitted.');
+                $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
+            }
+        }
+    }
+
+    if ($provider === 'didww' && !$errors && $formAction === 'didww_sync_inventory') {
+        $didwwLocalSync = $providerSetup->didwwSyncInventory($input);
+        if (($didwwLocalSync['success'] ?? false) !== true) {
+            $errors[] = (string)($didwwLocalSync['message'] ?? 'DIDWW inventory sync failed.');
+        } else {
+            $messages[] = (string)($didwwLocalSync['message'] ?? 'DIDWW inventory synchronized.');
+            $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
+        }
+    }
+
+    if ($provider === 'didww' && !$errors && $formAction === 'didww_create_inbound_trunk') {
+        if ($input['didww_trunk_name'] === '' || $input['didww_trunk_host'] === '' || $input['didww_trunk_username'] === '') {
+            $errors[] = 'DIDWW trunk name, host, and username are required.';
+        } else {
+            $didwwTrunkProvision = $providerSetup->didwwCreateInboundTrunk($input);
+            if (($didwwTrunkProvision['success'] ?? false) !== true) {
+                $errors[] = (string)($didwwTrunkProvision['message'] ?? 'DIDWW inbound trunk provisioning failed.');
+            } else {
+                $messages[] = (string)($didwwTrunkProvision['message'] ?? 'DIDWW inbound trunk created.');
                 $didwwSnapshot = $providerSetup->didwwInventorySnapshot($input);
             }
         }
@@ -358,6 +384,21 @@ function providerDefaults(string $provider): array
         'didww_sku_id' => '',
         'didww_order_callback_url' => '',
         'didww_allow_back_ordering' => '',
+        'didww_sync_page_size' => '100',
+        'didww_trunk_name' => '',
+        'didww_trunk_host' => '',
+        'didww_trunk_username' => '',
+        'didww_trunk_auth_enabled' => '',
+        'didww_trunk_auth_user' => '',
+        'didww_trunk_auth_password' => '',
+        'didww_trunk_capacity_limit' => '10',
+        'didww_trunk_priority' => '10',
+        'didww_trunk_weight' => '10',
+        'didww_trunk_cli_format' => 'e164',
+        'didww_trunk_cli_prefix' => '',
+        'didww_trunk_resolve_ruri' => '1',
+        'didww_trunk_enabled_sip_registration' => '',
+        'didww_trunk_use_did_in_ruri' => '1',
         'update_existing' => '',
         'save_credentials' => '1',
     ];
@@ -1117,6 +1158,7 @@ function renderProviderCredentialFields(array $input): void
                 <?php renderProviderCredentialFields($input); ?>
                 <input type="hidden" name="didww_page_size" value="<?php echo h($input['didww_page_size']); ?>">
                 <input type="hidden" name="didww_orders_page_size" value="<?php echo h($input['didww_orders_page_size']); ?>">
+                <input type="hidden" name="didww_sync_page_size" value="<?php echo h($input['didww_sync_page_size']); ?>">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
                         <td class="form_head" colspan="2">DIDWW Inventory Snapshot</td>
@@ -1135,10 +1177,26 @@ function renderProviderCredentialFields(array $input): void
                     </tr>
                     <tr>
                         <td></td>
-                        <td><button class="form_input_button" name="form_action" type="submit" value="didww_refresh_inventory">Refresh DIDWW Data</button></td>
+                        <td>
+                            <button class="form_input_button" name="form_action" type="submit" value="didww_refresh_inventory">Refresh DIDWW Data</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="didww_sync_inventory">Sync to Local Inventory</button>
+                        </td>
                     </tr>
                 </table>
             </form>
+
+            <?php if ($didwwLocalSync): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8">
+                <tr>
+                    <td class="form_head" colspan="2">DIDWW Local Inventory Sync</td>
+                </tr>
+                <tr>
+                    <td width="220">Upserted DIDs</td>
+                    <td><?php echo h((string)($didwwLocalSync['upserted'] ?? '0')); ?></td>
+                </tr>
+            </table>
+            <?php endif; ?>
 
             <?php if (!empty($didwwSnapshot['dids'])): ?>
             <br>
@@ -1280,6 +1338,101 @@ function renderProviderCredentialFields(array $input): void
                     </tr>
                 </table>
             </form>
+
+            <br>
+            <form method="post">
+                <?php renderProviderCredentialFields($input); ?>
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td class="form_head" colspan="2">Create DIDWW Inbound SIP Trunk</td>
+                    </tr>
+                    <tr>
+                        <td width="220"><label for="didww_trunk_name">Trunk Name</label></td>
+                        <td><input id="didww_trunk_name" name="didww_trunk_name" type="text" size="40" value="<?php echo h($input['didww_trunk_name']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_host">SIP Host</label></td>
+                        <td><input id="didww_trunk_host" name="didww_trunk_host" type="text" size="50" value="<?php echo h($input['didww_trunk_host']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_username">Username</label></td>
+                        <td><input id="didww_trunk_username" name="didww_trunk_username" type="text" size="32" value="<?php echo h($input['didww_trunk_username']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_capacity_limit">Capacity Limit</label></td>
+                        <td><input id="didww_trunk_capacity_limit" name="didww_trunk_capacity_limit" type="number" min="1" max="10000" step="1" size="8" value="<?php echo h($input['didww_trunk_capacity_limit']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_priority">Priority</label></td>
+                        <td><input id="didww_trunk_priority" name="didww_trunk_priority" type="number" min="0" max="65535" step="1" size="8" value="<?php echo h($input['didww_trunk_priority']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_weight">Weight</label></td>
+                        <td><input id="didww_trunk_weight" name="didww_trunk_weight" type="number" min="0" max="65535" step="1" size="8" value="<?php echo h($input['didww_trunk_weight']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_cli_format">CLI Format</label></td>
+                        <td><input id="didww_trunk_cli_format" name="didww_trunk_cli_format" type="text" size="16" value="<?php echo h($input['didww_trunk_cli_format']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_cli_prefix">CLI Prefix</label></td>
+                        <td><input id="didww_trunk_cli_prefix" name="didww_trunk_cli_prefix" type="text" size="16" value="<?php echo h($input['didww_trunk_cli_prefix']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td>Options</td>
+                        <td>
+                            <label><input name="didww_trunk_resolve_ruri" type="checkbox" value="1" <?php echo $input['didww_trunk_resolve_ruri'] === '1' ? 'checked' : ''; ?>> Resolve R-URI</label>
+                            &nbsp;
+                            <label><input name="didww_trunk_use_did_in_ruri" type="checkbox" value="1" <?php echo $input['didww_trunk_use_did_in_ruri'] === '1' ? 'checked' : ''; ?>> Use DID in R-URI</label>
+                            &nbsp;
+                            <label><input name="didww_trunk_enabled_sip_registration" type="checkbox" value="1" <?php echo $input['didww_trunk_enabled_sip_registration'] === '1' ? 'checked' : ''; ?>> Enable SIP registration</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td>Authentication</td>
+                        <td>
+                            <label><input name="didww_trunk_auth_enabled" type="checkbox" value="1" <?php echo $input['didww_trunk_auth_enabled'] === '1' ? 'checked' : ''; ?>> Require auth</label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_auth_user">Auth User</label></td>
+                        <td><input id="didww_trunk_auth_user" name="didww_trunk_auth_user" type="text" size="32" value="<?php echo h($input['didww_trunk_auth_user']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="didww_trunk_auth_password">Auth Password</label></td>
+                        <td><input id="didww_trunk_auth_password" name="didww_trunk_auth_password" type="password" size="32" value="<?php echo h($input['didww_trunk_auth_password']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td><button class="form_input_button" name="form_action" type="submit" value="didww_create_inbound_trunk">Create Inbound Trunk</button></td>
+                    </tr>
+                </table>
+            </form>
+
+            <?php if ($didwwTrunkProvision): ?>
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8">
+                <tr>
+                    <td class="form_head" colspan="2">DIDWW Inbound Trunk Result</td>
+                </tr>
+                <tr>
+                    <td width="220">Remote Trunk</td>
+                    <td><?php echo h((string)($didwwTrunkProvision['remote_trunk']['name'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Remote Trunk ID</td>
+                    <td><?php echo h((string)($didwwTrunkProvision['remote_trunk']['id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Local Provider ID</td>
+                    <td><?php echo h((string)($didwwTrunkProvision['local_trunk']['provider_id'] ?? '')); ?></td>
+                </tr>
+                <tr>
+                    <td>Local Trunk ID</td>
+                    <td><?php echo h((string)($didwwTrunkProvision['local_trunk']['trunk_id'] ?? '')); ?></td>
+                </tr>
+            </table>
+            <?php endif; ?>
 
             <?php if ($didwwOrder): ?>
             <br>

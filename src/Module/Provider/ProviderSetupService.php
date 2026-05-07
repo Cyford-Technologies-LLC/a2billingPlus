@@ -142,6 +142,53 @@ final class ProviderSetupService
      * @param array<string, string> $input
      * @return array<string, mixed>
      */
+    public function didwwCreateInboundTrunk(array $input): array
+    {
+        return $this->post([
+            'action' => 'didww_create_inbound_trunk',
+            'provider' => 'didww',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+            'trunk_name' => $input['didww_trunk_name'] ?? '',
+            'trunk_host' => $input['didww_trunk_host'] ?? '',
+            'trunk_username' => $input['didww_trunk_username'] ?? '',
+            'trunk_auth_enabled' => $input['didww_trunk_auth_enabled'] ?? '',
+            'trunk_auth_user' => $input['didww_trunk_auth_user'] ?? '',
+            'trunk_auth_password' => $input['didww_trunk_auth_password'] ?? '',
+            'trunk_capacity_limit' => $input['didww_trunk_capacity_limit'] ?? '10',
+            'trunk_priority' => $input['didww_trunk_priority'] ?? '10',
+            'trunk_weight' => $input['didww_trunk_weight'] ?? '10',
+            'trunk_cli_format' => $input['didww_trunk_cli_format'] ?? 'e164',
+            'trunk_cli_prefix' => $input['didww_trunk_cli_prefix'] ?? '',
+            'trunk_resolve_ruri' => $input['didww_trunk_resolve_ruri'] ?? '1',
+            'trunk_enabled_sip_registration' => $input['didww_trunk_enabled_sip_registration'] ?? '',
+            'trunk_use_did_in_ruri' => $input['didww_trunk_use_did_in_ruri'] ?? '1',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
+    public function didwwSyncInventory(array $input): array
+    {
+        return $this->post([
+            'action' => 'didww_sync_inventory',
+            'provider' => 'didww',
+            'base_url' => $input['base_url'],
+            'api_key' => $input['api_key'],
+            'api_secret' => $input['api_secret'],
+            'api_version' => $input['api_version'] ?? '',
+            'page_size' => $input['didww_sync_page_size'] ?? '100',
+        ]);
+    }
+
+    /**
+     * @param array<string, string> $input
+     * @return array<string, mixed>
+     */
     public function previewRates(array $input): array
     {
         return $this->post($this->providerRateRequestBody('preview_rates', $input));

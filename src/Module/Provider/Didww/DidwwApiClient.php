@@ -92,6 +92,20 @@ final class DidwwApiClient
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @return array<string, mixed>
+     */
+    public function createInboundTrunk(ProviderCredentials $credentials, array $payload): array
+    {
+        return $this->request('POST', '/v3/voice_in_trunks', $credentials, [], [
+            'data' => [
+                'type' => 'voice_in_trunks',
+                'attributes' => $payload,
+            ],
+        ]);
+    }
+
+    /**
      * @param array<string, string> $query
      * @param array<string, mixed>|null $payload
      * @return array<string, mixed>

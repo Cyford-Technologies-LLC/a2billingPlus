@@ -195,9 +195,10 @@ its business rules live outside the page script.
 - [ ] Add licensed-admin management for locked providers so paid access can be
       granted and revoked without editing environment variables by hand.
 - [ ] Finish DIDWW operational support beyond credential validation. Owned DID,
-      inbound trunk, order, available-DID search, and DID ordering workflows are
-      now in the provider UI; trunk creation/provisioning and local inventory
-      synchronization still need to be completed.
+      inbound trunk, order, available-DID search, DID ordering, inbound trunk
+      creation, and local inventory synchronization are now in the provider UI;
+      remaining work is trunk-group/deeper provisioning, post-order fulfillment
+      automation, and broader telephony workspace surfacing.
 
 ### Agent And Reseller Module
 

@@ -315,7 +315,7 @@ function rowValue(array $row, string $column): string
         <strong><?php echo $workspace['summary']['asterisk_ready'] ? 'Ready' : 'Review'; ?></strong>
     </div>
     <div class="a2bp-metric">
-        <span class="a2bp-metric__label">VV DID Requests</span>
+        <span class="a2bp-metric__label">Provider Requests</span>
         <strong><?php echo h((string)$workspace['summary']['vectavoip_requests']); ?></strong>
     </div>
     <div class="a2bp-metric">
@@ -323,7 +323,7 @@ function rowValue(array $row, string $column): string
         <strong><?php echo h((string)$workspace['summary']['pjsip_trunks']); ?></strong>
     </div>
     <div class="a2bp-metric">
-        <span class="a2bp-metric__label">VV Inventory</span>
+        <span class="a2bp-metric__label">Provider Inventory</span>
         <strong><?php echo h((string)($workspace['vectavoip_inventory']['total'] ?? 0)); ?></strong>
     </div>
 </div>
@@ -357,7 +357,7 @@ function rowValue(array $row, string $column): string
 <div class="a2bp-grid-two">
     <div class="a2bp-panel">
         <div class="a2bp-panel__header">
-            <h2 class="a2bp-panel__title">VectaVoIP DID Requests</h2>
+            <h2 class="a2bp-panel__title">Provider DID Requests</h2>
         </div>
         <div class="a2bp-panel__body">
             <table class="a2bp-table">
@@ -403,7 +403,7 @@ function rowValue(array $row, string $column): string
                 <?php endforeach; ?>
                 <?php if (!$workspace['vectavoip_requests']['items']): ?>
                     <tr>
-                        <td colspan="7" class="a2bp-muted">No VectaVoIP DID requests have been created yet.</td>
+                        <td colspan="7" class="a2bp-muted">No provider DID requests have been created yet.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
@@ -448,7 +448,7 @@ function rowValue(array $row, string $column): string
 
     <div class="a2bp-panel">
         <div class="a2bp-panel__header">
-            <h2 class="a2bp-panel__title">VectaVoIP DID Inventory</h2>
+            <h2 class="a2bp-panel__title">Provider DID Inventory</h2>
         </div>
         <div class="a2bp-panel__body">
             <table class="a2bp-table">
@@ -484,7 +484,7 @@ function rowValue(array $row, string $column): string
                 <?php endforeach; ?>
                 <?php if (!$workspace['vectavoip_inventory']['items']): ?>
                     <tr>
-                        <td colspan="6" class="a2bp-muted">No available VectaVoIP inventory is ready for assignment.</td>
+                        <td colspan="6" class="a2bp-muted">No available provider inventory is ready for assignment.</td>
                     </tr>
                 <?php endif; ?>
                 </tbody>
