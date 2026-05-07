@@ -9,6 +9,7 @@ billing, rating, customer management, provider automation, payments, reporting,
 and Asterisk/PJSIP operations.
 
 For VoIP termination, visit <https://vectavoip.com/>.
+<img width="2042" height="989" alt="image" src="https://github.com/user-attachments/assets/5ac0ca75-88f7-4b0a-b384-8ed4cd0d2338" />
 
 ## Goals
 
