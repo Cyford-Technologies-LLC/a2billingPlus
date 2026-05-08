@@ -6,3 +6,8 @@ ALTER TABLE ps_auths
 UPDATE ps_auths
 SET realm = COALESCE(NULLIF(realm, ''), 'asterisk')
 WHERE username <> '';
+
+UPDATE ps_auths
+SET auth_type = 'md5',
+    md5_cred = MD5(CONCAT(username, ':', realm, ':', password))
+WHERE username <> '' AND password <> '';

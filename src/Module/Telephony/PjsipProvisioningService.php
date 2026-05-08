@@ -226,7 +226,7 @@ final class PjsipProvisioningService
         }
         try {
             $this->upsert('ps_auths', ['id' => $endpointId . '-auth'], [
-                'auth_type' => 'userpass',
+                'auth_type' => 'md5',
                 'username' => $username,
                 'password' => $secret,
                 'realm' => $realm,
