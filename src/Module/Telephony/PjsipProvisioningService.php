@@ -63,17 +63,34 @@ final class PjsipProvisioningService
         $host = $this->stringValue($payload, 'host');
         $username = $this->stringValue($payload, 'username');
         $secret = $this->stringValue($payload, 'secret');
-        if ($trunkCode === '' || $host === '' || $username === '' || $secret === '') {
-            return $this->error(422, 'pjsip_validation_failed', 'trunkcode, host, username, and secret are required.', 'trunk');
+        if ($trunkCode === '' || $host === '') {
+            return $this->error(422, 'pjsip_validation_failed', 'trunkcode and host are required.', 'trunk');
         }
 
         $endpointId = $this->endpointId('trunk', $trunkCode);
         $allow = $this->stringValue($payload, 'allow', 'ulaw,alaw');
-        $this->writeEndpoint($endpointId, $username, $secret, 'from-pstn', $allow, 'sip:' . $host, 0, 'username,ip');
+        $register = $this->boolValue($payload, 'register', $username !== '' && $secret !== '');
+        $this->writeTrunkEndpoint($endpointId, $host, $username, $secret, 'from-pstn', $allow, $register);
         $this->writeMapping($endpointId, 'trunk', 0, $trunkCode);
         $this->audit($actor, 'pjsip.trunk.provision', $endpointId, ['trunkcode' => $trunkCode, 'host' => $host]);
 
         return ['status' => 201, 'body' => ['success' => true, 'endpoint' => $this->publicEndpoint($endpointId, 'trunk', 0, $trunkCode)]];
+    }
+
+    /**
+     * @param array<string,mixed> $trunk
+     * @return array{status:int,body:array<string,mixed>}
+     */
+    public function syncLegacyTrunk(array $trunk, string $actor): array
+    {
+        return $this->provisionTrunk([
+            'trunkcode' => $trunk['trunkcode'] ?? '',
+            'host' => $trunk['providerip'] ?? '',
+            'username' => $trunk['username'] ?? '',
+            'secret' => $trunk['secret'] ?? '',
+            'allow' => $trunk['allow'] ?? 'ulaw,alaw',
+            'register' => $trunk['register'] ?? false,
+        ], $actor);
     }
 
     /**
@@ -261,6 +278,80 @@ final class PjsipProvisioningService
         }
     }
 
+    private function writeTrunkEndpoint(string $endpointId, string $host, string $username, string $secret, string $context, string $allow, bool $register): void
+    {
+        $realm = $this->stringValue([
+            'realm' => getenv('A2BP_ASTERISK_REALM') ?: 'asterisk',
+        ], 'realm', 'asterisk');
+        $authId = $username !== '' && $secret !== '' ? $endpointId . '-auth' : '';
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
+        try {
+            if ($authId !== '') {
+                $this->upsert('ps_auths', ['id' => $authId], [
+                    'auth_type' => 'md5',
+                    'username' => $username,
+                    'password' => $secret,
+                    'realm' => $realm,
+                    'md5_cred' => md5($username . ':' . $realm . ':' . $secret),
+                ]);
+            }
+            $this->upsert('ps_aors', ['id' => $endpointId], [
+                'max_contacts' => 0,
+                'remove_existing' => 'yes',
+                'contact' => 'sip:' . $host,
+            ]);
+            $this->upsert('ps_endpoints', ['id' => $endpointId], [
+                'transport' => 'transport-udp',
+                'aors' => $endpointId,
+                'auth' => $authId,
+                'context' => $context,
+                'identify_by' => 'username,ip',
+                'disallow' => 'all',
+                'allow' => $allow,
+                'direct_media' => 'no',
+                'rtp_symmetric' => 'yes',
+                'force_rport' => 'yes',
+                'rewrite_contact' => 'yes',
+            ]);
+            $this->upsert('ps_endpoint_id_ips', ['id' => $endpointId], [
+                'endpoint' => $endpointId,
+                'match' => $host,
+                'srv_lookups' => 'yes',
+                'match_header' => '',
+            ]);
+            if ($register && $authId !== '') {
+                $this->upsert('ps_registrations', ['id' => $endpointId], [
+                    'transport' => 'transport-udp',
+                    'outbound_auth' => $authId,
+                    'server_uri' => 'sip:' . $host,
+                    'client_uri' => 'sip:' . $username . '@' . $host,
+                    'contact_user' => $username,
+                    'endpoint' => $endpointId,
+                    'expiration' => 3600,
+                    'retry_interval' => 60,
+                    'forbidden_retry_interval' => 600,
+                    'fatal_retry_interval' => 600,
+                    'max_retries' => 10000,
+                    'outbound_proxy' => '',
+                    'support_path' => 'no',
+                    'line' => 'no',
+                    'auth_rejection_permanent' => 'no',
+                ]);
+            }
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
+        } catch (\Throwable $exception) {
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
+            throw $exception;
+        }
+    }
+
     /**
      * @param array<string,mixed> $key
      * @param array<string,mixed> $values
@@ -270,22 +361,24 @@ final class PjsipProvisioningService
         $data = $key + $values;
         $columns = array_keys($data);
         $keyColumn = (string)array_key_first($key);
+        $quotedColumns = array_map([$this, 'quoteIdentifier'], $columns);
+        $quotedKeyColumn = $this->quoteIdentifier($keyColumn);
         if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
-            $assignments = array_map(static fn (string $column): string => $column . ' = excluded.' . $column, array_keys($values));
+            $assignments = array_map(fn (string $column): string => $this->quoteIdentifier($column) . ' = excluded.' . $this->quoteIdentifier($column), array_keys($values));
             $sql = sprintf(
                 'INSERT INTO %s (%s) VALUES (%s) ON CONFLICT(%s) DO UPDATE SET %s',
                 $table,
-                implode(', ', $columns),
+                implode(', ', $quotedColumns),
                 implode(', ', array_fill(0, count($columns), '?')),
-                $keyColumn,
+                $quotedKeyColumn,
                 implode(', ', $assignments)
             );
         } else {
-            $assignments = array_map(static fn (string $column): string => $column . ' = VALUES(' . $column . ')', array_keys($values));
+            $assignments = array_map(fn (string $column): string => $this->quoteIdentifier($column) . ' = VALUES(' . $this->quoteIdentifier($column) . ')', array_keys($values));
             $sql = sprintf(
                 'INSERT INTO %s (%s) VALUES (%s) ON DUPLICATE KEY UPDATE %s',
                 $table,
-                implode(', ', $columns),
+                implode(', ', $quotedColumns),
                 implode(', ', array_fill(0, count($columns), '?')),
                 implode(', ', $assignments)
             );
@@ -353,6 +446,8 @@ final class PjsipProvisioningService
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_auths (id TEXT PRIMARY KEY, auth_type TEXT, username TEXT, password TEXT, realm TEXT, md5_cred TEXT, nonce_lifetime INTEGER)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_aors (id TEXT PRIMARY KEY, max_contacts INTEGER, remove_existing TEXT, contact TEXT)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoints (id TEXT PRIMARY KEY, transport TEXT, aors TEXT, auth TEXT, context TEXT, identify_by TEXT, disallow TEXT, allow TEXT, direct_media TEXT, rtp_symmetric TEXT, force_rport TEXT, rewrite_contact TEXT)');
+            $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoint_id_ips (id TEXT PRIMARY KEY, endpoint TEXT, `match` TEXT, srv_lookups TEXT, match_header TEXT)');
+            $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_registrations (id TEXT PRIMARY KEY, transport TEXT, outbound_auth TEXT, server_uri TEXT, client_uri TEXT, contact_user TEXT, endpoint TEXT, expiration INTEGER, retry_interval INTEGER, forbidden_retry_interval INTEGER, fatal_retry_interval INTEGER, max_retries INTEGER, outbound_proxy TEXT, support_path TEXT, line TEXT, auth_rejection_permanent TEXT)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS cc_a2bp_pjsip_endpoint_map (endpoint_id TEXT PRIMARY KEY, endpoint_type TEXT, owner_id INTEGER, label TEXT, created_at TEXT, updated_at TEXT)');
             return;
         }
@@ -360,6 +455,8 @@ final class PjsipProvisioningService
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_auths (id VARCHAR(80) NOT NULL, auth_type VARCHAR(20) NOT NULL DEFAULT "userpass", username VARCHAR(80) NOT NULL DEFAULT "", password VARCHAR(120) NOT NULL DEFAULT "", realm VARCHAR(255) DEFAULT NULL, md5_cred VARCHAR(40) DEFAULT NULL, nonce_lifetime INT DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_aors (id VARCHAR(80) NOT NULL, max_contacts INT NOT NULL DEFAULT 1, remove_existing VARCHAR(3) NOT NULL DEFAULT "yes", contact VARCHAR(255) NOT NULL DEFAULT "", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoints (id VARCHAR(80) NOT NULL, transport VARCHAR(80) NOT NULL DEFAULT "transport-udp", aors VARCHAR(80) NOT NULL DEFAULT "", auth VARCHAR(80) NOT NULL DEFAULT "", context VARCHAR(80) NOT NULL DEFAULT "a2billing", identify_by VARCHAR(80) NOT NULL DEFAULT "username,ip", disallow VARCHAR(100) NOT NULL DEFAULT "all", allow VARCHAR(100) NOT NULL DEFAULT "ulaw,alaw", direct_media VARCHAR(3) NOT NULL DEFAULT "no", rtp_symmetric VARCHAR(3) NOT NULL DEFAULT "yes", force_rport VARCHAR(3) NOT NULL DEFAULT "yes", rewrite_contact VARCHAR(3) NOT NULL DEFAULT "yes", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoint_id_ips (id VARCHAR(80) NOT NULL, endpoint VARCHAR(80) NOT NULL DEFAULT "", `match` VARCHAR(255) NOT NULL DEFAULT "", srv_lookups VARCHAR(3) NOT NULL DEFAULT "yes", match_header VARCHAR(255) NOT NULL DEFAULT "", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_registrations (id VARCHAR(80) NOT NULL, transport VARCHAR(80) NOT NULL DEFAULT "transport-udp", outbound_auth VARCHAR(80) NOT NULL DEFAULT "", server_uri VARCHAR(255) NOT NULL DEFAULT "", client_uri VARCHAR(255) NOT NULL DEFAULT "", contact_user VARCHAR(80) NOT NULL DEFAULT "", endpoint VARCHAR(80) NOT NULL DEFAULT "", expiration INT NOT NULL DEFAULT 3600, retry_interval INT NOT NULL DEFAULT 60, forbidden_retry_interval INT NOT NULL DEFAULT 600, fatal_retry_interval INT NOT NULL DEFAULT 600, max_retries INT NOT NULL DEFAULT 10000, outbound_proxy VARCHAR(255) NOT NULL DEFAULT "", support_path VARCHAR(3) NOT NULL DEFAULT "no", line VARCHAR(3) NOT NULL DEFAULT "no", auth_rejection_permanent VARCHAR(3) NOT NULL DEFAULT "no", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS cc_a2bp_pjsip_endpoint_map (endpoint_id VARCHAR(80) NOT NULL, endpoint_type VARCHAR(32) NOT NULL, owner_id BIGINT NOT NULL DEFAULT 0, label VARCHAR(120) NOT NULL DEFAULT "", created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, PRIMARY KEY (endpoint_id), KEY idx_a2bp_pjsip_owner (endpoint_type, owner_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
     }
 
@@ -398,6 +495,27 @@ final class PjsipProvisioningService
         }
 
         return null;
+    }
+
+    private function boolValue(array $payload, string $key, bool $default): bool
+    {
+        if (!array_key_exists($key, $payload)) {
+            return $default;
+        }
+        $value = $payload[$key];
+        if (is_bool($value)) {
+            return $value;
+        }
+        return in_array(strtolower(trim((string)$value)), ['1', 'true', 'yes', 'on'], true);
+    }
+
+    private function quoteIdentifier(string $identifier): string
+    {
+        if (preg_match('/^[A-Za-z0-9_]+$/', $identifier) !== 1) {
+            throw new \InvalidArgumentException('Unsafe SQL identifier.');
+        }
+
+        return '`' . $identifier . '`';
     }
 
     /**

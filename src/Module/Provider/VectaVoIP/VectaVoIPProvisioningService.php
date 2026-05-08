@@ -255,6 +255,18 @@ final class VectaVoIPProvisioningService
         $statement->execute(['VECTAVOIP']);
         $id = $statement->fetchColumn();
         if ($id !== false) {
+            $update = $this->pdo->prepare(
+                'UPDATE cc_trunk
+                 SET providertech = ?, providerip = ?, status = ?, id_provider = ?
+                 WHERE id_trunk = ?'
+            );
+            $update->execute([
+                strtoupper((string)(getenv('A2BP_ASTERISK_CHANNEL_DRIVER') ?: 'pjsip')) === 'PJSIP' ? 'PJSIP' : 'SIP',
+                'sip.vectavoip.com',
+                1,
+                $providerId,
+                (int)$id,
+            ]);
             return (int)$id;
         }
 
@@ -267,7 +279,7 @@ final class VectaVoIPProvisioningService
         $insert->execute([
             'VECTAVOIP',
             '',
-            'PJSIP',
+            strtoupper((string)(getenv('A2BP_ASTERISK_CHANNEL_DRIVER') ?: 'pjsip')) === 'PJSIP' ? 'PJSIP' : 'SIP',
             'sip.vectavoip.com',
             '',
             0,
@@ -291,10 +303,11 @@ final class VectaVoIPProvisioningService
         if ($id !== false) {
             $update = $this->pdo->prepare(
                 'UPDATE cc_trunk
-                 SET providerip = ?, maxuse = ?, status = ?, id_provider = ?, addparameter = ?
+                 SET providertech = ?, providerip = ?, maxuse = ?, status = ?, id_provider = ?, addparameter = ?
                  WHERE id_trunk = ?'
             );
             $update->execute([
+                strtoupper((string)(getenv('A2BP_ASTERISK_CHANNEL_DRIVER') ?: 'pjsip')) === 'PJSIP' ? 'PJSIP' : 'SIP',
                 'sip.vectavoip.com',
                 $channels,
                 1,
@@ -314,7 +327,7 @@ final class VectaVoIPProvisioningService
         $insert->execute([
             $trunkCode,
             '',
-            'PJSIP',
+            strtoupper((string)(getenv('A2BP_ASTERISK_CHANNEL_DRIVER') ?: 'pjsip')) === 'PJSIP' ? 'PJSIP' : 'SIP',
             'sip.vectavoip.com',
             '',
             0,

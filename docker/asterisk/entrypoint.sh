@@ -76,12 +76,20 @@ if [[ "${REALTIME_ENABLED,,}" =~ ^(1|yes|true|on)$ ]]; then
 ps_endpoints => odbc,asterisk
 ps_auths => odbc,asterisk
 ps_aors => odbc,asterisk
+ps_endpoint_id_ips => odbc,asterisk
+ps_registrations => odbc,asterisk
 EOF
   cat >"${ASTERISK_RUNTIME_CONFIG_DIR}/sorcery.conf" <<'EOF'
 [res_pjsip]
 endpoint=realtime,ps_endpoints
 auth=realtime,ps_auths
 aor=realtime,ps_aors
+
+[res_pjsip_endpoint_identifier_ip]
+identify=realtime,ps_endpoint_id_ips
+
+[res_pjsip_outbound_registration]
+registration=realtime,ps_registrations
 EOF
 else
   cat >"${ASTERISK_RUNTIME_CONFIG_DIR}/extconfig.conf" <<'EOF'
