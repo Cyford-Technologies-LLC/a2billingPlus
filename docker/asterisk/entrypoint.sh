@@ -34,6 +34,25 @@ done
 
 cp "${ASTERISK_RUNTIME_CONFIG_DIR}"/*.conf /etc/asterisk/
 
+if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]] && ! grep -q '^\[from-pstn\]' "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"; then
+  cat >>"${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" <<'EOF'
+
+[from-pstn]
+exten => s,1,NoOp(Inbound PSTN call without URI user)
+ same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,Hangup()
+
+exten => _+X.,1,NoOp(Inbound PSTN DID call to ${EXTEN})
+ same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,Hangup()
+
+exten => _X.,1,NoOp(Inbound PSTN DID call to ${EXTEN})
+ same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,Hangup()
+EOF
+  cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
+fi
+
 sed -i "s/__AMI_USER__/${AMI_USER}/g; s/__AMI_PASSWORD__/${AMI_PASSWORD}/g" /etc/asterisk/manager.conf
 sed -i "s/__ARI_USER__/${ARI_USER}/g; s/__ARI_PASSWORD__/${ARI_PASSWORD}/g" /etc/asterisk/ari.conf
 
