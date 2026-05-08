@@ -5,11 +5,18 @@ AMI_USER="${ASTERISK_AMI_USER:-a2billing}"
 AMI_PASSWORD="${ASTERISK_AMI_PASSWORD:-a2billing-ami}"
 ARI_USER="${ASTERISK_ARI_USER:-a2billing}"
 ARI_PASSWORD="${ASTERISK_ARI_PASSWORD:-a2billing-ari}"
-DB_HOST="${A2BP_DB_HOST:-db}"
+RAW_DB_HOST="${A2BP_DB_HOST:-db}"
+DB_PORT="${A2BP_DB_PORT:-3306}"
 DB_NAME="${A2BP_DB_NAME:-mya2billing}"
 DB_USER="${A2BP_DB_USER:-a2billinguser}"
 DB_PASSWORD="${A2BP_DB_PASSWORD:-a2billing}"
 REALTIME_ENABLED="${A2BP_ASTERISK_REALTIME:-yes}"
+
+DB_HOST="${RAW_DB_HOST}"
+if [[ "${RAW_DB_HOST}" == *:* ]]; then
+  DB_HOST="${RAW_DB_HOST%%:*}"
+  DB_PORT="${RAW_DB_HOST##*:}"
+fi
 
 sed -i "s/__AMI_USER__/${AMI_USER}/g; s/__AMI_PASSWORD__/${AMI_PASSWORD}/g" /etc/asterisk/manager.conf
 sed -i "s/__ARI_USER__/${ARI_USER}/g; s/__ARI_PASSWORD__/${ARI_PASSWORD}/g" /etc/asterisk/ari.conf
@@ -19,7 +26,7 @@ cat >/etc/odbc.ini <<EOF
 Driver=MariaDB Unicode
 Server=${DB_HOST}
 Database=${DB_NAME}
-Port=3306
+Port=${DB_PORT}
 User=${DB_USER}
 Password=${DB_PASSWORD}
 OPTION=3
