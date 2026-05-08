@@ -28,7 +28,7 @@ final class PjsipProvisioningService
             return $this->error(422, 'pjsip_validation_failed', 'customer_id, username, and secret are required.', 'customer_device');
         }
 
-        $endpointId = $this->endpointId('cust', (string)$customerId . '-' . $username);
+        $endpointId = $this->endpointId('', $username);
         $context = $this->stringValue($payload, 'context', 'a2billing');
         $allow = $this->stringValue($payload, 'allow', 'ulaw,alaw');
         $this->writeEndpoint($endpointId, $username, $secret, $context, $allow, null, 1, 'auth_username,username');
@@ -366,7 +366,8 @@ final class PjsipProvisioningService
     private function endpointId(string $prefix, string $value): string
     {
         $safe = strtolower(preg_replace('/[^A-Za-z0-9_.-]+/', '-', $value) ?? '');
-        return substr($prefix . '-' . trim($safe, '-'), 0, 80);
+        $safe = trim($safe, '-');
+        return substr($prefix === '' ? $safe : $prefix . '-' . $safe, 0, 80);
     }
 
     private function audit(string $actor, string $action, string $endpointId, array $metadata): void
