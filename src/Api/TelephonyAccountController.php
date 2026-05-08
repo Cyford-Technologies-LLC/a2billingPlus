@@ -7,7 +7,9 @@ namespace A2BillingPlus\Api;
 use A2BillingPlus\Http\ApiResponder;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
+use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Module\Security\AuditLogRepository;
+use A2BillingPlus\Module\Telephony\PjsipProvisioningService;
 use A2BillingPlus\Module\Telephony\TelephonyAccountRepository;
 use A2BillingPlus\Module\Telephony\TelephonyAccountService;
 
@@ -34,7 +36,14 @@ final class TelephonyAccountController
         }
 
         $pdo = ($this->pdoFactory)();
-        $service = new TelephonyAccountService(new TelephonyAccountRepository($pdo), new AuditLogRepository($pdo));
+        $config = AppConfig::fromEnvironment();
+        $service = new TelephonyAccountService(
+            new TelephonyAccountRepository($pdo),
+            new AuditLogRepository($pdo),
+            new PjsipProvisioningService($pdo, new AuditLogRepository($pdo)),
+            $config->string('A2BP_ASTERISK_CHANNEL_DRIVER', 'pjsip'),
+            in_array(strtolower($config->string('A2BP_ASTERISK_REALTIME', 'yes')), ['1', 'yes', 'true', 'on'], true)
+        );
         $technology = strtolower($request->getString('technology', 'sip'));
         $actor = $request->getHeader('X-A2BP-Actor') ?: 'service-key';
 

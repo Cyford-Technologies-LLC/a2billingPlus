@@ -14,6 +14,7 @@ use A2BillingPlus\Module\Telephony\AsteriskConfigCheckService;
 use A2BillingPlus\Module\Telephony\DidAssignmentService;
 use A2BillingPlus\Module\Telephony\DidRepository;
 use A2BillingPlus\Module\Telephony\DidService;
+use A2BillingPlus\Module\Telephony\PjsipProvisioningService;
 use A2BillingPlus\Module\Telephony\TelephonyAccountRepository;
 use A2BillingPlus\Module\Telephony\TelephonyAccountService;
 use A2BillingPlus\Module\Telephony\TrunkRepository;
@@ -74,7 +75,13 @@ try {
     $pdo = $runtime->pdo();
     $didService = new DidService(new DidRepository($pdo), $pdo);
     $trunkService = new TrunkService(new TrunkRepository($pdo));
-    $accountService = new TelephonyAccountService(new TelephonyAccountRepository($pdo));
+    $accountService = new TelephonyAccountService(
+        new TelephonyAccountRepository($pdo),
+        null,
+        new PjsipProvisioningService($pdo),
+        $runtime->envString('A2BP_ASTERISK_CHANNEL_DRIVER', 'pjsip'),
+        in_array(strtolower($runtime->envString('A2BP_ASTERISK_REALTIME', 'yes')), ['1', 'yes', 'true', 'on'], true)
+    );
     $service = new AdminTelephonyWorkspaceService(
         $didService,
         $trunkService,

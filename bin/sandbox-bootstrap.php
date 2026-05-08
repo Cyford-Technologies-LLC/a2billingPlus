@@ -82,4 +82,55 @@ if ((int) ($defaultGroupStatement->fetchColumn() ?: 0) < 1) {
     fwrite(STDOUT, "[sandbox-bootstrap] Created default customer group.\n");
 }
 
+/**
+ * Ensure legacy Asterisk manager settings point at the local Docker PBX.
+ * The admin VoIP tooling reads these values from cc_config, not a2billing.conf.
+ */
+$configDefaults = [
+    'manager_host' => [
+        'title' => 'Manager Host',
+        'value' => 'asterisk',
+        'description' => 'Manager Host Address',
+    ],
+    'manager_username' => [
+        'title' => 'Manager User ID',
+        'value' => getenv('ASTERISK_AMI_USER') ?: 'a2billing',
+        'description' => 'Manger Host User Name',
+    ],
+    'manager_secret' => [
+        'title' => 'Manager Password',
+        'value' => getenv('ASTERISK_AMI_PASSWORD') ?: 'a2billing-ami',
+        'description' => 'Manager Host Password',
+    ],
+];
+
+$selectConfigStatement = $pdo->prepare('SELECT id FROM cc_config WHERE config_key = ? ORDER BY id ASC LIMIT 1');
+$insertConfigStatement = $pdo->prepare(
+    'INSERT INTO cc_config
+        (config_title, config_key, config_value, config_description, config_valuetype, config_listvalues, config_group_title)
+     VALUES (?, ?, ?, ?, ?, ?, ?)'
+);
+$updateConfigStatement = $pdo->prepare('UPDATE cc_config SET config_value = ? WHERE id = ?');
+
+foreach ($configDefaults as $configKey => $configMeta) {
+    $selectConfigStatement->execute([$configKey]);
+    $configId = (int) ($selectConfigStatement->fetchColumn() ?: 0);
+
+    if ($configId > 0) {
+        $updateConfigStatement->execute([$configMeta['value'], $configId]);
+        continue;
+    }
+
+    $insertConfigStatement->execute([
+        $configMeta['title'],
+        $configKey,
+        $configMeta['value'],
+        $configMeta['description'],
+        0,
+        null,
+        'global',
+    ]);
+    fwrite(STDOUT, "[sandbox-bootstrap] Created config {$configKey}.\n");
+}
+
 fwrite(STDOUT, "[sandbox-bootstrap] Ready. tariff_plan_id={$tariffPlanId} tariff_group_id={$tariffGroupId}\n");

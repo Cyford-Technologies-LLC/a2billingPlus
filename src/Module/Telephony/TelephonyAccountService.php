@@ -10,7 +10,10 @@ final class TelephonyAccountService
 {
     public function __construct(
         private readonly TelephonyAccountRepository $repository,
-        private readonly ?AuditLogRepository $auditLog = null
+        private readonly ?AuditLogRepository $auditLog = null,
+        private readonly ?PjsipProvisioningService $pjsipProvisioning = null,
+        private readonly string $channelDriver = 'chan_sip',
+        private readonly bool $realtimeEnabled = false
     ) {
     }
 
@@ -42,7 +45,26 @@ final class TelephonyAccountService
             return $validation;
         }
 
-        $account = $this->repository->create($technology, $this->normalize($payload));
+        $pdo = $this->repository->pdo();
+        $transactional = $this->shouldSyncPjsip($technology);
+        if ($transactional && !$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            $account = $this->repository->create($technology, $this->normalize($payload));
+            $this->syncPjsipIfNeeded($technology, (int)($account['id'] ?? 0), $actor);
+            if ($transactional && $pdo->inTransaction()) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $exception) {
+            if ($transactional && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            return $this->error(500, 'telephony_account_provisioning_failed', $exception->getMessage(), 'technology');
+        }
+
         $this->audit($actor, 'telephony_account.create', $technology, $account);
 
         return ['status' => 201, 'body' => ['success' => true, 'account' => $account]];
@@ -64,7 +86,26 @@ final class TelephonyAccountService
             return $validation;
         }
 
-        $account = $this->repository->update($technology, $id, $this->normalize($payload));
+        $pdo = $this->repository->pdo();
+        $transactional = $this->shouldSyncPjsip($technology);
+        if ($transactional && !$pdo->inTransaction()) {
+            $pdo->beginTransaction();
+        }
+
+        try {
+            $account = $this->repository->update($technology, $id, $this->normalize($payload));
+            $this->syncPjsipIfNeeded($technology, $id, $actor);
+            if ($transactional && $pdo->inTransaction()) {
+                $pdo->commit();
+            }
+        } catch (\Throwable $exception) {
+            if ($transactional && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+
+            return $this->error(500, 'telephony_account_provisioning_failed', $exception->getMessage(), 'technology');
+        }
+
         $this->audit($actor, 'telephony_account.update', $technology, $account ?? ['id' => $id]);
 
         return ['status' => 200, 'body' => ['success' => true, 'account' => $account]];
@@ -78,6 +119,31 @@ final class TelephonyAccountService
         }
 
         return $value;
+    }
+
+    private function shouldSyncPjsip(string $technology): bool
+    {
+        return $technology === 'sip'
+            && $this->pjsipProvisioning !== null
+            && strtolower($this->channelDriver) === 'pjsip'
+            && $this->realtimeEnabled;
+    }
+
+    private function syncPjsipIfNeeded(string $technology, int $id, string $actor): void
+    {
+        if (!$this->shouldSyncPjsip($technology) || $id <= 0) {
+            return;
+        }
+
+        $account = $this->repository->findProvisioningSource($technology, $id);
+        if ($account === null) {
+            throw new \RuntimeException('Provisioning source account was not found.');
+        }
+
+        $result = $this->pjsipProvisioning->syncLegacySipAccount($account, $actor);
+        if (($result['body']['success'] ?? false) !== true) {
+            throw new \RuntimeException((string)($result['body']['message'] ?? 'PJSIP provisioning failed.'));
+        }
     }
 
     /**

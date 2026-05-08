@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use A2BillingPlus\Module\Security\AuditLogRepository;
+use A2BillingPlus\Module\Telephony\PjsipProvisioningService;
 use A2BillingPlus\Module\Telephony\TelephonyAccountRepository;
 use A2BillingPlus\Module\Telephony\TelephonyAccountService;
 use PHPUnit\Framework\TestCase;
@@ -38,6 +39,30 @@ final class TelephonyAccountServiceTest extends TestCase
         $this->assertArrayNotHasKey('secret', $result['body']['account']);
         $this->assertSame('super-secret', $pdo->query("SELECT secret FROM cc_sip_buddies WHERE username = '1002'")->fetchColumn());
         $this->assertSame('telephony_account.create', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
+    public function testCreatesSipAccountAndMirrorsItIntoPjsipWhenEnabled(): void
+    {
+        $pdo = $this->pdo();
+        $service = new TelephonyAccountService(
+            new TelephonyAccountRepository($pdo),
+            new AuditLogRepository($pdo),
+            new PjsipProvisioningService($pdo, new AuditLogRepository($pdo)),
+            'pjsip',
+            true
+        );
+
+        $result = $service->create('sip', [
+            'id_cc_card' => 10,
+            'username' => '1004',
+            'secret' => 'pjsip-secret',
+            'context' => 'a2billing',
+            'allow' => 'ulaw,alaw',
+        ], 'admin:root');
+
+        $this->assertSame(201, $result['status']);
+        $this->assertSame('pjsip-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = 'cust-10-1004-auth'")->fetchColumn());
+        $this->assertSame('cust-10-1004', $pdo->query("SELECT endpoint_id FROM cc_a2bp_pjsip_endpoint_map WHERE endpoint_id = 'cust-10-1004'")->fetchColumn());
     }
 
     public function testUpdatesIaxAccount(): void

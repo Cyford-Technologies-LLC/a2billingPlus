@@ -267,7 +267,7 @@ final class VectaVoIPProvisioningService
         $insert->execute([
             'VECTAVOIP',
             '',
-            'SIP',
+            'PJSIP',
             'sip.vectavoip.com',
             '',
             0,

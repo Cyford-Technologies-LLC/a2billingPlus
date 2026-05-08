@@ -48,6 +48,19 @@ final class TelephonyAccountRepository
         'cid_number',
     ];
 
+    private const PROVISIONING_COLUMNS = [
+        'id',
+        'id_cc_card',
+        'name',
+        'context',
+        'host',
+        'secret',
+        'type',
+        'username',
+        'disallow',
+        'allow',
+    ];
+
     public function __construct(private readonly \PDO $pdo)
     {
     }
@@ -167,6 +180,48 @@ final class TelephonyAccountRepository
         }
 
         return self::TABLES[$key];
+    }
+
+    /**
+     * @return array<string,mixed>|null
+     */
+    public function findProvisioningSource(string $technology, int $id): ?array
+    {
+        $table = $this->table($technology);
+        $columns = $this->availableColumns($table, self::PROVISIONING_COLUMNS);
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s WHERE %s = :id',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier($table),
+            $this->quoteIdentifier('id')
+        ));
+        $statement->bindValue(':id', $id, \PDO::PARAM_INT);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return list<array<string,mixed>>
+     */
+    public function allProvisioningSources(string $technology): array
+    {
+        $table = $this->table($technology);
+        $columns = $this->availableColumns($table, self::PROVISIONING_COLUMNS);
+        $statement = $this->pdo->query(sprintf(
+            'SELECT %s FROM %s ORDER BY %s ASC',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier($table),
+            $this->quoteIdentifier('id')
+        ));
+
+        return $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+    }
+
+    public function pdo(): \PDO
+    {
+        return $this->pdo;
     }
 
     /**

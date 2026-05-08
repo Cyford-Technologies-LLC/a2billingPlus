@@ -43,7 +43,7 @@ final class TelephonyAccountControllerTest extends TestCase
         $this->assertArrayNotHasKey('secret', $create->getPayload()['data']['account']);
         $this->assertSame(200, $update->getStatusCode());
         $this->assertSame('Desk Phone', $update->getPayload()['data']['account']['callerid']);
-        $this->assertSame(2, (int)$pdo->query('SELECT COUNT(*) FROM cc_a2bp_audit_log')->fetchColumn());
+        $this->assertSame(4, (int)$pdo->query('SELECT COUNT(*) FROM cc_a2bp_audit_log')->fetchColumn());
     }
 
     public function testRejectsPjsipUntilProvisioningModuleExists(): void

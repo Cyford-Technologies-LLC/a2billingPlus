@@ -7,6 +7,8 @@ RUN apt-get update \
         asterisk-doc \
         ca-certificates \
         curl \
+        odbc-mariadb \
+        unixodbc \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*
 

@@ -40,6 +40,8 @@ final class AppConfig
             'A2BP_DB_PASSWORD',
             'A2BP_API_SERVICE_KEY',
             'A2BP_UI_THEME',
+            'A2BP_ASTERISK_CHANNEL_DRIVER',
+            'A2BP_ASTERISK_REALTIME',
             'A2BP_LOCKED_PROVIDERS',
             'A2BP_PROVIDER_OWNER_ADMINS',
             'A2BP_PROVIDER_LICENSED_ADMINS',

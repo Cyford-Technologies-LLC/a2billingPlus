@@ -39,6 +39,21 @@ final class PjsipProvisioningService
     }
 
     /**
+     * @param array<string,mixed> $account
+     * @return array{status:int,body:array<string,mixed>}
+     */
+    public function syncLegacySipAccount(array $account, string $actor): array
+    {
+        return $this->provisionCustomerDevice([
+            'customer_id' => $account['id_cc_card'] ?? null,
+            'username' => $account['username'] ?? '',
+            'secret' => $account['secret'] ?? '',
+            'context' => $account['context'] ?? 'a2billing',
+            'allow' => $account['allow'] ?? 'ulaw,alaw',
+        ], $actor);
+    }
+
+    /**
      * @param array<string,mixed> $payload
      * @return array{status:int,body:array<string,mixed>}
      */
@@ -201,7 +216,10 @@ final class PjsipProvisioningService
 
     private function writeEndpoint(string $endpointId, string $username, string $secret, string $context, string $allow, ?string $contact, int $maxContacts): void
     {
-        $this->pdo->beginTransaction();
+        $ownsTransaction = !$this->pdo->inTransaction();
+        if ($ownsTransaction) {
+            $this->pdo->beginTransaction();
+        }
         try {
             $this->upsert('ps_auths', ['id' => $endpointId . '-auth'], [
                 'auth_type' => 'userpass',
@@ -225,9 +243,13 @@ final class PjsipProvisioningService
                 'force_rport' => 'yes',
                 'rewrite_contact' => 'yes',
             ]);
-            $this->pdo->commit();
+            if ($ownsTransaction) {
+                $this->pdo->commit();
+            }
         } catch (\Throwable $exception) {
-            $this->pdo->rollBack();
+            if ($ownsTransaction && $this->pdo->inTransaction()) {
+                $this->pdo->rollBack();
+            }
             throw $exception;
         }
     }
