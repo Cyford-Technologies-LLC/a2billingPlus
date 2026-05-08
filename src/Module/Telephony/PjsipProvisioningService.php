@@ -138,6 +138,7 @@ final class PjsipProvisioningService
                 e.aors,
                 e.auth,
                 e.context,
+                e.identify_by,
                 e.disallow,
                 e.allow,
                 e.direct_media,
@@ -172,7 +173,7 @@ final class PjsipProvisioningService
         }
 
         $endpointUpdates = [];
-        foreach (['context', 'allow'] as $field) {
+        foreach (['context', 'allow', 'identify_by'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $value = $this->stringValue($payload, $field);
                 if ($value === '' || strlen($value) > 100) {

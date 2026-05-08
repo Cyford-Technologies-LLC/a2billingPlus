@@ -20,6 +20,7 @@ CREATE TABLE IF NOT EXISTS ps_endpoints (
     aors VARCHAR(80) NOT NULL DEFAULT '',
     auth VARCHAR(80) NOT NULL DEFAULT '',
     context VARCHAR(80) NOT NULL DEFAULT 'a2billing',
+    identify_by VARCHAR(80) NOT NULL DEFAULT 'username,ip',
     disallow VARCHAR(100) NOT NULL DEFAULT 'all',
     allow VARCHAR(100) NOT NULL DEFAULT 'ulaw,alaw',
     direct_media VARCHAR(3) NOT NULL DEFAULT 'no',
