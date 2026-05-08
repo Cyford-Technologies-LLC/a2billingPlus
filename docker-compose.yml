@@ -139,6 +139,11 @@ services:
       - path: .env
       - path: .env.local
         required: false
+    environment:
+      ASTERISK_RUNTIME_CONFIG_DIR: /etc/cyford/asterisk
+      A2BP_ASTERISK_REALM: ${A2BP_ASTERISK_REALM:-asterisk}
+      A2BP_ASTERISK_USER_AGENT: ${A2BP_ASTERISK_USER_AGENT:-A2BillingPlus Sandbox}
+      A2BP_ASTERISK_IDENTIFIER_ORDER: ${A2BP_ASTERISK_IDENTIFIER_ORDER:-auth_username,username,ip,anonymous}
     ports:
       - "${A2BP_ASTERISK_AMI_PORT:-5038}:5038"
       - "${A2BP_ASTERISK_ARI_PORT:-8088}:8088"
@@ -146,6 +151,7 @@ services:
       - "${A2BP_ASTERISK_RTP_START:-10000}-${A2BP_ASTERISK_RTP_END:-10020}:10000-10020/udp"
     volumes:
       - ./AGI:/usr/share/asterisk/agi-bin/a2billing:ro
+      - ${A2BP_ASTERISK_RUNTIME_DIR:-./var/runtime/asterisk}:/etc/cyford/asterisk
       - asterisk-spool:/var/spool/asterisk
       - asterisk-logs:/var/log/asterisk
     healthcheck:
