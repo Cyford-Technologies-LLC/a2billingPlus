@@ -151,9 +151,9 @@ services:
       - "${A2BP_ASTERISK_RTP_START:-10000}-${A2BP_ASTERISK_RTP_END:-10020}:10000-10020/udp"
     volumes:
       - ./:/opt/a2billingplus:ro
-      - ${A2BP_ASTERISK_RUNTIME_DIR:-./var/runtime/asterisk}:/etc/cyford/asterisk
+      - ${CYFORD_ASTERISK_RUNTIME_DIR:-/etc/cyford/asterisk/runtime}/config:/etc/cyford/asterisk
       - asterisk-spool:/var/spool/asterisk
-      - asterisk-logs:/var/log/asterisk
+      - ${CYFORD_ASTERISK_LOG_DIR:-/etc/cyford/asterisk/logs}:/var/log/asterisk
     healthcheck:
       test: ["CMD", "asterisk", "-rx", "core show version"]
       interval: 20s
