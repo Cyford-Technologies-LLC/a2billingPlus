@@ -86,7 +86,7 @@ try {
         $didService,
         $trunkService,
         $accountService,
-        new AsteriskConfigCheckService(),
+        new AsteriskConfigCheckService($pdo),
         $pdo
     );
 
@@ -217,6 +217,9 @@ try {
             'ari_password' => $runtime->envString('ASTERISK_ARI_PASSWORD'),
             'channel_driver' => $runtime->envString('A2BP_ASTERISK_CHANNEL_DRIVER', 'pjsip'),
             'realtime_enabled' => $runtime->envString('A2BP_ASTERISK_REALTIME', 'yes'),
+            'ami_host' => $runtime->envString('A2BP_ASTERISK_AMI_HOST', 'asterisk'),
+            'ami_port' => $runtime->envString('A2BP_ASTERISK_AMI_PORT', '5038'),
+            'probe_runtime' => 'yes',
         ]
     );
 } catch (Throwable $exception) {

@@ -15,7 +15,8 @@ final class AsteriskHealthController
     public function __construct(
         private readonly ApiServiceKeyAuthenticator $authenticator,
         private readonly AppConfig $config,
-        private readonly AsteriskConfigCheckService $service = new AsteriskConfigCheckService()
+        private readonly ?\PDO $pdo = null,
+        private readonly ?AsteriskConfigCheckService $service = null
     ) {
     }
 
@@ -33,7 +34,7 @@ final class AsteriskHealthController
         $settings = $request->getMethod() === 'POST'
             ? $this->settingsFromPayload($request->getArray('settings'))
             : $this->settingsFromRequest($request);
-        $result = $this->service->check($settings);
+        $result = $this->service()->check($settings);
 
         return ApiResponder::ok(['asterisk' => $result], ['resource' => 'asterisk-health']);
     }
@@ -45,7 +46,7 @@ final class AsteriskHealthController
     private function settingsFromPayload(array $payload): array
     {
         $settings = [];
-        foreach (['version', 'ami_user', 'ami_password', 'ari_user', 'ari_password', 'channel_driver', 'realtime_enabled'] as $key) {
+        foreach (['version', 'ami_user', 'ami_password', 'ari_user', 'ari_password', 'channel_driver', 'realtime_enabled', 'ami_host', 'ami_port', 'probe_runtime'] as $key) {
             $settings[$key] = is_scalar($payload[$key] ?? null) ? (string)$payload[$key] : $this->defaultSetting($key);
         }
 
@@ -58,7 +59,7 @@ final class AsteriskHealthController
     private function settingsFromRequest(JsonRequest $request): array
     {
         $settings = [];
-        foreach (['version', 'ami_user', 'ami_password', 'ari_user', 'ari_password', 'channel_driver', 'realtime_enabled'] as $key) {
+        foreach (['version', 'ami_user', 'ami_password', 'ari_user', 'ari_password', 'channel_driver', 'realtime_enabled', 'ami_host', 'ami_port', 'probe_runtime'] as $key) {
             $settings[$key] = $request->getString($key, $this->defaultSetting($key));
         }
 
@@ -75,7 +76,15 @@ final class AsteriskHealthController
             'ari_password' => $this->config->string('A2BP_ARI_PASSWORD', ''),
             'channel_driver' => $this->config->string('A2BP_ASTERISK_CHANNEL_DRIVER', 'pjsip'),
             'realtime_enabled' => $this->config->string('A2BP_ASTERISK_REALTIME_ENABLED', 'yes'),
+            'ami_host' => $this->config->string('A2BP_ASTERISK_AMI_HOST', 'asterisk'),
+            'ami_port' => $this->config->string('A2BP_ASTERISK_AMI_PORT', '5038'),
+            'probe_runtime' => 'no',
             default => '',
         };
+    }
+
+    private function service(): AsteriskConfigCheckService
+    {
+        return $this->service ?? new AsteriskConfigCheckService($this->pdo);
     }
 }
