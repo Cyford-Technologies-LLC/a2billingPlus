@@ -1326,7 +1326,8 @@ class A2Billing
                     $dialparams = $this->agiconfig['dialcommand_param_call_2did'];
                     $dialparams = str_replace("%timeout%", min($time2call * 1000, $max_long), $dialparams);
                     $dialparams = str_replace("%timeoutsec%", min($time2call, $max_long), $dialparams);
-                    $dialstr = $inst_listdestination[4] . $dialparams;
+                    $dialDestination = $this->normalize_did_voip_destination($inst_listdestination[4]);
+                    $dialstr = $dialDestination . $dialparams;
 
                     $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[A2Billing] DID call friend: Dialing '$dialstr' Friend.\n");
 
@@ -3729,16 +3730,51 @@ class A2Billing
         return $res_dial;
     }
 
+    public function normalize_did_voip_destination($destination)
+    {
+        $destination = trim((string)$destination);
+        if ($destination === '' || strpos($destination, '/') !== false) {
+            return $destination;
+        }
+
+        $driver = strtolower((string)getenv('A2BP_ASTERISK_CHANNEL_DRIVER'));
+        if ($driver === '' || $driver === 'pjsip') {
+            return 'PJSIP/' . $destination;
+        }
+        if ($driver === 'chan_sip' || $driver === 'sip') {
+            return 'SIP/' . $destination;
+        }
+        if ($driver === 'iax' || $driver === 'iax2') {
+            return 'IAX2/' . $destination;
+        }
+
+        return strtoupper($driver) . '/' . $destination;
+    }
+
     /*
     * This function to set the parameters separator according the asterisk version
     */
     public function format_parameters($parameters)
     {
-        if ($this->agiconfig['asterisk_version'] != "1_2" && $this->agiconfig['asterisk_version'] != "1_4") {
+        if (!$this->use_legacy_dial_separator()) {
             $parameters = str_replace("|", ',', $parameters);
         }
 
         return $parameters;
+    }
+
+    private function use_legacy_dial_separator()
+    {
+        $configuredVersion = (string)($this->agiconfig['asterisk_version'] ?? '');
+        $runtimeVersion = (string)getenv('A2BP_ASTERISK_VERSION');
+        if (preg_match('/^(?:1_2|1_4)$/', $runtimeVersion) === 1) {
+            return true;
+        }
+        if ($runtimeVersion !== '') {
+            return false;
+        }
+
+        return preg_match('/^(?:1_2|1_4)$/', $configuredVersion) === 1;
     }
 
     public function calculate_time_condition($now, $timeinterval, $type)
