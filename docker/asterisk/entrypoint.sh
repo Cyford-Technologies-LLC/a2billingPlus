@@ -16,6 +16,10 @@ REALTIME_ENABLED="${A2BP_ASTERISK_REALTIME:-yes}"
 PJSIP_REALM="${A2BP_ASTERISK_REALM:-asterisk}"
 PJSIP_USER_AGENT="${A2BP_ASTERISK_USER_AGENT:-A2BillingPlus Sandbox}"
 PJSIP_IDENTIFIER_ORDER="${A2BP_ASTERISK_IDENTIFIER_ORDER:-auth_username,username,ip,anonymous}"
+PJSIP_PUBLIC_IP="${A2BP_ASTERISK_PUBLIC_IP:-}"
+PJSIP_EXTERNAL_MEDIA_ADDRESS="${A2BP_ASTERISK_EXTERNAL_MEDIA_ADDRESS:-${PJSIP_PUBLIC_IP}}"
+PJSIP_EXTERNAL_SIGNALING_ADDRESS="${A2BP_ASTERISK_EXTERNAL_SIGNALING_ADDRESS:-${PJSIP_PUBLIC_IP}}"
+PJSIP_LOCAL_NETS="${A2BP_ASTERISK_LOCAL_NETS:-172.16.0.0/12,10.0.0.0/8,192.168.0.0/16}"
 PROJECT_ROOT="${A2BP_PROJECT_ROOT:-/opt/a2billingplus}"
 AGI_WRAPPER_PATH="/var/lib/asterisk/agi-bin/a2billingplus-did"
 
@@ -109,6 +113,27 @@ if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf" ]]; then
   if ! grep -q '^default_realm=' "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf"; then
     sed -i '/^\[global\]/a default_realm='"${PJSIP_REALM}" "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf"
   fi
+  sed -i \
+    -e '/^external_media_address=/d' \
+    -e '/^external_signaling_address=/d' \
+    -e '/^local_net=/d' \
+    "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf"
+  if [[ -n "${PJSIP_EXTERNAL_MEDIA_ADDRESS}" ]]; then
+    sed -i '/^\[transport-udp\]/,/^\[/{/^bind=/a external_media_address='"${PJSIP_EXTERNAL_MEDIA_ADDRESS}"'
+}' "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf"
+  fi
+  if [[ -n "${PJSIP_EXTERNAL_SIGNALING_ADDRESS}" ]]; then
+    sed -i '/^\[transport-udp\]/,/^\[/{/^bind=/a external_signaling_address='"${PJSIP_EXTERNAL_SIGNALING_ADDRESS}"'
+}' "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf"
+  fi
+  IFS=',' read -ra local_nets <<<"${PJSIP_LOCAL_NETS}"
+  for local_net in "${local_nets[@]}"; do
+    local_net="$(printf '%s' "${local_net}" | xargs)"
+    if [[ -n "${local_net}" ]]; then
+      sed -i '/^\[transport-udp\]/,/^\[/{/^bind=/a local_net='"${local_net}"'
+}' "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf"
+    fi
+  done
   cp "${ASTERISK_RUNTIME_CONFIG_DIR}/pjsip.conf" /etc/asterisk/pjsip.conf
 fi
 
