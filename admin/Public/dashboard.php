@@ -84,6 +84,7 @@ if ( !empty($A2B->config["dashboard"]["call_info_enabled"]) && $A2B->config["das
 if ( !empty($A2B->config["dashboard"]["system_info_enable"]) && $A2B->config["dashboard"]["system_info_enable"]!="NONE") {
     put_dislay($A2B->config["dashboard"]["system_info_enable"],gettext("SYSTEM INFO"),array("./modules/system_info.php"));
 }
+put_dislay("RIGHT", gettext("TELEPHONY HEALTH"), array("./modules/telephony_health.php"));
 if ( !empty($A2B->config["dashboard"]["news_enabled"]) && $A2B->config["dashboard"]["news_enabled"]!="NONE") {
     put_dislay($A2B->config["dashboard"]["news_enabled"],gettext("LATEST NEWS"),array("./modules/news.php"));
 }
