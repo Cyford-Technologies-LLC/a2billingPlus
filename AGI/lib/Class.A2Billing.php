@@ -1326,7 +1326,8 @@ class A2Billing
                     $dialparams = $this->agiconfig['dialcommand_param_call_2did'];
                     $dialparams = str_replace("%timeout%", min($time2call * 1000, $max_long), $dialparams);
                     $dialparams = str_replace("%timeoutsec%", min($time2call, $max_long), $dialparams);
-                    $dialstr = $inst_listdestination[4] . $dialparams;
+                    $dialDestination = $this->normalize_did_voip_destination($inst_listdestination[4]);
+                    $dialstr = $dialDestination . $dialparams;
 
                     $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[A2Billing] DID call friend: Dialing '$dialstr' Friend.\n");
 
@@ -3727,6 +3728,27 @@ class A2Billing
         $res_dial = $agi->exec("DIAL $dialstr");
 
         return $res_dial;
+    }
+
+    public function normalize_did_voip_destination($destination)
+    {
+        $destination = trim((string)$destination);
+        if ($destination === '' || strpos($destination, '/') !== false) {
+            return $destination;
+        }
+
+        $driver = strtolower((string)getenv('A2BP_ASTERISK_CHANNEL_DRIVER'));
+        if ($driver === '' || $driver === 'pjsip') {
+            return 'PJSIP/' . $destination;
+        }
+        if ($driver === 'chan_sip' || $driver === 'sip') {
+            return 'SIP/' . $destination;
+        }
+        if ($driver === 'iax' || $driver === 'iax2') {
+            return 'IAX2/' . $destination;
+        }
+
+        return strtoupper($driver) . '/' . $destination;
     }
 
     /*

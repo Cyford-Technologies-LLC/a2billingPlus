@@ -1,0 +1,3 @@
+ALTER TABLE cc_did
+    ADD COLUMN IF NOT EXISTS connection_charge FLOAT NOT NULL DEFAULT 0 AFTER fixrate,
+    ADD COLUMN IF NOT EXISTS selling_rate FLOAT NOT NULL DEFAULT 0 AFTER connection_charge;

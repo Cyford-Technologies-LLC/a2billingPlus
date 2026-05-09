@@ -64,7 +64,7 @@ if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]]; then
   cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
 fi
 
-mkdir -p /var/log/a2billing /var/run/a2billing
+mkdir -p /var/log/a2billing /var/run/a2billing /var/log/asterisk/cdr-csv
 
 if [[ -f "${PROJECT_ROOT}/a2billing.conf" ]]; then
   cp "${PROJECT_ROOT}/a2billing.conf" /etc/a2billing.conf
