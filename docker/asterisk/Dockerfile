@@ -8,6 +8,18 @@ RUN apt-get update \
         ca-certificates \
         curl \
         odbc-mariadb \
+        php-bcmath \
+        php-cli \
+        php-curl \
+        php-gd \
+        php-intl \
+        php-mbstring \
+        php-mysql \
+        php-pgsql \
+        php-soap \
+        php-sqlite3 \
+        php-xml \
+        php-zip \
         unixodbc \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/*

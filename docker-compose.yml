@@ -150,7 +150,7 @@ services:
       - "${A2BP_ASTERISK_SIP_PORT:-5060}:5060/udp"
       - "${A2BP_ASTERISK_RTP_START:-10000}-${A2BP_ASTERISK_RTP_END:-10020}:10000-10020/udp"
     volumes:
-      - ./AGI:/usr/share/asterisk/agi-bin/a2billing:ro
+      - ./:/opt/a2billingplus:ro
       - ${A2BP_ASTERISK_RUNTIME_DIR:-./var/runtime/asterisk}:/etc/cyford/asterisk
       - asterisk-spool:/var/spool/asterisk
       - asterisk-logs:/var/log/asterisk

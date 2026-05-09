@@ -16,11 +16,17 @@ REALTIME_ENABLED="${A2BP_ASTERISK_REALTIME:-yes}"
 PJSIP_REALM="${A2BP_ASTERISK_REALM:-asterisk}"
 PJSIP_USER_AGENT="${A2BP_ASTERISK_USER_AGENT:-A2BillingPlus Sandbox}"
 PJSIP_IDENTIFIER_ORDER="${A2BP_ASTERISK_IDENTIFIER_ORDER:-auth_username,username,ip,anonymous}"
+PROJECT_ROOT="${A2BP_PROJECT_ROOT:-/opt/a2billingplus}"
 
 DB_HOST="${RAW_DB_HOST}"
 if [[ "${RAW_DB_HOST}" == *:* ]]; then
   DB_HOST="${RAW_DB_HOST%%:*}"
   DB_PORT="${RAW_DB_HOST##*:}"
+fi
+
+DB_CONFIG_PORT="${A2BP_DB_CONFIG_PORT:-${DB_PORT}}"
+if [[ -z "${A2BP_DB_CONFIG_PORT+x}" && "${RAW_DB_HOST}" == "db" ]]; then
+  DB_CONFIG_PORT="3306"
 fi
 
 mkdir -p "${ASTERISK_RUNTIME_CONFIG_DIR}" /etc/asterisk
@@ -34,20 +40,40 @@ done
 
 cp "${ASTERISK_RUNTIME_CONFIG_DIR}"/*.conf /etc/asterisk/
 
+if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]]; then
+  sed -i 's#AGI(a2billing/a2billing\.php,1,did)#AGI(/opt/a2billingplus/AGI/a2billing.php,1,did)#g' \
+    "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"
+  cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
+fi
+
+mkdir -p /var/log/a2billing /var/run/a2billing
+
+if [[ -f "${PROJECT_ROOT}/a2billing.conf" ]]; then
+  cp "${PROJECT_ROOT}/a2billing.conf" /etc/a2billing.conf
+  sed -i \
+    -e "s/^hostname = .*/hostname = ${RAW_DB_HOST}/" \
+    -e "s/^port = .*/port = ${DB_CONFIG_PORT}/" \
+    -e "s/^user = .*/user = ${DB_USER}/" \
+    -e "s/^password = .*/password = ${DB_PASSWORD}/" \
+    -e "s/^dbname = .*/dbname = ${DB_NAME}/" \
+    -e "s/^dbtype = .*/dbtype = mysql/" \
+    /etc/a2billing.conf
+fi
+
 if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]] && ! grep -q '^\[from-pstn\]' "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"; then
   cat >>"${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" <<'EOF'
 
 [from-pstn]
 exten => s,1,NoOp(Inbound PSTN call without URI user)
- same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,AGI(/opt/a2billingplus/AGI/a2billing.php,1,did)
  same => n,Hangup()
 
 exten => _+X.,1,NoOp(Inbound PSTN DID call to ${EXTEN})
- same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,AGI(/opt/a2billingplus/AGI/a2billing.php,1,did)
  same => n,Hangup()
 
 exten => _X.,1,NoOp(Inbound PSTN DID call to ${EXTEN})
- same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,AGI(/opt/a2billingplus/AGI/a2billing.php,1,did)
  same => n,Hangup()
 EOF
   cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
@@ -73,7 +99,7 @@ cat >"${ASTERISK_RUNTIME_CONFIG_DIR}/odbc.ini" <<EOF
 Driver=MariaDB Unicode
 Server=${DB_HOST}
 Database=${DB_NAME}
-Port=${DB_PORT}
+Port=${DB_CONFIG_PORT}
 User=${DB_USER}
 Password=${DB_PASSWORD}
 OPTION=3
