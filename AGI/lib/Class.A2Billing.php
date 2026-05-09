@@ -3756,11 +3756,25 @@ class A2Billing
     */
     public function format_parameters($parameters)
     {
-        if ($this->agiconfig['asterisk_version'] != "1_2" && $this->agiconfig['asterisk_version'] != "1_4") {
+        if (!$this->use_legacy_dial_separator()) {
             $parameters = str_replace("|", ',', $parameters);
         }
 
         return $parameters;
+    }
+
+    private function use_legacy_dial_separator()
+    {
+        $configuredVersion = (string)($this->agiconfig['asterisk_version'] ?? '');
+        $runtimeVersion = (string)getenv('A2BP_ASTERISK_VERSION');
+        if (preg_match('/^(?:1_2|1_4)$/', $runtimeVersion) === 1) {
+            return true;
+        }
+        if ($runtimeVersion !== '') {
+            return false;
+        }
+
+        return preg_match('/^(?:1_2|1_4)$/', $configuredVersion) === 1;
     }
 
     public function calculate_time_condition($now, $timeinterval, $type)
