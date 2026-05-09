@@ -43,9 +43,17 @@ function bearerToken(): string
         ?? $_SERVER['Authorization']
         ?? '';
 
+    $apiKeyHeader = $_SERVER['HTTP_X_VECTAVOIP_API_KEY'] ?? '';
+    if (is_scalar($apiKeyHeader) && trim((string)$apiKeyHeader) !== '') {
+        return trim((string)$apiKeyHeader);
+    }
+
     if ((!is_string($header) || $header === '') && function_exists('apache_request_headers')) {
         $headers = apache_request_headers();
         foreach ($headers as $name => $value) {
+            if (strtolower((string)$name) === 'x-vectavoip-api-key') {
+                return trim((string)$value);
+            }
             if (strtolower((string)$name) === 'authorization') {
                 $header = (string)$value;
                 break;
@@ -62,11 +70,11 @@ function bearerToken(): string
 
 function apiSecret(): string
 {
-    $value = $_SERVER['HTTP_X_VECTAVOIP_SECRET'] ?? '';
+    $value = $_SERVER['HTTP_X_VECTAVOIP_SECRET'] ?? $_SERVER['HTTP_X_VECTAVOIP_API_SECRET'] ?? '';
     if ((!is_scalar($value) || $value === '') && function_exists('apache_request_headers')) {
         $headers = apache_request_headers();
         foreach ($headers as $name => $headerValue) {
-            if (strtolower((string)$name) === 'x-vectavoip-secret') {
+            if (in_array(strtolower((string)$name), ['x-vectavoip-secret', 'x-vectavoip-api-secret'], true)) {
                 $value = $headerValue;
                 break;
             }
