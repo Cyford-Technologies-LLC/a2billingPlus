@@ -20,9 +20,9 @@ final class PjsipProvisioningServiceTest extends TestCase
         ], 'admin:root');
 
         $this->assertSame(201, $result['status']);
-        $this->assertSame('cust-10-1001', $result['body']['endpoint']['endpoint_id']);
+        $this->assertSame('1001', $result['body']['endpoint']['endpoint_id']);
         $this->assertArrayNotHasKey('secret', $result['body']['endpoint']);
-        $this->assertSame('strong-device-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = 'cust-10-1001-auth'")->fetchColumn());
+        $this->assertSame('strong-device-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = '1001-auth'")->fetchColumn());
         $this->assertSame('pjsip.customer_device.provision', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
     }
 
@@ -43,6 +43,23 @@ final class PjsipProvisioningServiceTest extends TestCase
         $this->assertSame('sip:sip.vectavoip.com', $pdo->query("SELECT contact FROM ps_aors WHERE id = 'trunk-vectavoip'")->fetchColumn());
     }
 
+    public function testProvisionsTwilioEdgeIpAsSubnetIdentifyMatch(): void
+    {
+        $pdo = $this->pdo();
+        $service = new PjsipProvisioningService($pdo, new AuditLogRepository($pdo));
+
+        $result = $service->provisionTrunk([
+            'trunkcode' => 'twbybf0b89b0a20e0aa4',
+            'host' => '54.172.60.2',
+        ], 'admin:root');
+
+        $this->assertSame(201, $result['status']);
+        $this->assertSame(
+            '54.172.60.0/24',
+            $pdo->query("SELECT `match` FROM ps_endpoint_id_ips WHERE id = 'trunk-twbybf0b89b0a20e0aa4'")->fetchColumn()
+        );
+    }
+
     public function testListsLoadsAndUpdatesProvisionedEndpoint(): void
     {
         $pdo = $this->pdo();
@@ -54,8 +71,8 @@ final class PjsipProvisioningServiceTest extends TestCase
         ], 'admin:root');
 
         $list = $service->listEndpoints(10, 0, 'customer_device', 10);
-        $detail = $service->endpointDetail('cust-10-1001');
-        $update = $service->updateEndpoint('cust-10-1001', [
+        $detail = $service->endpointDetail('1001');
+        $update = $service->updateEndpoint('1001', [
             'context' => 'from-internal',
             'allow' => 'ulaw',
             'max_contacts' => 2,

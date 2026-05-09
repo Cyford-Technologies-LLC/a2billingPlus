@@ -318,7 +318,7 @@ final class PjsipProvisioningService
             ]);
             $this->upsert('ps_endpoint_id_ips', ['id' => $endpointId], [
                 'endpoint' => $endpointId,
-                'match' => $host,
+                'match' => $this->identifyMatchForHost($host),
                 'srv_lookups' => 'yes',
                 'match_header' => '',
             ]);
@@ -350,6 +350,16 @@ final class PjsipProvisioningService
             }
             throw $exception;
         }
+    }
+
+    private function identifyMatchForHost(string $host): string
+    {
+        $host = trim($host);
+        if (preg_match('/^54\.172\.60\.\d{1,3}$/', $host) === 1) {
+            return '54.172.60.0/24';
+        }
+
+        return $host;
     }
 
     /**
