@@ -29,6 +29,14 @@ if [[ -z "${A2BP_DB_CONFIG_PORT+x}" && "${RAW_DB_HOST}" == "db" ]]; then
   DB_CONFIG_PORT="3306"
 fi
 
+ODBC_DRIVER_PATH="${A2BP_ODBC_DRIVER_PATH:-}"
+if [[ -z "${ODBC_DRIVER_PATH}" ]]; then
+  ODBC_DRIVER_PATH="$(find /usr -type f -name 'libmaodbc.so' 2>/dev/null | head -n 1 || true)"
+fi
+if [[ -z "${ODBC_DRIVER_PATH}" ]]; then
+  ODBC_DRIVER_PATH="libmaodbc.so"
+fi
+
 mkdir -p "${ASTERISK_RUNTIME_CONFIG_DIR}" /etc/asterisk
 
 for source in "${DEFAULT_CONFIG_DIR}"/*.conf; do
@@ -105,6 +113,14 @@ Password=${DB_PASSWORD}
 OPTION=3
 EOF
 cp "${ASTERISK_RUNTIME_CONFIG_DIR}/odbc.ini" /etc/odbc.ini
+
+cat >/etc/odbcinst.ini <<EOF
+[MariaDB Unicode]
+Driver=${ODBC_DRIVER_PATH}
+Description=MariaDB Connector/ODBC(Unicode)
+Threading=0
+UsageCount=1
+EOF
 
 cat >"${ASTERISK_RUNTIME_CONFIG_DIR}/res_odbc.conf" <<EOF
 [asterisk]
