@@ -679,9 +679,7 @@ function envValue(string $value): string
 
 function twilioDefaultAuthMode(): string
 {
-    return envString('TWILIO_API_KEY') !== '' || envString('TWILIO_API_SECRET') !== ''
-        ? 'api_key'
-        : 'auth_token';
+    return 'auth_token';
 }
 
 /**
@@ -1086,7 +1084,7 @@ function tableExists(PDO $pdo, string $table): bool
                                 <option value="auth_token" <?php echo $input['twilio_auth_mode'] === 'auth_token' ? 'selected' : ''; ?>>Account SID + Auth Token</option>
                                 <option value="api_key" <?php echo $input['twilio_auth_mode'] === 'api_key' ? 'selected' : ''; ?>>API Key + API Secret</option>
                             </select>
-                            <br><span style="color:#666;">Save will verify Twilio with this exact method.</span>
+                            <br><span style="color:#666;">Use Account SID + Auth Token unless you created a Twilio API key yourself. Save will verify Twilio with this exact method.</span>
                         </td>
                     </tr>
                     <tr class="twilio-auth-api-key" style="<?php echo $input['twilio_auth_mode'] === 'api_key' ? '' : 'display:none;'; ?>">
