@@ -59,6 +59,7 @@ $defaults = [
     'default_upstream_provider' => envString('VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER', 'local'),
     'twilio_sandbox_mode' => envString('TWILIO_SANDBOX_MODE', '0'),
     'twilio_account_sid' => envString('TWILIO_ACCOUNT_SID'),
+    'twilio_auth_mode' => envString('TWILIO_AUTH_MODE', twilioDefaultAuthMode()),
     'twilio_api_key' => envString('TWILIO_API_KEY'),
     'twilio_api_secret' => envString('TWILIO_API_SECRET'),
     'twilio_auth_token' => envString('TWILIO_AUTH_TOKEN'),
@@ -174,8 +175,34 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($input['default_upstream_provider'], ['local', 'twilio'], true)) {
             $errors[] = 'Default upstream provider must be local or twilio.';
         }
+        if ($input['provider'] === 'twilio' && $input['default_upstream_provider'] === 'twilio' && $input['twilio_sandbox_mode'] !== '1') {
+            foreach (twilioCredentialValidationErrors($input) as $credentialError) {
+                $errors[] = $credentialError;
+            }
+        }
         if (!$errors) {
             saveUpstreamSettings($envPath, $input, $messages, $errors);
+            if (!$errors && $input['provider'] === 'twilio' && $input['twilio_sandbox_mode'] !== '1' && twilioCanTest($input)) {
+                $twilioConnection = $providerSetup->testConnection($input);
+                if (($twilioConnection['success'] ?? false) !== true) {
+                    $errors[] = 'Saved settings, but Twilio verification failed.';
+                    $errors[] = (string)($twilioConnection['message'] ?? $twilioConnection['error'] ?? 'Twilio connection failed.');
+                    foreach (twilioDiagnosticMessages($twilioConnection['details'] ?? []) as $diagnosticMessage) {
+                        $errors[] = $diagnosticMessage;
+                    }
+                } else {
+                    $messages[] = 'Saved settings and verified Twilio credentials.';
+                    foreach (twilioDiagnosticMessages($twilioConnection['details'] ?? []) as $diagnosticMessage) {
+                        $messages[] = $diagnosticMessage;
+                    }
+                }
+            }
+        }
+    }
+
+    if (!$errors && $formAction === 'test_twilio_connection') {
+        foreach (twilioCredentialValidationErrors($input) as $credentialError) {
+            $errors[] = $credentialError;
         }
     }
 
@@ -483,6 +510,7 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         'VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER' => $input['default_upstream_provider'],
         'TWILIO_SANDBOX_MODE' => $input['twilio_sandbox_mode'] === '1' ? '1' : '0',
         'TWILIO_ACCOUNT_SID' => $input['twilio_account_sid'],
+        'TWILIO_AUTH_MODE' => $input['twilio_auth_mode'],
         'TWILIO_API_KEY' => $input['twilio_api_key'],
         'TWILIO_API_SECRET' => $input['twilio_api_secret'],
         'TWILIO_AUTH_TOKEN' => $input['twilio_auth_token'],
@@ -649,21 +677,90 @@ function envValue(string $value): string
     return $value;
 }
 
+function twilioDefaultAuthMode(): string
+{
+    return envString('TWILIO_API_KEY') !== '' || envString('TWILIO_API_SECRET') !== ''
+        ? 'api_key'
+        : 'auth_token';
+}
+
 /**
  * @param array<string,string> $input
  * @return array<string,string>
  */
 function twilioApiInput(array $input): array
 {
+    $authMode = in_array($input['twilio_auth_mode'] ?? '', ['auth_token', 'api_key'], true)
+        ? $input['twilio_auth_mode']
+        : twilioDefaultAuthMode();
+
     $input['provider'] = 'twilio';
+    $input['twilio_auth_mode'] = $authMode;
     $input['base_url'] = \A2BillingPlus\Module\Provider\Twilio\TwilioApiClient::API_BASE_URL;
     $input['account_sid'] = $input['twilio_account_sid'];
-    $input['api_key'] = $input['twilio_api_key'] !== '' ? $input['twilio_api_key'] : $input['twilio_account_sid'];
-    $input['api_secret'] = $input['twilio_api_secret'] !== '' ? $input['twilio_api_secret'] : $input['twilio_auth_token'];
+    $input['api_key'] = twilioEffectiveApiKey($input);
+    $input['api_secret'] = twilioEffectiveApiSecret($input);
     $input['twilio_voice_url'] = $input['twilio_voice_url'] !== '' ? $input['twilio_voice_url'] : $input['twilio_default_voice_url'];
     $input['twilio_sms_url'] = $input['twilio_sms_url'] !== '' ? $input['twilio_sms_url'] : $input['twilio_default_sms_url'];
 
     return $input;
+}
+
+/**
+ * @param array<string,string> $input
+ */
+function twilioEffectiveApiKey(array $input): string
+{
+    return ($input['twilio_auth_mode'] ?? 'auth_token') === 'api_key'
+        ? ($input['twilio_api_key'] ?? '')
+        : ($input['twilio_account_sid'] ?? '');
+}
+
+/**
+ * @param array<string,string> $input
+ */
+function twilioEffectiveApiSecret(array $input): string
+{
+    return ($input['twilio_auth_mode'] ?? 'auth_token') === 'api_key'
+        ? ($input['twilio_api_secret'] ?? '')
+        : ($input['twilio_auth_token'] ?? '');
+}
+
+/**
+ * @param array<string,string> $input
+ * @return list<string>
+ */
+function twilioCredentialValidationErrors(array $input): array
+{
+    $errors = [];
+    if (($input['twilio_account_sid'] ?? '') === '') {
+        $errors[] = 'Twilio Account SID is required.';
+    } elseif (!str_starts_with($input['twilio_account_sid'], 'AC')) {
+        $errors[] = 'Twilio Account SID must start with AC.';
+    }
+
+    if (($input['twilio_auth_mode'] ?? 'auth_token') === 'api_key') {
+        if (($input['twilio_api_key'] ?? '') === '') {
+            $errors[] = 'Twilio API Key is required for API Key + API Secret auth.';
+        } elseif (!str_starts_with($input['twilio_api_key'], 'SK')) {
+            $errors[] = 'Twilio API Key must start with SK.';
+        }
+        if (($input['twilio_api_secret'] ?? '') === '') {
+            $errors[] = 'Twilio API Secret is required for API Key + API Secret auth.';
+        }
+    } elseif (($input['twilio_auth_token'] ?? '') === '') {
+        $errors[] = 'Twilio Auth Token is required for Account SID + Auth Token auth.';
+    }
+
+    return $errors;
+}
+
+/**
+ * @param array<string,string> $input
+ */
+function twilioCanTest(array $input): bool
+{
+    return twilioCredentialValidationErrors($input) === [];
 }
 
 /**
@@ -886,7 +983,7 @@ function tableExists(PDO $pdo, string $table): bool
                     <input class="form_input_button" type="submit" value="Unlock Options">
                 <?php else: ?>
                     <input type="hidden" name="form_action" value="lock_provider_modules">
-                    <strong>Hidden provider modules unlocked for this admin session.</strong>
+                    <strong>Hidden provider modules are unlocked.</strong>
                     <br>
                     <input class="form_input_button" type="submit" value="Lock Again">
                 <?php endif; ?>
@@ -983,24 +1080,34 @@ function tableExists(PDO $pdo, string $table): bool
                         <td><input id="twilio_account_sid" name="twilio_account_sid" type="text" size="70" value="<?php echo h($input['twilio_account_sid']); ?>" placeholder="AC_SANDBOX"></td>
                     </tr>
                     <tr>
+                        <td><label for="twilio_auth_mode">Auth Method</label></td>
+                        <td>
+                            <select id="twilio_auth_mode" name="twilio_auth_mode">
+                                <option value="auth_token" <?php echo $input['twilio_auth_mode'] === 'auth_token' ? 'selected' : ''; ?>>Account SID + Auth Token</option>
+                                <option value="api_key" <?php echo $input['twilio_auth_mode'] === 'api_key' ? 'selected' : ''; ?>>API Key + API Secret</option>
+                            </select>
+                            <br><span style="color:#666;">Save will verify Twilio with this exact method.</span>
+                        </td>
+                    </tr>
+                    <tr class="twilio-auth-api-key" style="<?php echo $input['twilio_auth_mode'] === 'api_key' ? '' : 'display:none;'; ?>">
                         <td><label for="twilio_api_key">Twilio API Key</label></td>
                         <td>
                             <input id="twilio_api_key" name="twilio_api_key" type="text" size="70" value="<?php echo h($input['twilio_api_key']); ?>" placeholder="SK...">
-                            <br><span style="color:#666;">Optional. Leave blank when using Twilio Test Account SID + Test auth token.</span>
+                            <br><span style="color:#666;">Used only with API Key + API Secret auth.</span>
                         </td>
                     </tr>
-                    <tr>
+                    <tr class="twilio-auth-api-key" style="<?php echo $input['twilio_auth_mode'] === 'api_key' ? '' : 'display:none;'; ?>">
                         <td><label for="twilio_api_secret">Twilio API Secret</label></td>
                         <td>
                             <input id="twilio_api_secret" name="twilio_api_secret" type="password" size="70" value="<?php echo h($input['twilio_api_secret']); ?>">
-                            <br><span style="color:#666;">Optional. Leave blank when using Twilio Test Account SID + Test auth token.</span>
+                            <br><span style="color:#666;">Must match the selected SK API Key.</span>
                         </td>
                     </tr>
-                    <tr>
+                    <tr class="twilio-auth-token" style="<?php echo $input['twilio_auth_mode'] === 'auth_token' ? '' : 'display:none;'; ?>">
                         <td><label for="twilio_auth_token">Twilio Auth Token</label></td>
                         <td>
                             <input id="twilio_auth_token" name="twilio_auth_token" type="password" size="70" value="<?php echo h($input['twilio_auth_token']); ?>">
-                            <br><span style="color:#666;">Use this for the Twilio Console Test auth token or the live account auth token fallback.</span>
+                            <br><span style="color:#666;">Used only with Account SID + Auth Token auth.</span>
                         </td>
                     </tr>
                     <tr>
@@ -1017,10 +1124,31 @@ function tableExists(PDO $pdo, string $table): bool
                     </tr>
                     <tr>
                         <td></td>
-                        <td><input class="form_input_button" type="submit" value="Save Upstream Settings"></td>
+                        <td><input class="form_input_button" type="submit" value="Save Settings and Verify Twilio"></td>
                     </tr>
                 </table>
             </form>
+            <script type="text/javascript">
+            (function () {
+                var mode = document.getElementById('twilio_auth_mode');
+                if (!mode) {
+                    return;
+                }
+                function toggleTwilioAuthRows() {
+                    var apiRows = document.getElementsByClassName('twilio-auth-api-key');
+                    var tokenRows = document.getElementsByClassName('twilio-auth-token');
+                    var showApi = mode.value === 'api_key';
+                    for (var i = 0; i < apiRows.length; i++) {
+                        apiRows[i].style.display = showApi ? '' : 'none';
+                    }
+                    for (var j = 0; j < tokenRows.length; j++) {
+                        tokenRows[j].style.display = showApi ? 'none' : '';
+                    }
+                }
+                mode.onchange = toggleTwilioAuthRows;
+                toggleTwilioAuthRows();
+            }());
+            </script>
 
             <br>
             <table width="100%" cellspacing="0" cellpadding="8" style="border-top:1px solid #ddd;">
@@ -1036,6 +1164,7 @@ function tableExists(PDO $pdo, string $table): bool
             <form method="post">
                 <input type="hidden" name="provider_context" value="twilio">
                 <input type="hidden" name="twilio_account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
+                <input type="hidden" name="twilio_auth_mode" value="<?php echo h($input['twilio_auth_mode']); ?>">
                 <input type="hidden" name="twilio_api_key" value="<?php echo h($input['twilio_api_key']); ?>">
                 <input type="hidden" name="twilio_api_secret" value="<?php echo h($input['twilio_api_secret']); ?>">
                 <input type="hidden" name="twilio_auth_token" value="<?php echo h($input['twilio_auth_token']); ?>">
@@ -1117,8 +1246,13 @@ function tableExists(PDO $pdo, string $table): bool
                 <input type="hidden" name="provider" value="twilio">
                 <input type="hidden" name="base_url" value="<?php echo h(\A2BillingPlus\Module\Provider\Twilio\TwilioApiClient::API_BASE_URL); ?>">
                 <input type="hidden" name="account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
-                <input type="hidden" name="api_key" value="<?php echo h($input['twilio_api_key']); ?>">
-                <input type="hidden" name="api_secret" value="<?php echo h($input['twilio_api_secret'] !== '' ? $input['twilio_api_secret'] : $input['twilio_auth_token']); ?>">
+                <input type="hidden" name="twilio_account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
+                <input type="hidden" name="twilio_auth_mode" value="<?php echo h($input['twilio_auth_mode']); ?>">
+                <input type="hidden" name="api_key" value="<?php echo h(twilioEffectiveApiKey($input)); ?>">
+                <input type="hidden" name="api_secret" value="<?php echo h(twilioEffectiveApiSecret($input)); ?>">
+                <input type="hidden" name="twilio_api_key" value="<?php echo h($input['twilio_api_key']); ?>">
+                <input type="hidden" name="twilio_api_secret" value="<?php echo h($input['twilio_api_secret']); ?>">
+                <input type="hidden" name="twilio_auth_token" value="<?php echo h($input['twilio_auth_token']); ?>">
                 <input type="hidden" name="twilio_byoc_trunk_sid" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
