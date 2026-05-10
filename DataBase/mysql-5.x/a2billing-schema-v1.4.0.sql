@@ -7563,7 +7563,7 @@ CREATE TABLE IF NOT EXISTS `cc_ratecard` (
   `starttime` smallint(5) unsigned default '0',
   `endtime` smallint(5) unsigned default '10079',
   `id_trunk` int(11) default '-1',
-  `musiconhold` char(100) collate utf8_bin NOT NULL,
+  `musiconhold` char(100) collate utf8_bin NOT NULL default '',
   `id_outbound_cidgroup` int(11) default '-1',
   `rounding_calltime` int(11) NOT NULL default '0',
   `rounding_threshold` int(11) NOT NULL default '0',
