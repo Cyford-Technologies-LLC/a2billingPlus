@@ -1102,7 +1102,7 @@ class FormBO
         $instance_sub_table = new Table("cc_card", "block");
         $FG_TABLE_CLAUSE_CARD = "id = ".$processed['id'];
         $card_info = $instance_sub_table -> Get_list ($FormHandler -> DBHandle, $FG_TABLE_CLAUSE_CARD, null, null, null, null, null, null);
-        if (is_array($result) && !empty($result[0][0])) {
+        if (is_array($card_info) && !empty($card_info[0][0])) {
             $card_lock_info = $card_info[0][0];
 
             if ($card_lock_info != $processed['block'] && $processed['block'] == 1) {
