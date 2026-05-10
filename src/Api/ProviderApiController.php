@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace A2BillingPlus\Api;
 
 use A2BillingPlus\Config\AppConfig;
+use A2BillingPlus\Config\RuntimeSettingRepository;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
 use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
@@ -298,6 +299,16 @@ final class ProviderApiController
 
     private function envString(string $key, string $default = ''): string
     {
+        if (!str_starts_with($key, 'A2BP_DB_') && is_callable($this->pdoFactory)) {
+            try {
+                $values = (new RuntimeSettingRepository(($this->pdoFactory)()))->all();
+                if (($values[$key] ?? '') !== '') {
+                    return $values[$key];
+                }
+            } catch (\Throwable) {
+            }
+        }
+
         $value = getenv($key);
         if (is_string($value) && $value !== '') {
             return $value;

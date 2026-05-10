@@ -612,6 +612,13 @@ final class VectaVoIPProviderApiService
 
     private function envString(string $key, string $default = ''): string
     {
+        if (!str_starts_with($key, 'A2BP_DB_')) {
+            $value = $this->installations->getRuntimeSetting($key);
+            if ($value !== '') {
+                return $value;
+            }
+        }
+
         $fileValues = self::envFileValues();
         if (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
             $contents = file_get_contents($fileValues[$key . '_FILE']);

@@ -96,7 +96,7 @@ final class AppConfig
             }
         }
 
-        return new self($values);
+        return new self(array_replace($values, self::databaseValues($values)));
     }
 
     public function string(string $key, string $default = ''): string
@@ -183,5 +183,32 @@ final class AppConfig
         }
 
         return $values;
+    }
+
+    /**
+     * @param array<string,string> $values
+     * @return array<string,string>
+     */
+    private static function databaseValues(array $values): array
+    {
+        try {
+            $dsn = $values['A2BP_DB_DSN'] ?? '';
+            if ($dsn === '') {
+                $dsn = sprintf(
+                    'mysql:host=%s;dbname=%s;charset=utf8mb4',
+                    $values['A2BP_DB_HOST'] ?? 'db',
+                    $values['A2BP_DB_NAME'] ?? 'mya2billing'
+                );
+            }
+
+            $pdo = new \PDO($dsn, $values['A2BP_DB_USER'] ?? 'a2billinguser', $values['A2BP_DB_PASSWORD'] ?? 'a2billing', [
+                \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
+                \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
+            ]);
+
+            return (new RuntimeSettingRepository($pdo))->all();
+        } catch (\Throwable) {
+            return [];
+        }
     }
 }

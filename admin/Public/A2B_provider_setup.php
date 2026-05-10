@@ -8,6 +8,7 @@ include_once '../lib/admin.smarty.php';
 
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
+use A2BillingPlus\Config\RuntimeSettingRepository;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
 use A2BillingPlus\Module\Ui\NavigationRegistry;
 use A2BillingPlus\Module\Ui\NavigationRenderer;
@@ -217,6 +218,13 @@ function providerSetupPdo(): PDO
 
 function envString(string $key, string $default = ''): string
 {
+    if (!str_starts_with($key, 'A2BP_DB_')) {
+        $runtimeValues = runtimeSettingValues();
+        if (($runtimeValues[$key] ?? '') !== '') {
+            return $runtimeValues[$key];
+        }
+    }
+
     $fileValues = envFileValues();
     if (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
         $contents = file_get_contents($fileValues[$key . '_FILE']);
@@ -243,6 +251,25 @@ function envString(string $key, string $default = ''): string
     }
 
     return $default;
+}
+
+/**
+ * @return array<string,string>
+ */
+function runtimeSettingValues(): array
+{
+    static $values = null;
+    if (is_array($values)) {
+        return $values;
+    }
+
+    try {
+        $values = (new RuntimeSettingRepository(providerSetupPdo()))->all();
+    } catch (Throwable) {
+        $values = [];
+    }
+
+    return $values;
 }
 
 /**
@@ -307,6 +334,11 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
         'VECTAVOIP_API_SECRET' => (string)($registration['api_secret'] ?? ''),
     ];
 
+    saveRuntimeSettings($values, ['VECTAVOIP_API_KEY', 'VECTAVOIP_API_SECRET'], $messages, $errors);
+    if ($errors) {
+        return;
+    }
+
     writeSecretFileValues($values, ['VECTAVOIP_API_KEY', 'VECTAVOIP_API_SECRET'], $messages, $errors);
     if ($errors) {
         return;
@@ -324,13 +356,18 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
         putenv($key . '=' . $value);
     }
 
-    $messages[] = 'Saved VectaVoIP provider credentials to .env.';
+    $messages[] = 'Saved VectaVoIP provider credentials to DB and .env backup.';
 }
 
 function saveUiTheme(string $envPath, string $themeId, array &$messages, array &$errors): void
 {
+    saveRuntimeSettings(['A2BP_UI_THEME' => $themeId], [], $messages, $errors);
+    if ($errors) {
+        return;
+    }
+
     if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
-        $errors[] = '.env is not writable. UI theme was not saved.';
+        $messages[] = '.env backup is not writable. UI theme was saved in DB only.';
         return;
     }
 
@@ -343,7 +380,7 @@ function saveUiTheme(string $envPath, string $themeId, array &$messages, array &
     }
 
     putenv('A2BP_UI_THEME=' . $themeId);
-    $messages[] = 'Saved UI theme: ' . $themeId . '.';
+    $messages[] = 'Saved UI theme in DB and .env backup: ' . $themeId . '.';
 }
 
 /**
@@ -351,11 +388,6 @@ function saveUiTheme(string $envPath, string $themeId, array &$messages, array &
  */
 function saveUpstreamSettings(string $envPath, array $input, array &$messages, array &$errors): void
 {
-    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
-        $errors[] = '.env is not writable. Upstream provider settings were not saved.';
-        return;
-    }
-
     $values = [
         'VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER' => $input['default_upstream_provider'],
         'TWILIO_SANDBOX_MODE' => $input['twilio_sandbox_mode'] === '1' ? '1' : '0',
@@ -367,6 +399,16 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         'TWILIO_DEFAULT_SMS_URL' => $input['twilio_default_sms_url'],
         'TWILIO_BYOC_TRUNK_SID' => $input['twilio_byoc_trunk_sid'],
     ];
+
+    saveRuntimeSettings($values, ['TWILIO_API_KEY', 'TWILIO_API_SECRET', 'TWILIO_AUTH_TOKEN'], $messages, $errors);
+    if ($errors) {
+        return;
+    }
+
+    if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
+        $messages[] = '.env backup is not writable. Upstream provider settings were saved in DB only.';
+        return;
+    }
 
     writeSecretFileValues($values, ['TWILIO_API_KEY', 'TWILIO_API_SECRET', 'TWILIO_AUTH_TOKEN'], $messages, $errors);
     if ($errors) {
@@ -385,7 +427,28 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         putenv($key . '=' . $value);
     }
 
-    $messages[] = 'Saved DID upstream provider settings to .env.';
+    $messages[] = 'Saved DID upstream provider settings to DB and .env backup.';
+}
+
+/**
+ * @param array<string,string> $values
+ * @param list<string> $secretKeys
+ */
+function saveRuntimeSettings(array $values, array $secretKeys, array &$messages, array &$errors): void
+{
+    try {
+        (new RuntimeSettingRepository(providerSetupPdo()))->saveMany($values, $secretKeys);
+        $GLOBALS['runtimeSettingValues'] = null;
+    } catch (Throwable $exception) {
+        $errors[] = 'Could not save runtime settings to DB: ' . $exception->getMessage();
+        return;
+    }
+
+    foreach ($values as $key => $value) {
+        putenv($key . '=' . $value);
+    }
+
+    $messages[] = 'Saved runtime settings to DB.';
 }
 
 function unlockProviderModules(string $token, array &$messages, array &$errors): void
