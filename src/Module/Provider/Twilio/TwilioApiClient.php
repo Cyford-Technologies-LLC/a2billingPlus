@@ -11,6 +11,7 @@ final class TwilioApiClient
     public const API_BASE_URL = 'https://api.twilio.com';
     public const TRUNKING_BASE_URL = 'https://trunking.twilio.com';
     public const VOICE_BASE_URL = 'https://voice.twilio.com';
+    public const PRICING_BASE_URL = 'https://pricing.twilio.com';
 
     /**
      * @param null|callable(string, string, ProviderCredentials, array<string, mixed>|null, array<string, string>): array{status:int, body:string} $transport
@@ -154,6 +155,32 @@ final class TwilioApiClient
             $credentials,
             [],
             ['PhoneNumberSid' => $phoneNumberSid]
+        );
+    }
+
+    /**
+     * @param array<string, string> $filters
+     * @return array<string, mixed>
+     */
+    public function listVoicePricingCountries(ProviderCredentials $credentials, array $filters = []): array
+    {
+        return $this->request('GET', self::PRICING_BASE_URL . '/v2/Voice/Countries', $credentials, $filters);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    public function fetchVoicePricingCountry(ProviderCredentials $credentials, string $isoCountry): array
+    {
+        $isoCountry = strtoupper(trim($isoCountry));
+        if ($isoCountry === '') {
+            throw new \RuntimeException('Twilio pricing country code is required.');
+        }
+
+        return $this->request(
+            'GET',
+            self::PRICING_BASE_URL . '/v2/Voice/Countries/' . rawurlencode($isoCountry),
+            $credentials
         );
     }
 

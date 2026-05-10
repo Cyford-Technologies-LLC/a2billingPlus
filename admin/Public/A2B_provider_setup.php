@@ -69,6 +69,12 @@ $defaults = [
     'rate_deck' => 'retail',
     'currency' => 'USD',
     'destination_filter' => '',
+    'country_filter' => 'US',
+    'prefix_filter' => '',
+    'markup_percent' => '35',
+    'auto_create_ratecard' => '1',
+    'twilio_ratecard_name' => 'Twilio Retail',
+    'twilio_callplan_name' => 'Twilio Retail Call Plan',
     'update_existing' => '',
     'save_credentials' => '1',
 ];
@@ -98,7 +104,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
     $input['save_credentials'] = isset($_POST['save_credentials']) ? '1' : '';
     $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
+    $input['auto_create_ratecard'] = isset($_POST['auto_create_ratecard']) ? '1' : '';
     $input['twilio_sandbox_mode'] = isset($_POST['twilio_sandbox_mode']) ? '1' : '0';
+    $input['provider'] = trim((string)($_POST['provider_context'] ?? $_POST['provider'] ?? 'vectavoip'));
 
     if (!in_array($formAction, ['set_ui_theme', 'save_upstream_settings'], true) && $input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
@@ -151,6 +159,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors && in_array($formAction, ['dry_run_import_rates', 'import_rates'], true)) {
+        if (($input['provider'] ?? '') === 'twilio' && (int)$input['target_ratecard_id'] <= 0 && $input['auto_create_ratecard'] === '1') {
+            $created = ensureTwilioOutboundRatePlan(providerSetupPdo(), $input['twilio_ratecard_name'], $input['twilio_callplan_name']);
+            $input['target_ratecard_id'] = (string)$created['tariff_plan_id'];
+            $messages[] = 'Using ratecard ' . $created['tariff_plan_name'] . ' (#' . $created['tariff_plan_id'] . ') and call plan ' . $created['tariff_group_name'] . ' (#' . $created['tariff_group_id'] . ').';
+        }
         if ((int)$input['target_ratecard_id'] <= 0) {
             $errors[] = 'Rate import needs a target ratecard. Upstream DID carrier settings do not use this field.';
         }
@@ -530,6 +543,74 @@ function twilioModuleStatus(): string
     return 'Configured';
 }
 
+/**
+ * @return array{tariff_plan_id:int,tariff_plan_name:string,tariff_group_id:int,tariff_group_name:string}
+ */
+function ensureTwilioOutboundRatePlan(PDO $pdo, string $ratecardName, string $callplanName): array
+{
+    $ratecardName = trim($ratecardName) !== '' ? trim($ratecardName) : 'Twilio Retail';
+    $callplanName = trim($callplanName) !== '' ? trim($callplanName) : $ratecardName . ' Call Plan';
+
+    $planId = findNamedId($pdo, 'cc_tariffplan', 'tariffname', $ratecardName);
+    if ($planId <= 0) {
+        $statement = $pdo->prepare(
+            'INSERT INTO cc_tariffplan (iduser, tariffname, creationdate, description, id_trunk, dnidprefix, calleridprefix)
+             VALUES (0, ?, ?, ?, 0, "all", "all")'
+        );
+        $statement->execute([$ratecardName, gmdate('Y-m-d H:i:s'), 'Retail outbound rates imported from Twilio Pricing API.']);
+        $planId = (int)$pdo->lastInsertId();
+    }
+
+    $groupId = findNamedId($pdo, 'cc_tariffgroup', 'tariffgroupname', $callplanName);
+    if ($groupId <= 0) {
+        $statement = $pdo->prepare(
+            'INSERT INTO cc_tariffgroup (iduser, idtariffplan, tariffgroupname, lcrtype, creationdate, removeinterprefix, id_cc_package_offer)
+             VALUES (0, ?, ?, 0, ?, 0, -1)'
+        );
+        $statement->execute([$planId, $callplanName, gmdate('Y-m-d H:i:s')]);
+        $groupId = (int)$pdo->lastInsertId();
+    }
+
+    if (tableExists($pdo, 'cc_tariffgroup_plan')) {
+        $statement = $pdo->prepare('SELECT COUNT(*) FROM cc_tariffgroup_plan WHERE idtariffgroup = ? AND idtariffplan = ?');
+        $statement->execute([$groupId, $planId]);
+        if ((int)$statement->fetchColumn() === 0) {
+            $insert = $pdo->prepare('INSERT INTO cc_tariffgroup_plan (idtariffgroup, idtariffplan) VALUES (?, ?)');
+            $insert->execute([$groupId, $planId]);
+        }
+    }
+
+    return [
+        'tariff_plan_id' => $planId,
+        'tariff_plan_name' => $ratecardName,
+        'tariff_group_id' => $groupId,
+        'tariff_group_name' => $callplanName,
+    ];
+}
+
+function findNamedId(PDO $pdo, string $table, string $nameColumn, string $name): int
+{
+    if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $nameColumn)) {
+        return 0;
+    }
+
+    $statement = $pdo->prepare('SELECT id FROM `' . $table . '` WHERE `' . $nameColumn . '` = ? LIMIT 1');
+    $statement->execute([$name]);
+    $id = $statement->fetchColumn();
+
+    return $id === false ? 0 : (int)$id;
+}
+
+function tableExists(PDO $pdo, string $table): bool
+{
+    try {
+        $statement = $pdo->query('SELECT 1 FROM `' . $table . '` LIMIT 1');
+        return $statement !== false;
+    } catch (Throwable) {
+        return false;
+    }
+}
+
 ?>
 <br>
 <div class="<?php echo h($theme->bodyClass()); ?>">
@@ -688,6 +769,144 @@ function twilioModuleStatus(): string
                     </tr>
                 </table>
             </form>
+
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8" style="border-top:1px solid #ddd;">
+                <tr>
+                    <td class="form_head" colspan="2">Twilio Outbound Voice Rates</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="color:#666;">
+                        Import Twilio Pricing API outbound voice rates into an A2Billing ratecard. The markup percent sets the retail sell rate above Twilio cost.
+                    </td>
+                </tr>
+            </table>
+            <form method="post">
+                <input type="hidden" name="provider_context" value="twilio">
+                <input type="hidden" name="provider" value="twilio">
+                <input type="hidden" name="base_url" value="<?php echo h(\A2BillingPlus\Module\Provider\Twilio\TwilioApiClient::API_BASE_URL); ?>">
+                <input type="hidden" name="account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
+                <input type="hidden" name="api_key" value="<?php echo h($input['twilio_api_key']); ?>">
+                <input type="hidden" name="api_secret" value="<?php echo h($input['twilio_api_secret'] !== '' ? $input['twilio_api_secret'] : $input['twilio_auth_token']); ?>">
+                <input type="hidden" name="twilio_byoc_trunk_sid" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>">
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td width="220"><label for="twilio_rate_deck">Rate Deck Tag</label></td>
+                        <td><input id="twilio_rate_deck" name="rate_deck" type="text" size="35" value="<?php echo h($input['rate_deck'] !== '' ? $input['rate_deck'] : 'voice-outbound'); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_country_filter">Countries</label></td>
+                        <td>
+                            <input id="twilio_country_filter" name="country_filter" type="text" size="35" value="<?php echo h($input['country_filter']); ?>">
+                            <br><span style="color:#666;">Comma-separated ISO country codes. Use US first for testing; blank imports all countries returned by Twilio.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_destination_filter">Destination Filter</label></td>
+                        <td><input id="twilio_destination_filter" name="destination_filter" type="text" size="35" value="<?php echo h($input['destination_filter']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_prefix_filter">Prefix Filter</label></td>
+                        <td><input id="twilio_prefix_filter" name="prefix_filter" type="text" size="20" value="<?php echo h($input['prefix_filter']); ?>" placeholder="1"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_markup_percent">Retail Markup Percent</label></td>
+                        <td><input id="twilio_markup_percent" name="markup_percent" type="text" size="10" value="<?php echo h($input['markup_percent']); ?>"> %</td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_target_ratecard_id">Target Ratecard</label></td>
+                        <td>
+                            <?php if ($ratecards): ?>
+                                <select id="twilio_target_ratecard_id" name="target_ratecard_id">
+                                    <option value="">Auto-create Twilio Retail ratecard</option>
+                                    <?php foreach ($ratecards as $ratecard): ?>
+                                        <option value="<?php echo h($ratecard['id']); ?>" <?php echo $input['target_ratecard_id'] === $ratecard['id'] ? 'selected' : ''; ?>>
+                                            <?php echo h($ratecard['name'] . ' (#' . $ratecard['id'] . ')'); ?>
+                                        </option>
+                                    <?php endforeach; ?>
+                                </select>
+                            <?php else: ?>
+                                <input id="twilio_target_ratecard_id" name="target_ratecard_id" type="text" size="10" value="<?php echo h($input['target_ratecard_id']); ?>" placeholder="auto">
+                            <?php endif; ?>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_ratecard_name">Auto Ratecard Name</label></td>
+                        <td><input id="twilio_ratecard_name" name="twilio_ratecard_name" type="text" size="45" value="<?php echo h($input['twilio_ratecard_name']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_callplan_name">Auto Call Plan Name</label></td>
+                        <td><input id="twilio_callplan_name" name="twilio_callplan_name" type="text" size="45" value="<?php echo h($input['twilio_callplan_name']); ?>"></td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <label>
+                                <input name="auto_create_ratecard" type="checkbox" value="1" <?php echo $input['auto_create_ratecard'] === '1' ? 'checked' : ''; ?>>
+                                Create ratecard and call plan when target is blank
+                            </label>
+                            <br>
+                            <label>
+                                <input name="update_existing" type="checkbox" value="1" <?php echo $input['update_existing'] === '1' ? 'checked' : ''; ?>>
+                                Update existing rows with the same ratecard, prefix, and Twilio tag
+                            </label>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td></td>
+                        <td>
+                            <button class="form_input_button" name="form_action" type="submit" value="preview_rates">Preview Twilio Rates</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="dry_run_import_rates">Dry Run Import</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="import_rates" onclick="return confirm('Import Twilio outbound rates into cc_ratecard now?');">Import Twilio Rates</button>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+            <?php if ($ratePreview): ?>
+                <br>
+                <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                    <tr><td class="form_head" colspan="7">Twilio Rate Preview</td></tr>
+                    <tr>
+                        <td colspan="7">
+                            <?php echo h((string)($ratePreview['message'] ?? '')); ?>
+                            Total rows: <?php echo h((string)($ratePreview['total_rows'] ?? 0)); ?>
+                        </td>
+                    </tr>
+                    <tr style="font-weight:bold;">
+                        <td>Destination</td>
+                        <td>Prefix</td>
+                        <td>Twilio Cost</td>
+                        <td>Retail Rate</td>
+                        <td>Markup</td>
+                        <td>Currency</td>
+                        <td>Increment</td>
+                    </tr>
+                    <?php foreach (($ratePreview['sample_rows'] ?? []) as $row): ?>
+                        <?php if (is_array($row)): ?>
+                            <tr>
+                                <td><?php echo h((string)($row['destination'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['prefix'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['buyrate'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['rate'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['markup_percent'] ?? '')); ?>%</td>
+                                <td><?php echo h((string)($row['currency'] ?? '')); ?></td>
+                                <td><?php echo h((string)($row['increment'] ?? '')); ?></td>
+                            </tr>
+                        <?php endif; ?>
+                    <?php endforeach; ?>
+                </table>
+            <?php endif; ?>
+
+            <?php if ($rateImport): ?>
+                <br>
+                <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                    <tr><td class="form_head" colspan="2">Twilio Import Result</td></tr>
+                    <tr><td width="220">Mode</td><td><?php echo !empty($rateImport['dry_run']) ? 'Dry run' : 'Write'; ?></td></tr>
+                    <tr><td>Duplicate Handling</td><td><?php echo !empty($rateImport['update_existing']) ? 'Update existing' : 'Skip existing'; ?></td></tr>
+                    <tr><td>Imported Rows</td><td><?php echo h((string)($rateImport['imported_rows'] ?? 0)); ?></td></tr>
+                    <tr><td>Skipped Rows</td><td><?php echo h((string)($rateImport['skipped_rows'] ?? 0)); ?></td></tr>
+                </table>
+            <?php endif; ?>
             <?php endif; ?>
 
             <?php if ($selectedProvider === 'vectavoip'): ?>

@@ -410,6 +410,15 @@ final class ProviderSetupService
         if ($input['destination_filter'] !== '') {
             $filters['destination'] = $input['destination_filter'];
         }
+        if (($input['prefix_filter'] ?? '') !== '') {
+            $filters['prefix'] = $input['prefix_filter'];
+        }
+        if (($input['country_filter'] ?? '') !== '') {
+            $filters['countries'] = $input['country_filter'];
+        }
+        if (($input['markup_percent'] ?? '') !== '') {
+            $filters['markup_percent'] = $input['markup_percent'];
+        }
 
         return [
             'action' => $action,
@@ -418,6 +427,8 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'api_version' => $input['api_version'] ?? '',
+            'account_sid' => $input['account_sid'] ?? '',
+            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
             'rate_deck' => $input['rate_deck'],
             'currency' => $input['currency'],
             'filters' => $filters,

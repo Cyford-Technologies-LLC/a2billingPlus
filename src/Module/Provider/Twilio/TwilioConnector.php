@@ -57,7 +57,7 @@ final class TwilioConnector implements ProviderConnectorInterface
 
     public function getRateImporter(ProviderCredentials $credentials): RateImporterInterface
     {
-        return new UnsupportedRateImporter('Twilio');
+        return new TwilioVoiceRateImporter($credentials);
     }
 
     private function statusClient(): TwilioStatusClient
