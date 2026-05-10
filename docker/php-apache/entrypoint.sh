@@ -38,7 +38,10 @@ load_env_file_if_unset .env.stripe
 mkdir -p /var/log/a2billing /var/run/a2billing
 
 if [ -f a2billing.conf ]; then
-  cp a2billing.conf /etc/a2billing.conf
+  a2bp_config_dir="${A2BP_RUNTIME_CONFIG_DIR:-/etc/cyford/a2bp}"
+  a2bp_config_file="${a2bp_config_dir}/a2billing.conf"
+  mkdir -p "$a2bp_config_dir"
+  cp a2billing.conf "$a2bp_config_file"
   sed -i \
     -e "s/^hostname = .*/hostname = ${A2BP_DB_HOST:-db}/" \
     -e "s/^port = .*/port = ${A2BP_DB_PORT:-3306}/" \
@@ -46,7 +49,7 @@ if [ -f a2billing.conf ]; then
     -e "s/^password = .*/password = ${A2BP_DB_PASSWORD:-a2billing}/" \
     -e "s/^dbname = .*/dbname = ${A2BP_DB_NAME:-mya2billing}/" \
     -e "s/^dbtype = .*/dbtype = mysql/" \
-    /etc/a2billing.conf
+    "$a2bp_config_file"
 fi
 
 if [ -f composer.json ] && [ ! -f vendor/autoload.php ]; then

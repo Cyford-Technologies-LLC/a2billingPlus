@@ -33,7 +33,8 @@
  *
 **/
 
-define('A2B_CONFIG_DIR', '/etc/');
+$a2bConfigDir = getenv('A2BP_LEGACY_CONFIG_DIR') ?: getenv('A2BP_RUNTIME_CONFIG_DIR') ?: '/etc/cyford/a2bp';
+define('A2B_CONFIG_DIR', rtrim($a2bConfigDir, '/') . '/');
 define('AST_CONFIG_DIR', '/etc/asterisk/');
 define('DEFAULT_A2BILLING_CONFIG', A2B_CONFIG_DIR . 'a2billing.conf');
 
