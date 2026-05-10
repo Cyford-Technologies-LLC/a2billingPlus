@@ -43,6 +43,19 @@ class FormHandler
 		error_log($message);
 	}
 
+	function logEditFailure($details = '')
+	{
+		$message = '[FormHandler:edit] table=' . $this->FG_TABLE_NAME;
+		if (!empty($this->FG_INSTANCE_NAME)) {
+			$message .= ' instance=' . $this->FG_INSTANCE_NAME;
+		}
+		if (!empty($details)) {
+			$message .= ' details=' . $details;
+		}
+
+		error_log($message);
+	}
+
 
 	/* CONFIG THE VIEWER : CV */
 	var $CV_TOPVIEWER = '';
@@ -1656,6 +1669,8 @@ class FormHandler
 		$processed = $this->getProcessed();  //$processed['firstname']
 
 		$this->VALID_SQL_REG_EXP = true;
+		$this->LAST_DB_ERROR = '';
+		$param_update = '';
 
 		$instance_table = new Table($this->FG_TABLE_NAME, $this->FG_QUERY_EDITION);
 
@@ -1680,7 +1695,7 @@ class FormHandler
 					if ($i>0) $param_update .= ", ";
 					$param_update .= "$fields_name = '".addslashes(trim($total_mult_select))."'";
 				} else {
-					if (is_numeric($regexp) && !(strtoupper(substr($this->FG_TABLE_ADITION[$i][13],0,2))=="NO" && $processed[$fields_name]=="") ) {
+					if (is_numeric($regexp) && !(strtoupper(substr($this->FG_TABLE_EDITION[$i][13],0,2))=="NO" && $processed[$fields_name]=="") ) {
 						$this-> FG_fit_expression[$i] = preg_match ('/'.$this->FG_regular[$regexp][0].'/' , $processed[$fields_name]);
 						if ($this->FG_DEBUG == 1)  echo "<br>-> $i)  ".$this->FG_regular[$regexp][0]." , ".$processed[$fields_name];
 						if (!$this-> FG_fit_expression[$i]){
@@ -1692,7 +1707,7 @@ class FormHandler
 
 					if ($this->FG_DEBUG == 1) echo "<br>$fields_name : ".$processed[$fields_name];
 					if ($i>0 && $this->FG_TABLE_EDITION[$i][3]!= "SPAN") $param_update .= ", ";
-					if (empty($processed[$fields_name]) && strtoupper(substr($this->FG_TABLE_ADITION[$i][13],3,4))=="NULL"){
+					if (empty($processed[$fields_name]) && strtoupper(substr($this->FG_TABLE_EDITION[$i][13],3,4))=="NULL"){
 						$param_update .= $fields_name." = NULL ";
 					} else {
 						if($this->FG_TABLE_EDITION[$i][3]!= "SPAN") {
@@ -1758,17 +1773,22 @@ class FormHandler
 
 		if ($this->VALID_SQL_REG_EXP) {
 			$this -> RESULT_QUERY = $instance_table -> Update_table ($this->DBHandle, $param_update, $this->FG_EDITION_CLAUSE, $func_table = null);
+			if (!$this -> RESULT_QUERY) {
+				$this->LAST_DB_ERROR = $instance_table->errstr;
+				$this->logEditFailure($this->LAST_DB_ERROR);
+				$form_action = "ask-edit";
+			}
         }
 
-		if($this -> FG_ENABLE_LOG == 1)
+		if($this -> FG_ENABLE_LOG == 1 && $this -> RESULT_QUERY)
 			$this -> logger -> insertLog_Update($_SESSION["admin_id"], 3, "A ".strtoupper($this->FG_INSTANCE_NAME)." UPDATED" , "A RECORD IS UPDATED, EDITION CALUSE USED IS ".$this->FG_EDITION_CLAUSE, $this->FG_TABLE_NAME, $_SERVER['REMOTE_ADDR'], $_SERVER['REQUEST_URI'], $param_update);
 
 		if ($this->FG_DEBUG == 1) echo $this -> RESULT_QUERY;
 			// CALL DEFINED FUNCTION AFTER THE ACTION ADDITION
-			if (strlen($this->FG_ADDITIONAL_FUNCTION_AFTER_EDITION)>0 && ($this->VALID_SQL_REG_EXP))
+			if (strlen($this->FG_ADDITIONAL_FUNCTION_AFTER_EDITION)>0 && ($this->VALID_SQL_REG_EXP) && $this -> RESULT_QUERY)
 				$res_funct = call_user_func(array('FormBO', $this->FG_ADDITIONAL_FUNCTION_AFTER_EDITION));
 
-		if (($this->VALID_SQL_REG_EXP) && (isset($this->FG_GO_LINK_AFTER_ACTION_EDIT))) {
+		if (($this->VALID_SQL_REG_EXP) && $this -> RESULT_QUERY && (isset($this->FG_GO_LINK_AFTER_ACTION_EDIT))) {
 			if ($this->FG_DEBUG == 1)  echo "<br> GOTO ; ".$this->FG_GO_LINK_AFTER_ACTION_EDIT.$processed['id'];
 			$ext_link ='';
 			if(is_numeric($processed['current_page']))$ext_link.="&current_page=".$processed['current_page'];
@@ -1940,6 +1960,8 @@ class FormHandler
 						  	if ($this->FG_ADITION_GO_EDITION == "yes-done") echo '<font class="toppage_maintable_editmsg">'.$this->FG_ADITION_GO_EDITION_MESSAGE.'</font><br><br>';
 							if ($alarm_db_error_duplication){
 								echo '<font class="toppage_maintable_editmsg">'.gettext("ERROR_DUPLICATION").' ::'.$this->FG_TEXT_ERROR_DUPLICATION.'</font>';
+							} elseif (!empty($this->LAST_DB_ERROR)) {
+								echo '<font class="toppage_maintable_editmsg">'.htmlspecialchars($this->LAST_DB_ERROR, ENT_QUOTES, 'UTF-8').'</font>';
 							}else{
 								echo $this->FG_INTRO_TEXT_EDITION;
 							}
