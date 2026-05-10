@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS ps_endpoints (
     transport VARCHAR(80) NOT NULL DEFAULT 'transport-udp',
     aors VARCHAR(80) NOT NULL DEFAULT '',
     auth VARCHAR(80) NOT NULL DEFAULT '',
+    accountcode VARCHAR(80) NOT NULL DEFAULT '',
     context VARCHAR(80) NOT NULL DEFAULT 'a2billing',
     identify_by VARCHAR(80) NOT NULL DEFAULT 'username,ip',
     disallow VARCHAR(100) NOT NULL DEFAULT 'all',

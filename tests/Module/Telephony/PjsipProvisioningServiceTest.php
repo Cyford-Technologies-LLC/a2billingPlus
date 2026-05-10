@@ -17,12 +17,14 @@ final class PjsipProvisioningServiceTest extends TestCase
             'customer_id' => 10,
             'username' => '1001',
             'secret' => 'strong-device-secret',
+            'accountcode' => '1667128551',
         ], 'admin:root');
 
         $this->assertSame(201, $result['status']);
-        $this->assertSame('1001', $result['body']['endpoint']['endpoint_id']);
+        $this->assertSame('c10-1001', $result['body']['endpoint']['endpoint_id']);
         $this->assertArrayNotHasKey('secret', $result['body']['endpoint']);
-        $this->assertSame('strong-device-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = '1001-auth'")->fetchColumn());
+        $this->assertSame('strong-device-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = 'c10-1001-auth'")->fetchColumn());
+        $this->assertSame('1667128551', $pdo->query("SELECT accountcode FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
         $this->assertSame('pjsip.customer_device.provision', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
     }
 
@@ -71,8 +73,8 @@ final class PjsipProvisioningServiceTest extends TestCase
         ], 'admin:root');
 
         $list = $service->listEndpoints(10, 0, 'customer_device', 10);
-        $detail = $service->endpointDetail('1001');
-        $update = $service->updateEndpoint('1001', [
+        $detail = $service->endpointDetail('c10-1001');
+        $update = $service->updateEndpoint('c10-1001', [
             'context' => 'from-internal',
             'allow' => 'ulaw',
             'max_contacts' => 2,
