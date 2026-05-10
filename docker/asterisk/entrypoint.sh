@@ -16,6 +16,7 @@ REALTIME_ENABLED="${A2BP_ASTERISK_REALTIME:-yes}"
 PJSIP_REALM="${A2BP_ASTERISK_REALM:-sip.vectavoip.com}"
 PJSIP_USER_AGENT="${A2BP_ASTERISK_USER_AGENT:-A2BillingPlus Sandbox}"
 PJSIP_IDENTIFIER_ORDER="${A2BP_ASTERISK_IDENTIFIER_ORDER:-auth_username,username,ip,anonymous}"
+ODBC_DRIVER_PATH="${A2BP_ODBC_DRIVER_PATH:-}"
 
 DB_HOST="${RAW_DB_HOST}"
 if [[ "${RAW_DB_HOST}" == *:* ]]; then
@@ -24,6 +25,35 @@ if [[ "${RAW_DB_HOST}" == *:* ]]; then
 fi
 
 mkdir -p "${ASTERISK_RUNTIME_CONFIG_DIR}" /etc/asterisk
+
+if [[ -z "${ODBC_DRIVER_PATH}" ]]; then
+  for candidate in \
+    /usr/lib/x86_64-linux-gnu/odbc/libmaodbc.so \
+    /usr/lib/aarch64-linux-gnu/odbc/libmaodbc.so \
+    /usr/lib/odbc/libmaodbc.so; do
+    if [[ -f "${candidate}" ]]; then
+      ODBC_DRIVER_PATH="${candidate}"
+      break
+    fi
+  done
+fi
+
+if [[ -z "${ODBC_DRIVER_PATH}" ]]; then
+  ODBC_DRIVER_PATH="MariaDB Unicode"
+  echo "WARNING: MariaDB ODBC driver file was not found; falling back to '${ODBC_DRIVER_PATH}'." >&2
+else
+  cat >"${ASTERISK_RUNTIME_CONFIG_DIR}/odbcinst.ini" <<EOF
+[MariaDB Unicode]
+Description=MariaDB ODBC Driver
+Driver=${ODBC_DRIVER_PATH}
+Setup=${ODBC_DRIVER_PATH}
+UsageCount=1
+EOF
+  cp "${ASTERISK_RUNTIME_CONFIG_DIR}/odbcinst.ini" /etc/odbcinst.ini
+fi
+
+export ODBCSYSINI=/etc
+export ODBCINI=/etc/odbc.ini
 
 for source in "${DEFAULT_CONFIG_DIR}"/*.conf; do
   target="${ASTERISK_RUNTIME_CONFIG_DIR}/$(basename "${source}")"
@@ -70,7 +100,7 @@ fi
 
 cat >"${ASTERISK_RUNTIME_CONFIG_DIR}/odbc.ini" <<EOF
 [asterisk]
-Driver=MariaDB Unicode
+Driver=${ODBC_DRIVER_PATH}
 Server=${DB_HOST}
 Database=${DB_NAME}
 Port=${DB_PORT}
