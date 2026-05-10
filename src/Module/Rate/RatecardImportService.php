@@ -39,14 +39,27 @@ final class RatecardImportService
             $mappedRows[] = $this->mapper->map($providerRow, $tariffPlanId, $tag);
         }
 
+        $insertColumns = [
+            'idtariffplan',
+            'dialprefix',
+            'destination',
+            'buyrate',
+            'buyrateinitblock',
+            'buyrateincrement',
+            'rateinitial',
+            'initblock',
+            'billingblock',
+            'tag',
+        ];
+        $insertDefaults = [];
+        if ($this->columnExists('cc_ratecard', 'musiconhold')) {
+            $insertColumns[] = 'musiconhold';
+            $insertDefaults['musiconhold'] = '';
+        }
+
         $insertStatement = $this->pdo->prepare(
-            'INSERT INTO cc_ratecard (
-                idtariffplan, dialprefix, destination, buyrate, buyrateinitblock, buyrateincrement,
-                rateinitial, initblock, billingblock, tag
-            ) VALUES (
-                :idtariffplan, :dialprefix, :destination, :buyrate, :buyrateinitblock, :buyrateincrement,
-                :rateinitial, :initblock, :billingblock, :tag
-            )'
+            'INSERT INTO cc_ratecard (' . implode(', ', $insertColumns) . ')
+             VALUES (:' . implode(', :', $insertColumns) . ')'
         );
         $updateStatement = $this->pdo->prepare(
             'UPDATE cc_ratecard
@@ -76,7 +89,7 @@ final class RatecardImportService
             if ($existing !== null) {
                 $updateStatement->execute($row);
             } else {
-                $insertStatement->execute($row);
+                $insertStatement->execute($row + $insertDefaults);
             }
             $changedRows++;
         }
@@ -97,5 +110,35 @@ final class RatecardImportService
         $id = $statement->fetchColumn();
 
         return $id === false ? null : (int)$id;
+    }
+
+    private function columnExists(string $table, string $column): bool
+    {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
+            return false;
+        }
+
+        try {
+            $statement = $this->pdo->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $this->pdo->quote($column));
+            if ($statement !== false && $statement->fetch(\PDO::FETCH_ASSOC) !== false) {
+                return true;
+            }
+        } catch (\Throwable) {
+        }
+
+        try {
+            $statement = $this->pdo->query('PRAGMA table_info(' . $table . ')');
+            if ($statement === false) {
+                return false;
+            }
+            while (($row = $statement->fetch(\PDO::FETCH_ASSOC)) !== false) {
+                if (strcasecmp((string)($row['name'] ?? ''), $column) === 0) {
+                    return true;
+                }
+            }
+        } catch (\Throwable) {
+        }
+
+        return false;
     }
 }

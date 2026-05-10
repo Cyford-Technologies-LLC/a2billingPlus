@@ -83,6 +83,37 @@ final class RatecardImportServiceTest extends TestCase
         $this->assertSame(1, (int)$pdo->query('SELECT COUNT(*) FROM cc_ratecard')->fetchColumn());
     }
 
+    public function testImportsRowsWhenLegacyMusiconholdColumnHasNoDefault(): void
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec(
+            'CREATE TABLE cc_ratecard (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                idtariffplan INTEGER,
+                dialprefix TEXT,
+                destination INTEGER,
+                buyrate TEXT,
+                buyrateinitblock INTEGER,
+                buyrateincrement INTEGER,
+                rateinitial TEXT,
+                initblock INTEGER,
+                billingblock INTEGER,
+                tag TEXT,
+                musiconhold TEXT NOT NULL
+            )'
+        );
+
+        $service = new RatecardImportService($pdo);
+        $summary = $service->importRows([
+            ['destination' => 'United States', 'prefix' => '1', 'rate' => '0.0100', 'increment' => 60],
+        ], 7, 'VectaVoIP:retail', false);
+
+        $this->assertTrue($summary->isSuccessful());
+        $this->assertSame(1, $summary->getImportedRows());
+        $this->assertSame('', $pdo->query('SELECT musiconhold FROM cc_ratecard')->fetchColumn());
+    }
+
     private function ratecardPdo(): PDO
     {
         $pdo = new PDO('sqlite::memory:');
