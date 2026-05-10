@@ -108,6 +108,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input['auto_create_ratecard'] = isset($_POST['auto_create_ratecard']) ? '1' : '';
     $input['twilio_sandbox_mode'] = isset($_POST['twilio_sandbox_mode']) ? '1' : '0';
     $input['provider'] = trim((string)($_POST['provider_context'] ?? $_POST['provider'] ?? 'vectavoip'));
+    if (providerModulesUnlocked()) {
+        $input['provider_unlock_token'] = providerUnlockToken();
+    }
 
     if (!in_array($formAction, ['set_ui_theme', 'save_upstream_settings'], true) && $input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';

@@ -67,6 +67,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'register_install',
             'provider' => $input['provider'] ?? 'vectavoip',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'install_key' => $input['install_key'],
             'registration_username' => $input['registration_username'] ?? '',
