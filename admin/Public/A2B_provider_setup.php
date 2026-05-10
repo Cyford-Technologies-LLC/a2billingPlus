@@ -278,13 +278,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     }
 
     if (!$errors && in_array($formAction, ['dry_run_import_rates', 'import_rates'], true)) {
-        if (($input['provider'] ?? '') === 'twilio' && (int)$input['target_ratecard_id'] <= 0 && $input['auto_create_ratecard'] === '1') {
-            $created = ensureTwilioOutboundRatePlan(providerSetupPdo(), $input['twilio_ratecard_name'], $input['twilio_callplan_name']);
-            $input['target_ratecard_id'] = (string)$created['tariff_plan_id'];
-            $messages[] = 'Using ratecard ' . $created['tariff_plan_name'] . ' (#' . $created['tariff_plan_id'] . ') and call plan ' . $created['tariff_group_name'] . ' (#' . $created['tariff_group_id'] . ').';
+        if (($input['provider'] ?? '') === 'twilio' && (int)$input['target_ratecard_id'] <= 0) {
+            try {
+                $created = ensureTwilioOutboundRatePlan(providerSetupPdo(), $input['twilio_ratecard_name'], $input['twilio_callplan_name']);
+                $input['target_ratecard_id'] = (string)$created['tariff_plan_id'];
+                $messages[] = 'Using ratecard ' . $created['tariff_plan_name'] . ' (#' . $created['tariff_plan_id'] . ') and call plan ' . $created['tariff_group_name'] . ' (#' . $created['tariff_group_id'] . ').';
+            } catch (Throwable $exception) {
+                $errors[] = 'Could not create or find the Twilio outbound ratecard: ' . $exception->getMessage();
+            }
         }
         if ((int)$input['target_ratecard_id'] <= 0) {
-            $errors[] = 'Rate import needs a target ratecard. Upstream DID carrier settings do not use this field.';
+            $errors[] = 'Rate import needs a target ratecard. Choose one above or leave it blank so A2BillingPlus creates the Twilio Retail ratecard.';
         }
         if (!$errors) {
             $rateImport = $providerSetup->importPreviewRates($input, $formAction === 'dry_run_import_rates');
@@ -1242,6 +1246,7 @@ function tableExists(PDO $pdo, string $table): bool
             <form method="post">
                 <input type="hidden" name="provider_context" value="twilio">
                 <input type="hidden" name="provider" value="twilio">
+                <input type="hidden" name="auto_create_ratecard" value="1">
                 <input type="hidden" name="base_url" value="<?php echo h(\A2BillingPlus\Module\Provider\Twilio\TwilioApiClient::API_BASE_URL); ?>">
                 <input type="hidden" name="account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
                 <input type="hidden" name="twilio_account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
@@ -1291,6 +1296,7 @@ function tableExists(PDO $pdo, string $table): bool
                             <?php else: ?>
                                 <input id="twilio_target_ratecard_id" name="target_ratecard_id" type="text" size="10" value="<?php echo h($input['target_ratecard_id']); ?>" placeholder="auto">
                             <?php endif; ?>
+                            <br><span style="color:#666;">Leave blank to create or reuse the named Twilio ratecard and call plan below.</span>
                         </td>
                     </tr>
                     <tr>
@@ -1305,11 +1311,6 @@ function tableExists(PDO $pdo, string $table): bool
                         <td></td>
                         <td>
                             <label>
-                                <input name="auto_create_ratecard" type="checkbox" value="1" <?php echo $input['auto_create_ratecard'] === '1' ? 'checked' : ''; ?>>
-                                Create ratecard and call plan when target is blank
-                            </label>
-                            <br>
-                            <label>
                                 <input name="update_existing" type="checkbox" value="1" <?php echo $input['update_existing'] === '1' ? 'checked' : ''; ?>>
                                 Update existing rows with the same ratecard, prefix, and Twilio tag
                             </label>
@@ -1320,7 +1321,7 @@ function tableExists(PDO $pdo, string $table): bool
                         <td>
                             <button class="form_input_button" name="form_action" type="submit" value="preview_rates">Preview Twilio Rates</button>
                             <button class="form_input_button" name="form_action" type="submit" value="dry_run_import_rates">Dry Run Import</button>
-                            <button class="form_input_button" name="form_action" type="submit" value="import_rates" onclick="return confirm('Import Twilio outbound rates into cc_ratecard now?');">Import Twilio Rates</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="import_rates" onclick="return confirm('Import Twilio outbound rates into the selected or auto-created ratecard now?');">Import Twilio Rates</button>
                         </td>
                     </tr>
                 </table>
