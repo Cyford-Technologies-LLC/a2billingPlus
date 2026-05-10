@@ -43,9 +43,17 @@ function bearerToken(): string
         ?? $_SERVER['Authorization']
         ?? '';
 
+    $apiKeyHeader = $_SERVER['HTTP_X_VECTAVOIP_API_KEY'] ?? '';
+    if (is_scalar($apiKeyHeader) && trim((string)$apiKeyHeader) !== '') {
+        return trim((string)$apiKeyHeader);
+    }
+
     if ((!is_string($header) || $header === '') && function_exists('apache_request_headers')) {
         $headers = apache_request_headers();
         foreach ($headers as $name => $value) {
+            if (strtolower((string)$name) === 'x-vectavoip-api-key') {
+                return trim((string)$value);
+            }
             if (strtolower((string)$name) === 'authorization') {
                 $header = (string)$value;
                 break;
@@ -62,11 +70,11 @@ function bearerToken(): string
 
 function apiSecret(): string
 {
-    $value = $_SERVER['HTTP_X_VECTAVOIP_SECRET'] ?? '';
+    $value = $_SERVER['HTTP_X_VECTAVOIP_SECRET'] ?? $_SERVER['HTTP_X_VECTAVOIP_API_SECRET'] ?? '';
     if ((!is_scalar($value) || $value === '') && function_exists('apache_request_headers')) {
         $headers = apache_request_headers();
         foreach ($headers as $name => $headerValue) {
-            if (strtolower((string)$name) === 'x-vectavoip-secret') {
+            if (in_array(strtolower((string)$name), ['x-vectavoip-secret', 'x-vectavoip-api-secret'], true)) {
                 $value = $headerValue;
                 break;
             }
@@ -82,6 +90,26 @@ function sendJson(array $payload, int $statusCode): never
     header('Content-Type: application/json');
     echo json_encode($payload, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES);
     exit;
+}
+
+function clientIp(): string
+{
+    foreach (['HTTP_X_FORWARDED_FOR', 'HTTP_CF_CONNECTING_IP', 'REMOTE_ADDR'] as $key) {
+        $value = $_SERVER[$key] ?? '';
+        if (!is_scalar($value)) {
+            continue;
+        }
+        $value = trim((string)$value);
+        if ($value === '') {
+            continue;
+        }
+        if (str_contains($value, ',')) {
+            $value = trim(explode(',', $value, 2)[0]);
+        }
+        return $value;
+    }
+
+    return '0.0.0.0';
 }
 
 function envString(string $key, string $default = ''): string

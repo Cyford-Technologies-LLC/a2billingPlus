@@ -8,14 +8,15 @@ final class VectaVoIPRegistrationRequest
 {
     public function __construct(
         private readonly string $installKey,
+        private readonly string $username,
+        private readonly string $password,
         private readonly string $companyName,
         private readonly string $companyDomain,
-        private readonly string $contactName,
         private readonly string $contactEmail,
-        private readonly string $contactPhone,
-        private readonly string $details,
+        private readonly string $requestIp,
         private readonly string $appName,
-        private readonly string $appVersion
+        private readonly string $appVersion,
+        private readonly string $contactName = ''
     ) {
     }
 
@@ -29,14 +30,19 @@ final class VectaVoIPRegistrationRequest
         return $this->companyName;
     }
 
+    public function getUsername(): string
+    {
+        return $this->username;
+    }
+
+    public function getPassword(): string
+    {
+        return $this->password;
+    }
+
     public function getCompanyDomain(): string
     {
         return $this->companyDomain;
-    }
-
-    public function getContactName(): string
-    {
-        return $this->contactName;
     }
 
     public function getContactEmail(): string
@@ -44,14 +50,14 @@ final class VectaVoIPRegistrationRequest
         return $this->contactEmail;
     }
 
-    public function getContactPhone(): string
+    public function getContactName(): string
     {
-        return $this->contactPhone;
+        return $this->contactName;
     }
 
-    public function getDetails(): string
+    public function getRequestIp(): string
     {
-        return $this->details;
+        return $this->requestIp;
     }
 
     public function getAppName(): string
@@ -71,12 +77,13 @@ final class VectaVoIPRegistrationRequest
     {
         return [
             'install_key' => $this->installKey,
+            'username' => $this->username,
+            'password' => $this->password,
             'company_name' => $this->companyName,
             'company_domain' => $this->companyDomain,
             'contact_name' => $this->contactName,
             'contact_email' => $this->contactEmail,
-            'contact_phone' => $this->contactPhone,
-            'details' => $this->details,
+            'request_ip' => $this->requestIp,
             'app_name' => $this->appName,
             'app_version' => $this->appVersion,
         ];

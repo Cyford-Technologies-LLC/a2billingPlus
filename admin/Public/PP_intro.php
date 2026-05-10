@@ -57,12 +57,13 @@ $smarty->display('main.tpl');
             <p>This platform includes AGPL-licensed software components.</p>
             <p><a href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank">GNU Affero General Public License v3</a></p>
             <p>For VoIP termination, please visit <a href="https://vectavoip.com/" target="_blank">https://vectavoip.com/</a></p>
+            <p><a href="A2B_provider_setup.php" class="form_input_button">Provider Connection</a></p>
         </div>
     </section>
 
     <section class="a2bp-intro-actions" aria-label="Admin shortcuts">
         <a href="A2B_provider_setup.php" class="a2bp-intro-action">
-            <span>Provider Setup</span>
+            <span>Provider Connection</span>
             <small>Register, check status, preview rates, and provision VectaVoIP services.</small>
         </a>
         <a href="dashboard.php" class="a2bp-intro-action">

@@ -23,11 +23,35 @@ final class CustomerAccountService
     }
 
     /**
+     * @return array{total:int,active:int,blocked:int}
+     */
+    public function summary(CustomerSearchCriteria $criteria): array
+    {
+        return $this->repository->summary($criteria);
+    }
+
+    /**
+     * @return list<array{id:string,name:string}>
+     */
+    public function groups(): array
+    {
+        return $this->repository->groups();
+    }
+
+    /**
      * @return array<string, mixed>|null
      */
     public function detail(int $id): ?array
     {
         return $this->repository->findById($id);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findByExternalId(string $externalId): ?array
+    {
+        return $this->repository->findByExternalId($externalId);
     }
 
     /**
@@ -117,10 +141,14 @@ final class CustomerAccountService
         }
 
         $data = [];
-        foreach (['username', 'useralias', 'firstname', 'lastname', 'email', 'address', 'city', 'state', 'country', 'zipcode', 'phone', 'company_name', 'company_website'] as $field) {
+        foreach (['external_id', 'username', 'useralias', 'firstname', 'lastname', 'email', 'address', 'city', 'state', 'country', 'zipcode', 'phone', 'company_name', 'company_website'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $data[$field] = $this->stringValue($payload, $field);
             }
+        }
+
+        if (($data['external_id'] ?? '') !== '' && strlen($data['external_id']) > 128) {
+            return new CustomerAccountValidationResult(false, message: 'external_id must be 128 characters or fewer.', field: 'external_id');
         }
 
         foreach (['username' => 50, 'useralias' => 50, 'firstname' => 50, 'lastname' => 50, 'email' => 70] as $field => $max) {

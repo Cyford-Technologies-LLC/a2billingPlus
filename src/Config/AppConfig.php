@@ -19,6 +19,7 @@ final class AppConfig
     public static function fromEnvironment(): self
     {
         $values = [];
+        $fileValues = self::envFileValues();
         foreach ($_ENV as $key => $value) {
             if (is_scalar($value)) {
                 $values[(string)$key] = (string)$value;
@@ -38,12 +39,25 @@ final class AppConfig
             'A2BP_DB_USER',
             'A2BP_DB_PASSWORD',
             'A2BP_API_SERVICE_KEY',
+            'A2BP_CUSTOMER_PROVISIONING_APPS',
             'A2BP_UI_THEME',
+            'A2BP_PROVIDER_UNLOCK_TOKEN',
             'MODE',
             'VECTAVOIP_API_BASE_URL',
             'VECTAVOIP_API_KEY',
             'VECTAVOIP_API_SECRET',
             'VECTAVOIP_INSTALLATION_ID',
+            'VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER',
+            'VECTAVOIP_PROVIDER_UNLOCK_TOKEN',
+            'TWILIO_API_BASE_URL',
+            'TWILIO_ACCOUNT_SID',
+            'TWILIO_API_KEY',
+            'TWILIO_API_SECRET',
+            'TWILIO_AUTH_TOKEN',
+            'TWILIO_SANDBOX_MODE',
+            'TWILIO_DEFAULT_VOICE_URL',
+            'TWILIO_DEFAULT_SMS_URL',
+            'TWILIO_BYOC_TRUNK_SID',
             'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET',
             'STRIPE_TEST_PUBLISHABLE_KEY',
@@ -59,16 +73,25 @@ final class AppConfig
             'BRAINTREE_PRIVATE_KEY',
             'PAYMENT_CURRENCY',
         ] as $key) {
-            $value = getenv($key);
-            if (is_string($value) && $value !== '') {
-                $values[$key] = $value;
-            }
-
-            $file = getenv($key . '_FILE');
-            if (is_string($file) && $file !== '' && is_readable($file)) {
-                $contents = file_get_contents($file);
+            if (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
+                $contents = file_get_contents($fileValues[$key . '_FILE']);
                 if (is_string($contents)) {
                     $values[$key] = trim($contents);
+                }
+            } elseif (($fileValues[$key] ?? '') !== '') {
+                $values[$key] = $fileValues[$key];
+            } else {
+                $value = getenv($key);
+                if (is_string($value) && $value !== '') {
+                    $values[$key] = $value;
+                }
+
+                $file = getenv($key . '_FILE');
+                if (is_string($file) && $file !== '' && is_readable($file)) {
+                    $contents = file_get_contents($file);
+                    if (is_string($contents)) {
+                        $values[$key] = trim($contents);
+                    }
                 }
             }
         }
@@ -115,6 +138,48 @@ final class AppConfig
 
         if (($values['STRIPE_WEBHOOK_SECRET'] ?? '') === '' && ($values[$stripePrefix . '_WEBHOOK_SECRET'] ?? '') !== '') {
             $values['STRIPE_WEBHOOK_SECRET'] = $values[$stripePrefix . '_WEBHOOK_SECRET'];
+        }
+
+        return $values;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private static function envFileValues(): array
+    {
+        $values = [];
+        $envPath = dirname(__DIR__, 2) . DIRECTORY_SEPARATOR . '.env';
+        if (!is_readable($envPath)) {
+            return $values;
+        }
+
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            return $values;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if ($key === '') {
+                continue;
+            }
+
+            if (
+                strlen($value) >= 2
+                && (($value[0] === '"' && substr($value, -1) === '"') || ($value[0] === "'" && substr($value, -1) === "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            $values[$key] = str_replace(['\\"', '\\\\'], ['"', '\\'], $value);
         }
 
         return $values;

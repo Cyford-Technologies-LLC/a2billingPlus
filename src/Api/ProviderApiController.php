@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace A2BillingPlus\Api;
 
+use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Http\JsonResponse;
+use A2BillingPlus\Module\Provider\ProviderAccessPolicy;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
@@ -24,14 +26,18 @@ final class ProviderApiController
     public function __construct(
         private readonly ProviderRegistry $registry,
         private $registrationClientFactory = null,
-        private $pdoFactory = null
+        private $pdoFactory = null,
+        ?ProviderAccessPolicy $accessPolicy = null
     ) {
+        $this->accessPolicy = $accessPolicy ?? new ProviderAccessPolicy(AppConfig::fromEnvironment());
     }
+
+    private readonly ProviderAccessPolicy $accessPolicy;
 
     public function handle(JsonRequest $request): JsonResponse
     {
         if ($request->getMethod() === 'GET') {
-            return $this->listProviders();
+            return $this->listProviders($request);
         }
 
         if ($request->getMethod() !== 'POST') {
@@ -48,10 +54,14 @@ final class ProviderApiController
         };
     }
 
-    private function listProviders(): JsonResponse
+    private function listProviders(JsonRequest $request): JsonResponse
     {
         $providers = [];
         foreach ($this->registry->all() as $connector) {
+            if (!$this->accessPolicy->isAllowed($connector->getProviderCode(), '', $this->requestUnlockToken($request))) {
+                continue;
+            }
+
             $providers[] = [
                 'code' => $connector->getProviderCode(),
                 'name' => $connector->getDisplayName(),
@@ -217,14 +227,15 @@ final class ProviderApiController
 
         $result = $client->register(new VectaVoIPRegistrationRequest(
             $installKey,
-            $request->getString('company_name'),
+            $request->getString('registration_username'),
+            $request->getString('registration_password'),
+            $request->getString('company_name', $request->getString('registration_username')),
             $request->getString('company_domain'),
-            $request->getString('contact_name'),
             $request->getString('contact_email'),
-            $request->getString('contact_phone'),
-            $request->getString('details'),
+            $request->getString('request_ip'),
             $request->getString('app_name', 'A2BillingPlus'),
-            $request->getString('app_version', '0.1.0-alpha')
+            $request->getString('app_version', '0.1.0-alpha'),
+            $request->getString('contact_name', $request->getString('registration_username'))
         ));
 
         if (!$result->isSuccessful()) {
@@ -258,7 +269,21 @@ final class ProviderApiController
             return new JsonResponse(['error' => 'Provider not found.'], 404);
         }
 
+        if (!$this->accessPolicy->isAllowed($providerCode, '', $this->requestUnlockToken($request))) {
+            return new JsonResponse(['error' => $this->accessPolicy->denialMessage($providerCode)], 403);
+        }
+
         return $connector;
+    }
+
+    private function requestUnlockToken(JsonRequest $request): string
+    {
+        $token = $request->getString('provider_unlock_token');
+        if ($token !== '') {
+            return $token;
+        }
+
+        return $request->getHeader('X-A2BP-Provider-Unlock-Token');
     }
 
     private function credentialsFromRequest(JsonRequest $request): ProviderCredentials
