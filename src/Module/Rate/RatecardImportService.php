@@ -86,10 +86,12 @@ final class RatecardImportService
                 continue;
             }
 
+            $this->upsertPrefix((string)$row['dialprefix'], (string)($row['destination_name'] ?? ''));
+            $dbRow = $this->ratecardDbRow($row);
             if ($existing !== null) {
-                $updateStatement->execute($row);
+                $updateStatement->execute($dbRow);
             } else {
-                $insertStatement->execute($row + $insertDefaults);
+                $insertStatement->execute($dbRow + $insertDefaults);
             }
             $changedRows++;
         }
@@ -110,6 +112,41 @@ final class RatecardImportService
         $id = $statement->fetchColumn();
 
         return $id === false ? null : (int)$id;
+    }
+
+    /**
+     * @param array<string, int|string> $row
+     * @return array<string, int|string>
+     */
+    private function ratecardDbRow(array $row): array
+    {
+        unset($row['destination_name']);
+        return $row;
+    }
+
+    private function upsertPrefix(string $prefix, string $destination): void
+    {
+        $prefix = preg_replace('/\D+/', '', $prefix) ?: '';
+        $destination = trim($destination);
+        if ($prefix === '' || $destination === '' || !$this->tableExists('cc_prefix')) {
+            return;
+        }
+
+        $destination = substr($destination, 0, 60);
+        $existing = $this->pdo->prepare('SELECT destination FROM cc_prefix WHERE prefix = ? LIMIT 1');
+        $existing->execute([$prefix]);
+        $current = $existing->fetchColumn();
+
+        if ($current === false) {
+            $insert = $this->pdo->prepare('INSERT INTO cc_prefix (prefix, destination) VALUES (?, ?)');
+            $insert->execute([$prefix, $destination]);
+            return;
+        }
+
+        if (trim((string)$current) === '') {
+            $update = $this->pdo->prepare('UPDATE cc_prefix SET destination = ? WHERE prefix = ?');
+            $update->execute([$destination, $prefix]);
+        }
     }
 
     private function columnExists(string $table, string $column): bool
@@ -136,6 +173,27 @@ final class RatecardImportService
                     return true;
                 }
             }
+        } catch (\Throwable) {
+        }
+
+        return false;
+    }
+
+    private function tableExists(string $table): bool
+    {
+        if (!preg_match('/^[A-Za-z0-9_]+$/', $table)) {
+            return false;
+        }
+
+        try {
+            $statement = $this->pdo->query('SELECT 1 FROM `' . $table . '` LIMIT 1');
+            return $statement !== false;
+        } catch (\Throwable) {
+        }
+
+        try {
+            $statement = $this->pdo->query("SELECT name FROM sqlite_master WHERE type = 'table' AND name = " . $this->pdo->quote($table));
+            return $statement !== false && $statement->fetch(\PDO::FETCH_ASSOC) !== false;
         } catch (\Throwable) {
         }
 

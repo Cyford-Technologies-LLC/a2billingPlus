@@ -20,6 +20,8 @@ final class RatecardImportServiceTest extends TestCase
 
         $this->assertSame(12, $row['idtariffplan']);
         $this->assertSame('1', $row['dialprefix']);
+        $this->assertSame('1', $row['destination']);
+        $this->assertSame('United States', $row['destination_name']);
         $this->assertSame('0.01000', $row['rateinitial']);
         $this->assertSame(60, $row['billingblock']);
         $this->assertSame('VectaVoIP:retail', $row['tag']);
@@ -112,6 +114,21 @@ final class RatecardImportServiceTest extends TestCase
         $this->assertTrue($summary->isSuccessful());
         $this->assertSame(1, $summary->getImportedRows());
         $this->assertSame('', $pdo->query('SELECT musiconhold FROM cc_ratecard')->fetchColumn());
+    }
+
+    public function testImportsDestinationIntoPrefixTable(): void
+    {
+        $pdo = $this->ratecardPdo();
+        $pdo->exec('CREATE TABLE cc_prefix (prefix INTEGER PRIMARY KEY, destination TEXT NOT NULL)');
+
+        $service = new RatecardImportService($pdo);
+        $summary = $service->importRows([
+            ['destination' => 'United States Toll-Free', 'prefix' => '1800', 'rate' => '0.0100', 'increment' => 60],
+        ], 7, 'VectaVoIP:retail', false);
+
+        $this->assertTrue($summary->isSuccessful());
+        $this->assertSame('1800', $pdo->query('SELECT destination FROM cc_ratecard')->fetchColumn());
+        $this->assertSame('United States Toll-Free', $pdo->query('SELECT destination FROM cc_prefix WHERE prefix = 1800')->fetchColumn());
     }
 
     private function ratecardPdo(): PDO

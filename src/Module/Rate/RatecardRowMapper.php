@@ -21,7 +21,8 @@ final class RatecardRowMapper
         return [
             'idtariffplan' => $tariffPlanId,
             'dialprefix' => $prefix,
-            'destination' => $destination !== '' ? crc32($destination) : 0,
+            'destination' => $prefix,
+            'destination_name' => $destination,
             'buyrate' => $buyRate,
             'buyrateinitblock' => $increment,
             'buyrateincrement' => $increment,

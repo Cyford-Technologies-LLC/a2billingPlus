@@ -67,7 +67,8 @@ final class TwilioVoiceRateImporter implements RateImporterInterface
                 }
 
                 $friendlyName = $this->stringValue($priceRow, 'friendly_name', $this->stringValue($priceRow, 'friendlyName', $countryName));
-                if ($destinationFilter !== '' && !str_contains(strtolower($friendlyName . ' ' . $countryName), $destinationFilter)) {
+                $destinationName = $this->destinationName($countryName, $friendlyName);
+                if ($destinationFilter !== '' && !str_contains(strtolower($destinationName), $destinationFilter)) {
                     continue;
                 }
 
@@ -84,7 +85,7 @@ final class TwilioVoiceRateImporter implements RateImporterInterface
 
                     $retailRate = $this->markedUpRate($buyRate, $markupPercent);
                     $rows[] = [
-                        'destination' => trim($countryName . ' ' . $friendlyName),
+                        'destination' => $destinationName,
                         'prefix' => $dialPrefix,
                         'buyrate' => $buyRate,
                         'rate' => $retailRate,
@@ -147,6 +148,20 @@ final class TwilioVoiceRateImporter implements RateImporterInterface
     private function markedUpRate(string $buyRate, float $markupPercent): string
     {
         return number_format(((float)$buyRate) * (1 + ($markupPercent / 100)), 5, '.', '');
+    }
+
+    private function destinationName(string $countryName, string $friendlyName): string
+    {
+        $countryName = trim($countryName);
+        $friendlyName = trim($friendlyName);
+        if ($friendlyName === '' || strcasecmp($friendlyName, $countryName) === 0) {
+            return $countryName;
+        }
+        if ($countryName !== '' && str_starts_with(strtolower($friendlyName), strtolower($countryName))) {
+            return $friendlyName;
+        }
+
+        return trim($countryName . ' ' . $friendlyName);
     }
 
     private function numericString(mixed $value): string
