@@ -33,9 +33,10 @@ final class PjsipProvisioningService
         // All tenant devices land in a2billing-tenant; dialplan extracts tenant from endpoint name
         $context = $this->stringValue($payload, 'context', 'a2billing-tenant');
         $allow = $this->stringValue($payload, 'allow', 'ulaw,alaw');
+        $accountcode = $this->stringValue($payload, 'accountcode') ?: $this->customerAccountCode($customerId);
 
         // SIP username = endpointId so Asterisk auth_username lookup is globally unique
-        $this->writeEndpoint($endpointId, $endpointId, $secret, $context, $allow, null, 1, 'auth_username,username');
+        $this->writeEndpoint($endpointId, $endpointId, $secret, $context, $allow, null, 1, 'auth_username,username', $accountcode);
         $this->writeMapping($endpointId, 'customer_device', $customerId, $extension);
         $this->audit($actor, 'pjsip.customer_device.provision', $endpointId, ['customer_id' => $customerId, 'extension' => $extension]);
 
@@ -54,6 +55,7 @@ final class PjsipProvisioningService
             'secret'      => $account['secret'] ?? '',
             'context'     => $account['context'] ?? null,
             'allow'       => $account['allow'] ?? 'ulaw,alaw',
+            'accountcode' => $account['accountcode'] ?? '',
         ], $actor);
     }
 
@@ -120,6 +122,7 @@ final class PjsipProvisioningService
                 m.endpoint_type,
                 m.owner_id,
                 m.label,
+                e.accountcode,
                 e.context,
                 e.allow,
                 a.max_contacts,
@@ -140,7 +143,7 @@ final class PjsipProvisioningService
 
         return [
             'items' => $statement->fetchAll(\PDO::FETCH_ASSOC),
-            'columns' => ['endpoint_id', 'endpoint_type', 'owner_id', 'label', 'context', 'allow', 'max_contacts', 'contact', 'updated_at'],
+            'columns' => ['endpoint_id', 'endpoint_type', 'owner_id', 'label', 'accountcode', 'context', 'allow', 'max_contacts', 'contact', 'updated_at'],
         ];
     }
 
@@ -158,6 +161,7 @@ final class PjsipProvisioningService
                 e.transport,
                 e.aors,
                 e.auth,
+                e.accountcode,
                 e.context,
                 e.identify_by,
                 e.disallow,
@@ -194,7 +198,7 @@ final class PjsipProvisioningService
         }
 
         $endpointUpdates = [];
-        foreach (['context', 'allow', 'identify_by'] as $field) {
+        foreach (['context', 'allow', 'identify_by', 'accountcode'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $value = $this->stringValue($payload, $field);
                 if ($value === '' || strlen($value) > 100) {
@@ -236,7 +240,7 @@ final class PjsipProvisioningService
         return ['status' => 200, 'body' => ['success' => true, 'endpoint' => $this->endpointDetail($endpointId)]];
     }
 
-    private function writeEndpoint(string $endpointId, string $username, string $secret, string $context, string $allow, ?string $contact, int $maxContacts, string $identifyBy): void
+    private function writeEndpoint(string $endpointId, string $username, string $secret, string $context, string $allow, ?string $contact, int $maxContacts, string $identifyBy, string $accountcode = ''): void
     {
         $realm = $this->stringValue([
             'realm' => getenv('A2BP_ASTERISK_REALM') ?: 'asterisk',
@@ -262,6 +266,7 @@ final class PjsipProvisioningService
                 'transport' => 'transport-udp',
                 'aors' => $endpointId,
                 'auth' => $endpointId . '-auth',
+                'accountcode' => $accountcode,
                 'context' => $context,
                 'identify_by' => $identifyBy,
                 'disallow' => 'all',
@@ -460,19 +465,57 @@ final class PjsipProvisioningService
         if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_auths (id TEXT PRIMARY KEY, auth_type TEXT, username TEXT, password TEXT, realm TEXT, md5_cred TEXT, nonce_lifetime INTEGER)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_aors (id TEXT PRIMARY KEY, max_contacts INTEGER, remove_existing TEXT, contact TEXT)');
-            $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoints (id TEXT PRIMARY KEY, transport TEXT, aors TEXT, auth TEXT, context TEXT, identify_by TEXT, disallow TEXT, allow TEXT, direct_media TEXT, rtp_symmetric TEXT, force_rport TEXT, rewrite_contact TEXT)');
+            $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoints (id TEXT PRIMARY KEY, transport TEXT, aors TEXT, auth TEXT, accountcode TEXT, context TEXT, identify_by TEXT, disallow TEXT, allow TEXT, direct_media TEXT, rtp_symmetric TEXT, force_rport TEXT, rewrite_contact TEXT)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoint_id_ips (id TEXT PRIMARY KEY, endpoint TEXT, `match` TEXT, srv_lookups TEXT, match_header TEXT)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_registrations (id TEXT PRIMARY KEY, transport TEXT, outbound_auth TEXT, server_uri TEXT, client_uri TEXT, contact_user TEXT, endpoint TEXT, expiration INTEGER, retry_interval INTEGER, forbidden_retry_interval INTEGER, fatal_retry_interval INTEGER, max_retries INTEGER, outbound_proxy TEXT, support_path TEXT, line TEXT, auth_rejection_permanent TEXT)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS cc_a2bp_pjsip_endpoint_map (endpoint_id TEXT PRIMARY KEY, endpoint_type TEXT, owner_id INTEGER, label TEXT, created_at TEXT, updated_at TEXT)');
+            $this->ensureColumn('ps_endpoints', 'accountcode', 'TEXT NOT NULL DEFAULT ""');
             return;
         }
 
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_auths (id VARCHAR(80) NOT NULL, auth_type VARCHAR(20) NOT NULL DEFAULT "userpass", username VARCHAR(80) NOT NULL DEFAULT "", password VARCHAR(120) NOT NULL DEFAULT "", realm VARCHAR(255) DEFAULT NULL, md5_cred VARCHAR(40) DEFAULT NULL, nonce_lifetime INT DEFAULT NULL, PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_aors (id VARCHAR(80) NOT NULL, max_contacts INT NOT NULL DEFAULT 1, remove_existing VARCHAR(3) NOT NULL DEFAULT "yes", contact VARCHAR(255) NOT NULL DEFAULT "", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
-        $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoints (id VARCHAR(80) NOT NULL, transport VARCHAR(80) NOT NULL DEFAULT "transport-udp", aors VARCHAR(80) NOT NULL DEFAULT "", auth VARCHAR(80) NOT NULL DEFAULT "", context VARCHAR(80) NOT NULL DEFAULT "a2billing", identify_by VARCHAR(80) NOT NULL DEFAULT "username,ip", disallow VARCHAR(100) NOT NULL DEFAULT "all", allow VARCHAR(100) NOT NULL DEFAULT "ulaw,alaw", direct_media VARCHAR(3) NOT NULL DEFAULT "no", rtp_symmetric VARCHAR(3) NOT NULL DEFAULT "yes", force_rport VARCHAR(3) NOT NULL DEFAULT "yes", rewrite_contact VARCHAR(3) NOT NULL DEFAULT "yes", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+        $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoints (id VARCHAR(80) NOT NULL, transport VARCHAR(80) NOT NULL DEFAULT "transport-udp", aors VARCHAR(80) NOT NULL DEFAULT "", auth VARCHAR(80) NOT NULL DEFAULT "", accountcode VARCHAR(80) NOT NULL DEFAULT "", context VARCHAR(80) NOT NULL DEFAULT "a2billing", identify_by VARCHAR(80) NOT NULL DEFAULT "username,ip", disallow VARCHAR(100) NOT NULL DEFAULT "all", allow VARCHAR(100) NOT NULL DEFAULT "ulaw,alaw", direct_media VARCHAR(3) NOT NULL DEFAULT "no", rtp_symmetric VARCHAR(3) NOT NULL DEFAULT "yes", force_rport VARCHAR(3) NOT NULL DEFAULT "yes", rewrite_contact VARCHAR(3) NOT NULL DEFAULT "yes", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_endpoint_id_ips (id VARCHAR(80) NOT NULL, endpoint VARCHAR(80) NOT NULL DEFAULT "", `match` VARCHAR(255) NOT NULL DEFAULT "", srv_lookups VARCHAR(3) NOT NULL DEFAULT "yes", match_header VARCHAR(255) NOT NULL DEFAULT "", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_registrations (id VARCHAR(80) NOT NULL, transport VARCHAR(80) NOT NULL DEFAULT "transport-udp", outbound_auth VARCHAR(80) NOT NULL DEFAULT "", server_uri VARCHAR(255) NOT NULL DEFAULT "", client_uri VARCHAR(255) NOT NULL DEFAULT "", contact_user VARCHAR(80) NOT NULL DEFAULT "", endpoint VARCHAR(80) NOT NULL DEFAULT "", expiration INT NOT NULL DEFAULT 3600, retry_interval INT NOT NULL DEFAULT 60, forbidden_retry_interval INT NOT NULL DEFAULT 600, fatal_retry_interval INT NOT NULL DEFAULT 600, max_retries INT NOT NULL DEFAULT 10000, outbound_proxy VARCHAR(255) NOT NULL DEFAULT "", support_path VARCHAR(3) NOT NULL DEFAULT "no", line VARCHAR(3) NOT NULL DEFAULT "no", auth_rejection_permanent VARCHAR(3) NOT NULL DEFAULT "no", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS cc_a2bp_pjsip_endpoint_map (endpoint_id VARCHAR(80) NOT NULL, endpoint_type VARCHAR(32) NOT NULL, owner_id BIGINT NOT NULL DEFAULT 0, label VARCHAR(120) NOT NULL DEFAULT "", created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, PRIMARY KEY (endpoint_id), KEY idx_a2bp_pjsip_owner (endpoint_type, owner_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+        $this->ensureColumn('ps_endpoints', 'accountcode', 'VARCHAR(80) NOT NULL DEFAULT "" AFTER auth');
+    }
+
+    private function customerAccountCode(int $customerId): string
+    {
+        try {
+            $statement = $this->pdo->prepare('SELECT username FROM cc_card WHERE id = :id');
+            $statement->bindValue(':id', $customerId, \PDO::PARAM_INT);
+            $statement->execute();
+            $username = $statement->fetchColumn();
+        } catch (\Throwable) {
+            return '';
+        }
+
+        return is_scalar($username) ? substr(trim((string)$username), 0, 80) : '';
+    }
+
+    private function ensureColumn(string $table, string $column, string $definition): void
+    {
+        if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $columns = $this->pdo->query('PRAGMA table_info(' . $table . ')')->fetchAll(\PDO::FETCH_ASSOC);
+            foreach ($columns as $existing) {
+                if (($existing['name'] ?? '') === $column) {
+                    return;
+                }
+            }
+            $this->pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
+            return;
+        }
+
+        $statement = $this->pdo->prepare('SHOW COLUMNS FROM ' . $table . ' LIKE :column');
+        $statement->bindValue(':column', $column);
+        $statement->execute();
+        if ($statement->fetch(\PDO::FETCH_ASSOC)) {
+            return;
+        }
+        $this->pdo->exec('ALTER TABLE ' . $table . ' ADD COLUMN ' . $column . ' ' . $definition);
     }
 
     private function endpointId(string $prefix, string $value): string
