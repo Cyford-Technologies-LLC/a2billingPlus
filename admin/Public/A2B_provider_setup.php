@@ -183,8 +183,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $twilioConnection = $providerSetup->testConnection($input);
         if (($twilioConnection['success'] ?? false) !== true) {
             $errors[] = (string)($twilioConnection['message'] ?? $twilioConnection['error'] ?? 'Twilio connection failed.');
+            foreach (twilioDiagnosticMessages($twilioConnection['details'] ?? []) as $diagnosticMessage) {
+                $errors[] = $diagnosticMessage;
+            }
         } else {
             $messages[] = (string)($twilioConnection['message'] ?? 'Twilio connection verified.');
+            foreach (twilioDiagnosticMessages($twilioConnection['details'] ?? []) as $diagnosticMessage) {
+                $messages[] = $diagnosticMessage;
+            }
         }
     }
 
@@ -701,6 +707,35 @@ function twilioResultRows(array $result): array
     }
 
     return $rows;
+}
+
+/**
+ * @param mixed $details
+ * @return list<string>
+ */
+function twilioDiagnosticMessages(mixed $details): array
+{
+    if (!is_array($details)) {
+        return [];
+    }
+
+    $messages = [];
+    $messages[] = 'Twilio auth mode attempted: ' . (string)($details['auth_mode'] ?? 'unknown') . '.';
+    if (($details['account_sid'] ?? '') !== '') {
+        $messages[] = 'Account SID used: ' . (string)$details['account_sid'] . ' (' . (string)($details['account_sid_format'] ?? 'unknown') . ').';
+    }
+    if (($details['auth_user'] ?? '') !== '') {
+        $messages[] = 'Auth user used: ' . (string)$details['auth_user'] . ' (' . (string)($details['api_key_format'] ?? $details['auth_user_format'] ?? 'unknown') . ').';
+    }
+    $messages[] = 'Secret/token present: ' . (!empty($details['api_secret_present']) ? 'yes' : 'no') . '.';
+    if (($details['likely_bad_field'] ?? '') !== '') {
+        $messages[] = 'Likely field to fix: ' . (string)$details['likely_bad_field'] . '.';
+    }
+    if (($details['twilio_error'] ?? '') !== '') {
+        $messages[] = 'Twilio returned: ' . (string)$details['twilio_error'] . '.';
+    }
+
+    return $messages;
 }
 
 function h(string $value): string
