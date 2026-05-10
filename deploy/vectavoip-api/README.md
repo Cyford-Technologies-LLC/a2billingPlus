@@ -30,6 +30,10 @@ numbers from Twilio by default, or call `POST /v1/upstream/default` with
 secret. A DID purchase request can also override the default with
 `upstream_provider`.
 
+In the admin UI, VectaVoIP is visible by default. Twilio and future non-VectaVoIP
+provider/carrier modules are hidden until the operator enters
+`VECTAVOIP_PROVIDER_UNLOCK_TOKEN` or `A2BP_PROVIDER_UNLOCK_TOKEN`.
+
 Twilio DID purchasing requires:
 
 ```text
@@ -46,6 +50,35 @@ TWILIO_DEFAULT_VOICE_URL
 TWILIO_DEFAULT_SMS_URL
 TWILIO_BYOC_TRUNK_SID
 ```
+
+For sandbox testing, use:
+
+```text
+VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER=twilio
+TWILIO_SANDBOX_MODE=1
+TWILIO_ACCOUNT_SID=AC_SANDBOX
+TWILIO_API_KEY=SK_SANDBOX
+TWILIO_API_SECRET=SANDBOX_SECRET
+```
+
+Sandbox mode does not call Twilio and does not buy a real number. It records the
+purchase locally with a deterministic `PN_SANDBOX_*` upstream SID so the account,
+DID assignment, and SMS API flow can be tested end to end.
+
+Twilio Console test credentials are also supported. For that path, set:
+
+```text
+VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER=twilio
+TWILIO_SANDBOX_MODE=0
+TWILIO_ACCOUNT_SID=<Twilio Test Account SID>
+TWILIO_AUTH_TOKEN=<Twilio Test auth token>
+TWILIO_API_KEY=
+TWILIO_API_SECRET=
+```
+
+Twilio test credentials call Twilio's test API behavior without charging or
+updating the live account. Keep the Test auth token out of git and rotate it if
+it is exposed.
 
 ## Deploy
 

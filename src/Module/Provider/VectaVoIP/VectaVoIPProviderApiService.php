@@ -498,10 +498,10 @@ final class VectaVoIPProviderApiService
         }
 
         try {
-            $twilioNumber = $this->twilioClient()->purchaseIncomingPhoneNumber(
-                $this->twilioCredentials(),
-                $this->twilioPurchasePayload($did, $payload)
-            );
+            $twilioPayload = $this->twilioPurchasePayload($did, $payload);
+            $twilioNumber = $this->twilioSandboxMode()
+                ? $this->sandboxTwilioNumber($did, $twilioPayload)
+                : $this->twilioClient()->purchaseIncomingPhoneNumber($this->twilioCredentials(), $twilioPayload);
         } catch (\Throwable $exception) {
             return ['status' => 422, 'body' => ['message' => 'Twilio DID purchase failed: ' . $exception->getMessage()]];
         }
@@ -528,6 +528,7 @@ final class VectaVoIPProviderApiService
                 'purchase' => $purchase,
                 'upstream' => [
                     'provider' => 'twilio',
+                    'sandbox' => $this->twilioSandboxMode(),
                     'sid' => $this->stringValue($twilioNumber, 'sid'),
                 ],
             ],
@@ -577,6 +578,25 @@ final class VectaVoIPProviderApiService
         return new TwilioApiClient();
     }
 
+    /**
+     * @param array<string, string> $payload
+     * @return array<string, string>
+     */
+    private function sandboxTwilioNumber(string $did, array $payload): array
+    {
+        return [
+            'sid' => 'PN_SANDBOX_' . substr(strtoupper(hash('sha256', $did)), 0, 20),
+            'phone_number' => $did,
+            'friendly_name' => $payload['FriendlyName'] ?? 'VectaVoIP Twilio Sandbox DID',
+            'trunk_sid' => $this->envString('TWILIO_BYOC_TRUNK_SID'),
+        ];
+    }
+
+    private function twilioSandboxMode(): bool
+    {
+        return in_array(strtolower($this->envString('TWILIO_SANDBOX_MODE', '0')), ['1', 'true', 'yes', 'on'], true);
+    }
+
     private function normalizeUpstreamProvider(string $provider): string
     {
         $provider = strtolower(trim($provider));
@@ -592,6 +612,18 @@ final class VectaVoIPProviderApiService
 
     private function envString(string $key, string $default = ''): string
     {
+        $fileValues = self::envFileValues();
+        if (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
+            $contents = file_get_contents($fileValues[$key . '_FILE']);
+            if (is_string($contents)) {
+                return trim($contents);
+            }
+        }
+
+        if (($fileValues[$key] ?? '') !== '') {
+            return $fileValues[$key];
+        }
+
         $value = getenv($key);
         if (is_string($value) && $value !== '') {
             return $value;
@@ -606,6 +638,48 @@ final class VectaVoIPProviderApiService
         }
 
         return $default;
+    }
+
+    /**
+     * @return array<string,string>
+     */
+    private static function envFileValues(): array
+    {
+        $values = [];
+        $envPath = dirname(__DIR__, 4) . DIRECTORY_SEPARATOR . '.env';
+        if (!is_readable($envPath)) {
+            return $values;
+        }
+
+        $lines = file($envPath, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        if (!is_array($lines)) {
+            return $values;
+        }
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || str_starts_with($line, '#') || !str_contains($line, '=')) {
+                continue;
+            }
+
+            [$key, $value] = explode('=', $line, 2);
+            $key = trim($key);
+            $value = trim($value);
+            if ($key === '') {
+                continue;
+            }
+
+            if (
+                strlen($value) >= 2
+                && (($value[0] === '"' && substr($value, -1) === '"') || ($value[0] === "'" && substr($value, -1) === "'"))
+            ) {
+                $value = substr($value, 1, -1);
+            }
+
+            $values[$key] = str_replace(['\\"', '\\\\'], ['"', '\\'], $value);
+        }
+
+        return $values;
     }
 
     /**

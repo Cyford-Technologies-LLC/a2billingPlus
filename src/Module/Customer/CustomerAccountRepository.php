@@ -10,6 +10,7 @@ final class CustomerAccountRepository
 
     private const COLUMNS = [
         'id',
+        'external_id',
         'username',
         'useralias',
         'uipass',
@@ -39,6 +40,7 @@ final class CustomerAccountRepository
 
     private const SAFE_COLUMNS = [
         'id',
+        'external_id',
         'username',
         'useralias',
         'firstname',
@@ -150,6 +152,29 @@ final class CustomerAccountRepository
             $this->quoteIdentifier('id')
         ));
         $statement->bindValue(':id', $id, \PDO::PARAM_INT);
+        $statement->execute();
+
+        $row = $statement->fetch(\PDO::FETCH_ASSOC);
+        return is_array($row) ? $row : null;
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
+    public function findByExternalId(string $externalId): ?array
+    {
+        $columns = $this->safeColumns();
+        if ($columns === [] || !in_array('external_id', $columns, true)) {
+            return null;
+        }
+
+        $statement = $this->pdo->prepare(sprintf(
+            'SELECT %s FROM %s WHERE %s = :external_id LIMIT 1',
+            implode(', ', array_map([$this, 'quoteIdentifier'], $columns)),
+            $this->quoteIdentifier(self::TABLE),
+            $this->quoteIdentifier('external_id')
+        ));
+        $statement->bindValue(':external_id', $externalId);
         $statement->execute();
 
         $row = $statement->fetch(\PDO::FETCH_ASSOC);
@@ -353,6 +378,7 @@ final class CustomerAccountRepository
     private function defaultCreateValues(array $data): array
     {
         return [
+            'external_id' => $data['external_id'] ?? null,
             'username' => $data['username'],
             'useralias' => $data['useralias'],
             'uipass' => $data['uipass'] ?? bin2hex(random_bytes(10)),

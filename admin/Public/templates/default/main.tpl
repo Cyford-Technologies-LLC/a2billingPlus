@@ -532,7 +532,7 @@
 				<li><a href="A2B_entity_config.php?form_action=list&atmenu=config&section=18">{"Global List"|gettext}</a></li>
 				<li><a href="A2B_entity_config_group.php?form_action=list&atmenu=configgroup&section=18">{"Group List"|gettext}</a></li>
 				<li><a href="A2B_entity_config_generate_confirm.php?section=18">{"Add agi-conf"|gettext}</a></li>
-				<li><a href="A2B_provider_setup.php?section=18">{"Provider Setup"|gettext}</a></li>
+				<li><a href="A2B_provider_setup.php?section=18">{"Provider Connection"|gettext}</a></li>
 				<li><a href="A2B_ui_theme_manager.php?section=18">{"Theme Manager"|gettext}</a></li>
 				<li><a href="phpconfig.php?dir=/etc/asterisk&section=18">{"* Config Editor"|gettext}</a></li>
 				{if ($ASTERISK_GUI_LINK)}

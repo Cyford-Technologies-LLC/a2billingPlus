@@ -214,10 +214,51 @@ final class VectaVoIPProviderApiServiceTest extends TestCase
         $this->assertSame('twilio', $default['body']['default_upstream_provider']);
         $this->assertSame(201, $purchase['status']);
         $this->assertSame('twilio', $purchase['body']['upstream_provider']);
+        $this->assertFalse($purchase['body']['upstream']['sandbox']);
         $this->assertSame('+12125550100', $capturedPayload['PhoneNumber']);
         $this->assertSame('https://voice.example.test/twilio', $capturedPayload['VoiceUrl']);
         $this->assertSame('twilio', $pdo->query("SELECT provider_code FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
         $this->assertSame('assigned', $pdo->query("SELECT status FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+    }
+
+    public function testTwilioSandboxModeRecordsPurchaseWithoutCallingTwilio(): void
+    {
+        $originalSandbox = getenv('TWILIO_SANDBOX_MODE');
+        putenv('TWILIO_SANDBOX_MODE=1');
+        try {
+            $pdo = new PDO('sqlite::memory:');
+            $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+            $service = new VectaVoIPProviderApiService(
+                new VectaVoIPInstallationRepository($pdo),
+                function () {
+                    throw new RuntimeException('Twilio client should not be called in sandbox mode.');
+                }
+            );
+            $registration = $service->registerInstallation($this->registrationPayload());
+            $apiKey = (string)$registration['body']['api_key'];
+            $apiSecret = (string)$registration['body']['api_secret'];
+            $account = $service->createAccount([
+                'name' => 'Sandbox Account',
+                'email' => 'sandbox@example.test',
+            ], $apiKey, $apiSecret);
+
+            $purchase = $service->purchaseDid([
+                'account_id' => (int)$account['body']['account']['id'],
+                'did' => '+15550001111',
+                'upstream_provider' => 'twilio',
+            ], $apiKey, $apiSecret);
+
+            $this->assertSame(201, $purchase['status']);
+            $this->assertTrue($purchase['body']['upstream']['sandbox']);
+            $this->assertStringStartsWith('PN_SANDBOX_', $purchase['body']['upstream']['sid']);
+            $this->assertSame('twilio', $pdo->query("SELECT provider_code FROM cc_vectavoip_did_inventory WHERE did = '+15550001111'")->fetchColumn());
+        } finally {
+            if ($originalSandbox === false) {
+                putenv('TWILIO_SANDBOX_MODE');
+            } else {
+                putenv('TWILIO_SANDBOX_MODE=' . $originalSandbox);
+            }
+        }
     }
 
     private function service(): VectaVoIPProviderApiService

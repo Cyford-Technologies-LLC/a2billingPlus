@@ -28,10 +28,10 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             null,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root'
         );
-        $response = $controller->handle(new JsonRequest('GET'));
+        $response = $controller->handle(new JsonRequest('GET', ['provider_unlock_token' => 'test-unlock']));
         $providers = $response->getPayload()['providers'];
         $codes = array_column($providers, 'code');
 
@@ -242,7 +242,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             null,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url): array {
                 if ($method === 'GET' && str_contains($url, '/v3/dids')) {
@@ -338,7 +338,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             null,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             fn (): DidwwApiClient => new DidwwApiClient(function (): array {
                 return [
@@ -400,7 +400,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             null,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
                 $this->assertSame('POST', $method);
@@ -454,7 +454,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             fn (): PDO => $pdo,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             fn (): DidwwApiClient => new DidwwApiClient(function (): array {
                 return [
@@ -500,7 +500,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             fn (): PDO => $pdo,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url): array {
                 if ($method === 'GET' && str_contains($url, '/v3/orders?')) {
@@ -596,7 +596,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             fn (): PDO => $pdo,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             fn (): DidwwApiClient => new DidwwApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
                 $this->assertSame('POST', $method);
@@ -653,7 +653,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             null,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             null,
             fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
@@ -726,7 +726,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             fn (): PDO => $pdo,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             null,
             fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
@@ -813,7 +813,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             fn (): PDO => $pdo,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             null,
             fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
@@ -874,7 +874,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             fn (): PDO => $pdo,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             null,
             fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url): array {
@@ -937,7 +937,7 @@ final class ProviderApiControllerTest extends TestCase
             ProviderRegistryFactory::createDefault(),
             null,
             null,
-            new ProviderAccessPolicy(new AppConfig()),
+            $this->unlockedProviderPolicy(),
             'root',
             null,
             fn (): TwilioApiClient => new TwilioApiClient(function (string $method, string $url, ProviderCredentials $credentials, ?array $payload): array {
@@ -1049,6 +1049,14 @@ final class ProviderApiControllerTest extends TestCase
         };
 
         return new ProviderRegistry([$connector]);
+    }
+
+    private function unlockedProviderPolicy(): ProviderAccessPolicy
+    {
+        return new ProviderAccessPolicy(new AppConfig([
+            'A2BP_PROVIDER_OWNER_ADMINS' => 'root',
+            'VECTAVOIP_PROVIDER_UNLOCK_TOKEN' => 'test-unlock',
+        ]));
     }
 
     private function ratecardPdo(): PDO

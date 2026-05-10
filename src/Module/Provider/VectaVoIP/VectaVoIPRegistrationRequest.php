@@ -15,7 +15,8 @@ final class VectaVoIPRegistrationRequest
         private readonly string $contactEmail,
         private readonly string $requestIp,
         private readonly string $appName,
-        private readonly string $appVersion
+        private readonly string $appVersion,
+        private readonly string $contactName = ''
     ) {
     }
 
@@ -49,6 +50,11 @@ final class VectaVoIPRegistrationRequest
         return $this->contactEmail;
     }
 
+    public function getContactName(): string
+    {
+        return $this->contactName;
+    }
+
     public function getRequestIp(): string
     {
         return $this->requestIp;
@@ -75,6 +81,7 @@ final class VectaVoIPRegistrationRequest
             'password' => $this->password,
             'company_name' => $this->companyName,
             'company_domain' => $this->companyDomain,
+            'contact_name' => $this->contactName,
             'contact_email' => $this->contactEmail,
             'request_ip' => $this->requestIp,
             'app_name' => $this->appName,

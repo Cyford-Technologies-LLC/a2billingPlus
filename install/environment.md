@@ -59,6 +59,11 @@ A2BP_API_SERVICE_KEY_FILE=
 The `/api/v1/*` REST endpoints use `Authorization: Bearer <service-key>`.
 Set `A2BP_API_SERVICE_KEY` directly for local testing, or set
 `A2BP_API_SERVICE_KEY_FILE` when the key is managed by a deployment secret store.
+
+Customer provisioning by `external_id` is additionally scoped per app. Set
+`A2BP_CUSTOMER_PROVISIONING_APPS` to comma-separated `app_id:token` pairs, then
+send `X-A2BP-App-Id` and `X-A2BP-Provisioning-Token` on customer create/recover
+requests. The app id must match the requested `external_id`.
 Responses use the v1 envelope:
 
 ```json

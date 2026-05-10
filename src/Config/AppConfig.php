@@ -39,12 +39,14 @@ final class AppConfig
             'A2BP_DB_USER',
             'A2BP_DB_PASSWORD',
             'A2BP_API_SERVICE_KEY',
+            'A2BP_CUSTOMER_PROVISIONING_APPS',
             'A2BP_UI_THEME',
             'A2BP_ASTERISK_CHANNEL_DRIVER',
             'A2BP_ASTERISK_REALTIME',
             'A2BP_LOCKED_PROVIDERS',
             'A2BP_PROVIDER_OWNER_ADMINS',
             'A2BP_PROVIDER_LICENSED_ADMINS',
+            'A2BP_PROVIDER_UNLOCK_TOKEN',
             'MODE',
             'DIDWW_API_BASE_URL',
             'DIDWW_API_KEY',
@@ -53,6 +55,7 @@ final class AppConfig
             'VECTAVOIP_API_KEY',
             'VECTAVOIP_API_SECRET',
             'VECTAVOIP_INSTALLATION_ID',
+            'VECTAVOIP_PROVIDER_UNLOCK_TOKEN',
             'STRIPE_SECRET_KEY',
             'STRIPE_WEBHOOK_SECRET',
             'STRIPE_TEST_PUBLISHABLE_KEY',
@@ -68,24 +71,26 @@ final class AppConfig
             'BRAINTREE_PRIVATE_KEY',
             'PAYMENT_CURRENCY',
         ] as $key) {
-            $value = getenv($key);
-            if (is_string($value) && $value !== '') {
-                $values[$key] = $value;
-            }
-
-            $file = getenv($key . '_FILE');
-            if (is_string($file) && $file !== '' && is_readable($file)) {
-                $contents = file_get_contents($file);
-                if (is_string($contents)) {
-                    $values[$key] = trim($contents);
-                }
-            } elseif (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
+            if (($fileValues[$key . '_FILE'] ?? '') !== '' && is_readable($fileValues[$key . '_FILE'])) {
                 $contents = file_get_contents($fileValues[$key . '_FILE']);
                 if (is_string($contents)) {
                     $values[$key] = trim($contents);
                 }
             } elseif (($fileValues[$key] ?? '') !== '') {
                 $values[$key] = $fileValues[$key];
+            } else {
+                $value = getenv($key);
+                if (is_string($value) && $value !== '') {
+                    $values[$key] = $value;
+                }
+
+                $file = getenv($key . '_FILE');
+                if (is_string($file) && $file !== '' && is_readable($file)) {
+                    $contents = file_get_contents($file);
+                    if (is_string($contents)) {
+                        $values[$key] = trim($contents);
+                    }
+                }
             }
         }
 

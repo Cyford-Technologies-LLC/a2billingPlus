@@ -8,13 +8,20 @@ use A2BillingPlus\Config\AppConfig;
 
 final class ProviderAccessPolicy
 {
+    private const BUILT_IN_PROVIDER = 'vectavoip';
+
     public function __construct(private readonly AppConfig $config)
     {
     }
 
-    public function isAllowed(string $providerCode, string $actor = ''): bool
+    public function isAllowed(string $providerCode, string $actor = '', string $unlockToken = ''): bool
     {
         if (!$this->isLocked($providerCode)) {
+            return true;
+        }
+
+        $configuredToken = $this->unlockToken();
+        if ($configuredToken !== '' && hash_equals($configuredToken, trim($unlockToken))) {
             return true;
         }
 
@@ -28,12 +35,32 @@ final class ProviderAccessPolicy
 
     public function isLocked(string $providerCode): bool
     {
-        return in_array(strtolower(trim($providerCode)), $this->csv('A2BP_LOCKED_PROVIDERS'), true);
+        $providerCode = strtolower(trim($providerCode));
+        if ($providerCode === self::BUILT_IN_PROVIDER) {
+            return false;
+        }
+
+        return true;
     }
 
     public function denialMessage(string $providerCode): string
     {
-        return strtoupper($providerCode) . ' is locked to company admins and licensed individuals.';
+        return strtoupper($providerCode) . ' is a locked provider module. Supply the provider unlock token to view or use it.';
+    }
+
+    public function unlockTokenConfigured(): bool
+    {
+        return $this->unlockToken() !== '';
+    }
+
+    private function unlockToken(): string
+    {
+        $token = trim($this->config->string('VECTAVOIP_PROVIDER_UNLOCK_TOKEN'));
+        if ($token !== '') {
+            return $token;
+        }
+
+        return trim($this->config->string('A2BP_PROVIDER_UNLOCK_TOKEN'));
     }
 
     /**

@@ -22,20 +22,24 @@ final class PjsipProvisioningService
     public function provisionCustomerDevice(array $payload, string $actor): array
     {
         $customerId = $this->intValue($payload, 'customer_id');
-        $username = $this->stringValue($payload, 'username');
+        $extension = $this->stringValue($payload, 'extension') ?: $this->stringValue($payload, 'username');
         $secret = $this->stringValue($payload, 'secret');
-        if (($customerId ?? 0) <= 0 || $username === '' || $secret === '') {
-            return $this->error(422, 'pjsip_validation_failed', 'customer_id, username, and secret are required.', 'customer_device');
+        if (($customerId ?? 0) <= 0 || $extension === '' || $secret === '') {
+            return $this->error(422, 'pjsip_validation_failed', 'customer_id, extension, and secret are required.', 'customer_device');
         }
 
-        $endpointId = $this->endpointId('', $username);
-        $context = $this->stringValue($payload, 'context', 'a2billing');
+        // Globally unique endpoint_id per tenant — allows every tenant to have extension 100
+        $endpointId = $this->endpointId("c{$customerId}", $extension);
+        // All tenant devices land in a2billing-tenant; dialplan extracts tenant from endpoint name
+        $context = $this->stringValue($payload, 'context', 'a2billing-tenant');
         $allow = $this->stringValue($payload, 'allow', 'ulaw,alaw');
-        $this->writeEndpoint($endpointId, $username, $secret, $context, $allow, null, 1, 'auth_username,username');
-        $this->writeMapping($endpointId, 'customer_device', $customerId, $username);
-        $this->audit($actor, 'pjsip.customer_device.provision', $endpointId, ['customer_id' => $customerId, 'username' => $username]);
 
-        return ['status' => 201, 'body' => ['success' => true, 'endpoint' => $this->publicEndpoint($endpointId, 'customer_device', $customerId, $username)]];
+        // SIP username = endpointId so Asterisk auth_username lookup is globally unique
+        $this->writeEndpoint($endpointId, $endpointId, $secret, $context, $allow, null, 1, 'auth_username,username');
+        $this->writeMapping($endpointId, 'customer_device', $customerId, $extension);
+        $this->audit($actor, 'pjsip.customer_device.provision', $endpointId, ['customer_id' => $customerId, 'extension' => $extension]);
+
+        return ['status' => 201, 'body' => ['success' => true, 'endpoint' => $this->publicEndpoint($endpointId, 'customer_device', $customerId, $extension)]];
     }
 
     /**
@@ -46,10 +50,10 @@ final class PjsipProvisioningService
     {
         return $this->provisionCustomerDevice([
             'customer_id' => $account['id_cc_card'] ?? null,
-            'username' => $account['username'] ?? '',
-            'secret' => $account['secret'] ?? '',
-            'context' => $account['context'] ?? 'a2billing',
-            'allow' => $account['allow'] ?? 'ulaw,alaw',
+            'extension'   => $account['username'] ?? '',
+            'secret'      => $account['secret'] ?? '',
+            'context'     => $account['context'] ?? null,
+            'allow'       => $account['allow'] ?? 'ulaw,alaw',
         ], $actor);
     }
 
@@ -441,12 +445,13 @@ final class PjsipProvisioningService
     private function publicEndpoint(string $endpointId, string $type, int $ownerId, string $label): array
     {
         return [
-            'endpoint_id' => $endpointId,
+            'endpoint_id'  => $endpointId,
             'endpoint_type' => $type,
-            'owner_id' => $ownerId,
-            'label' => $label,
-            'auth_id' => $endpointId . '-auth',
-            'aor_id' => $endpointId,
+            'owner_id'     => $ownerId,
+            'label'        => $label,
+            'sip_username' => $endpointId,
+            'auth_id'      => $endpointId . '-auth',
+            'aor_id'       => $endpointId,
         ];
     }
 

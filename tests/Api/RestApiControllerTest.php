@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use A2BillingPlus\Api\ApiServiceKeyAuthenticator;
+use A2BillingPlus\Api\CustomerProvisioningAccessPolicy;
 use A2BillingPlus\Api\RestApiController;
 use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\JsonRequest;
@@ -169,6 +170,64 @@ final class RestApiControllerTest extends TestCase
         $this->assertSame('dana', $payload['data']['customer']['username']);
         $this->assertSame('create', $payload['meta']['action']);
         $this->assertSame('customer.create', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
+    public function testRejectsExternalCustomerCreateWithoutProvisioningPermission(): void
+    {
+        $controller = $this->controller('secret-key', $this->pdo(), 'crm_42:provision-42');
+        $response = $controller->handle('customers', new JsonRequest('POST', [], [
+            'customer' => [
+                'external_id' => 'crm_42',
+                'username' => 'crm_42',
+                'useralias' => 'crm_42',
+                'firstname' => 'CRM',
+                'lastname' => 'Tenant',
+                'email' => 'crm_42@example.test',
+            ],
+        ], [
+            'Authorization' => 'Bearer secret-key',
+        ]));
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('customer_provisioning_forbidden', $response->getPayload()['error']['code']);
+    }
+
+    public function testCreatesExternalCustomerWithMatchingProvisioningApp(): void
+    {
+        $pdo = $this->pdo();
+        $controller = $this->controller('secret-key', $pdo, 'crm_42:provision-42');
+        $response = $controller->handle('customers', new JsonRequest('POST', [], [
+            'customer' => [
+                'external_id' => 'crm_42',
+                'username' => 'crm_42',
+                'useralias' => 'crm_42',
+                'firstname' => 'CRM',
+                'lastname' => 'Tenant',
+                'email' => 'crm_42@example.test',
+            ],
+        ], [
+            'Authorization' => 'Bearer secret-key',
+            'X-A2BP-App-Id' => 'crm_42',
+            'X-A2BP-Provisioning-Token' => 'provision-42',
+        ]));
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertSame('crm_42', $response->getPayload()['data']['customer']['external_id']);
+    }
+
+    public function testRejectsExternalCustomerLookupForDifferentApp(): void
+    {
+        $pdo = $this->pdo();
+        $pdo->exec("INSERT INTO cc_card (id, external_id, username, useralias, firstname, lastname, credit, currency, status, activated, id_group, creationdate, email, uipass) VALUES (2, 'crm_42', 'crm_42', 'crm_42', 'CRM', 'Tenant', '0.00', 'USD', 1, '1', 1, '2026-05-09', 'crm_42@example.test', 'secret')");
+        $controller = $this->controller('secret-key', $pdo, 'crm_77:provision-77');
+        $response = $controller->handle('customers', new JsonRequest('GET', ['external_id' => 'crm_42'], [], [
+            'Authorization' => 'Bearer secret-key',
+            'X-A2BP-App-Id' => 'crm_77',
+            'X-A2BP-Provisioning-Token' => 'provision-77',
+        ]));
+
+        $this->assertSame(403, $response->getStatusCode());
+        $this->assertSame('customer_provisioning_scope_mismatch', $response->getPayload()['error']['code']);
     }
 
     public function testUpdatesCustomerThroughApi(): void
@@ -603,11 +662,12 @@ final class RestApiControllerTest extends TestCase
         }
     }
 
-    private function controller(string $serviceKey, PDO $pdo): RestApiController
+    private function controller(string $serviceKey, PDO $pdo, string $provisioningApps = ''): RestApiController
     {
         return new RestApiController(
             new ApiServiceKeyAuthenticator(new AppConfig(['A2BP_API_SERVICE_KEY' => $serviceKey])),
-            fn (): PDO => $pdo
+            fn (): PDO => $pdo,
+            new CustomerProvisioningAccessPolicy(new AppConfig(['A2BP_CUSTOMER_PROVISIONING_APPS' => $provisioningApps]))
         );
     }
 
@@ -615,7 +675,7 @@ final class RestApiControllerTest extends TestCase
     {
         $pdo = new PDO('sqlite::memory:');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        $pdo->exec('CREATE TABLE cc_card (id INTEGER PRIMARY KEY, username TEXT, useralias TEXT, firstname TEXT, lastname TEXT, credit TEXT, currency TEXT, status INTEGER, activated TEXT, id_group INTEGER, creationdate TEXT, email TEXT, uipass TEXT)');
+        $pdo->exec('CREATE TABLE cc_card (id INTEGER PRIMARY KEY, external_id TEXT, username TEXT, useralias TEXT, firstname TEXT, lastname TEXT, credit TEXT, currency TEXT, status INTEGER, activated TEXT, id_group INTEGER, creationdate TEXT, email TEXT, uipass TEXT)');
         $pdo->exec('CREATE TABLE cc_ratecard (id INTEGER PRIMARY KEY, idtariffplan INTEGER, dialprefix TEXT, destination TEXT, buyrate TEXT, rateinitial TEXT, initblock INTEGER, billingblock INTEGER, tag TEXT)');
         $pdo->exec('CREATE TABLE cc_tariffplan (id INTEGER PRIMARY KEY AUTOINCREMENT, iduser INTEGER, tariffname TEXT, creationdate TEXT, description TEXT, id_trunk INTEGER, idowner INTEGER, dnidprefix TEXT, calleridprefix TEXT)');
         $pdo->exec('CREATE TABLE cc_tariffgroup (id INTEGER PRIMARY KEY AUTOINCREMENT, iduser INTEGER, idtariffplan INTEGER, tariffgroupname TEXT, lcrtype INTEGER, creationdate TEXT, removeinterprefix INTEGER, id_cc_package_offer INTEGER)');
@@ -627,7 +687,7 @@ final class RestApiControllerTest extends TestCase
         $pdo->exec('CREATE TABLE cc_invoice (id INTEGER PRIMARY KEY, id_card INTEGER, title TEXT, reference TEXT, date TEXT, paid_status INTEGER, status INTEGER, description TEXT)');
         $pdo->exec('CREATE TABLE cc_invoice_item (id INTEGER PRIMARY KEY, id_invoice INTEGER, date TEXT, price TEXT, VAT TEXT, description TEXT)');
         $pdo->exec('CREATE TABLE cc_receipt (id INTEGER PRIMARY KEY, id_card INTEGER, title TEXT, date TEXT, status INTEGER, description TEXT)');
-        $pdo->exec("INSERT INTO cc_card (id, username, useralias, firstname, lastname, credit, currency, status, activated, id_group, creationdate, email, uipass) VALUES (1, 'alice', 'alice-a', 'Alice', 'Able', '10.00', 'USD', 1, '1', 1, '2026-05-03', 'alice@example.test', 'secret')");
+        $pdo->exec("INSERT INTO cc_card (id, external_id, username, useralias, firstname, lastname, credit, currency, status, activated, id_group, creationdate, email, uipass) VALUES (1, NULL, 'alice', 'alice-a', 'Alice', 'Able', '10.00', 'USD', 1, '1', 1, '2026-05-03', 'alice@example.test', 'secret')");
         $pdo->exec("INSERT INTO cc_ratecard (id, idtariffplan, dialprefix, destination, buyrate, rateinitial, initblock, billingblock, tag) VALUES (1, 7, '1', 'United States', '0.0100', '0.0200', 60, 60, 'VectaVoIP:retail')");
         $pdo->exec("INSERT INTO cc_tariffplan (id, iduser, tariffname, creationdate, description, id_trunk, idowner, dnidprefix, calleridprefix) VALUES (1, 0, 'Retail', '2026-05-03', 'Retail plan', 0, 0, 'all', 'all')");
         $pdo->exec("INSERT INTO cc_tariffgroup (id, iduser, idtariffplan, tariffgroupname, lcrtype, creationdate, removeinterprefix, id_cc_package_offer) VALUES (1, 0, 1, 'Default Group', 0, '2026-05-03', 0, -1)");

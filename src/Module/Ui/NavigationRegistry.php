@@ -14,7 +14,7 @@ final class NavigationRegistry
         return [
             new NavigationSection('Operations', [
                 new NavigationItem('Home', 'PP_intro.php', 'home'),
-                new NavigationItem('Provider Setup', 'A2B_provider_setup.php?section=7', 'provider-setup'),
+                new NavigationItem('Provider Connection', 'A2B_provider_setup.php?section=7', 'provider-setup'),
                 new NavigationItem('Payments', 'A2B_payment_workspace.php?section=10', 'payments'),
                 new NavigationItem('Themes', 'A2B_ui_theme_manager.php?section=9', 'themes'),
                 new NavigationItem('Telephony', 'A2B_telephony_workspace.php?section=7', 'telephony'),

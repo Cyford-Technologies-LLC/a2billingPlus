@@ -49,6 +49,14 @@ final class CustomerAccountService
     /**
      * @return array<string, mixed>|null
      */
+    public function findByExternalId(string $externalId): ?array
+    {
+        return $this->repository->findByExternalId($externalId);
+    }
+
+    /**
+     * @return array<string, mixed>|null
+     */
     public function changeStatus(int $id, int $status, string $actor): ?array
     {
         $customer = $this->repository->updateStatus($id, $status);
@@ -133,10 +141,14 @@ final class CustomerAccountService
         }
 
         $data = [];
-        foreach (['username', 'useralias', 'firstname', 'lastname', 'email', 'address', 'city', 'state', 'country', 'zipcode', 'phone', 'company_name', 'company_website'] as $field) {
+        foreach (['external_id', 'username', 'useralias', 'firstname', 'lastname', 'email', 'address', 'city', 'state', 'country', 'zipcode', 'phone', 'company_name', 'company_website'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $data[$field] = $this->stringValue($payload, $field);
             }
+        }
+
+        if (($data['external_id'] ?? '') !== '' && strlen($data['external_id']) > 128) {
+            return new CustomerAccountValidationResult(false, message: 'external_id must be 128 characters or fewer.', field: 'external_id');
         }
 
         foreach (['username' => 50, 'useralias' => 50, 'firstname' => 50, 'lastname' => 50, 'email' => 70] as $field => $max) {

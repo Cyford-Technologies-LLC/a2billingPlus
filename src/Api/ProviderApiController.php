@@ -47,7 +47,7 @@ final class ProviderApiController
     public function handle(JsonRequest $request): JsonResponse
     {
         if ($request->getMethod() === 'GET') {
-            return $this->listProviders();
+            return $this->listProviders($request);
         }
 
         if ($request->getMethod() !== 'POST') {
@@ -76,11 +76,11 @@ final class ProviderApiController
         };
     }
 
-    private function listProviders(): JsonResponse
+    private function listProviders(JsonRequest $request): JsonResponse
     {
         $providers = [];
         foreach ($this->registry->all() as $connector) {
-            if (!$this->accessPolicy->isAllowed($connector->getProviderCode(), $this->actor)) {
+            if (!$this->accessPolicy->isAllowed($connector->getProviderCode(), $this->actor, $this->requestUnlockToken($request))) {
                 continue;
             }
             $providers[] = [
@@ -256,7 +256,8 @@ final class ProviderApiController
             $request->getString('contact_email'),
             $request->getString('request_ip'),
             $request->getString('app_name', 'A2BillingPlus'),
-            $request->getString('app_version', '0.1.0-alpha')
+            $request->getString('app_version', '0.1.0-alpha'),
+            $request->getString('contact_name', $request->getString('registration_username'))
         ));
 
         if (!$result->isSuccessful()) {
@@ -886,16 +887,27 @@ final class ProviderApiController
     private function getConnector(JsonRequest $request): object
     {
         $providerCode = $request->getString('provider', 'vectavoip');
-        if (!$this->accessPolicy->isAllowed($providerCode, $this->actor)) {
-            return new JsonResponse(['error' => $this->accessPolicy->denialMessage($providerCode)], 403);
-        }
         $connector = $this->registry->get($providerCode);
 
         if (!$connector) {
             return new JsonResponse(['error' => 'Provider not found.'], 404);
         }
 
+        if (!$this->accessPolicy->isAllowed($providerCode, $this->actor, $this->requestUnlockToken($request))) {
+            return new JsonResponse(['error' => $this->accessPolicy->denialMessage($providerCode)], 403);
+        }
+
         return $connector;
+    }
+
+    private function requestUnlockToken(JsonRequest $request): string
+    {
+        $token = $request->getString('provider_unlock_token');
+        if ($token !== '') {
+            return $token;
+        }
+
+        return $request->getHeader('X-A2BP-Provider-Unlock-Token');
     }
 
     private function credentialsFromRequest(JsonRequest $request): ProviderCredentials

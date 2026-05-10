@@ -41,7 +41,8 @@ final class RestApiController
      */
     public function __construct(
         private readonly ApiServiceKeyAuthenticator $authenticator,
-        private $pdoFactory
+        private $pdoFactory,
+        private readonly ?CustomerProvisioningAccessPolicy $customerProvisioningAccess = null
     ) {
     }
 
@@ -169,6 +170,26 @@ final class RestApiController
                 ]);
             }
 
+            $externalId = trim($request->getString('external_id'));
+            if ($externalId !== '') {
+                $accessError = $this->customerProvisioningAccess()?->authorizeExternalId($request, $externalId);
+                if ($accessError !== null) {
+                    return $accessError;
+                }
+
+                $customer = $service->findByExternalId($externalId);
+                if ($customer === null) {
+                    return ApiResponder::error('customer_not_found', 'No customer with that external_id.', 404, ['external_id' => $externalId]);
+                }
+
+                return ApiResponder::ok([
+                    'customer' => $customer,
+                ], [
+                    'resource' => 'customers',
+                    'external_id' => $externalId,
+                ]);
+            }
+
             $result = $service->search(new CustomerSearchCriteria($limit, $offset, $search, $status));
         } catch (\Throwable $exception) {
             return ApiResponder::error('customer_query_failed', $exception->getMessage(), 500);
@@ -224,9 +245,16 @@ final class RestApiController
 
     private function handleCustomerCreate(JsonRequest $request): JsonResponse
     {
+        $customerInput = $request->getArray('customer');
+        $externalId = is_scalar($customerInput['external_id'] ?? null) ? trim((string)$customerInput['external_id']) : '';
+        $accessError = $this->customerProvisioningAccess()?->authorizeExternalId($request, $externalId);
+        if ($accessError !== null) {
+            return $accessError;
+        }
+
         try {
             $result = $this->customerService()->create(
-                $request->getArray('customer'),
+                $customerInput,
                 $request->getHeader('X-A2BP-Actor') ?: 'service-key'
             );
         } catch (\Throwable $exception) {
@@ -292,6 +320,11 @@ final class RestApiController
             new CustomerAccountRepository($pdo),
             new AuditLogRepository($pdo)
         );
+    }
+
+    private function customerProvisioningAccess(): CustomerProvisioningAccessPolicy
+    {
+        return $this->customerProvisioningAccess ?? new CustomerProvisioningAccessPolicy(\A2BillingPlus\Config\AppConfig::fromEnvironment());
     }
 
     private function handleRates(JsonRequest $request, int $limit, int $offset): JsonResponse
