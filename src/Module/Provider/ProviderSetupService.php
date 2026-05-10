@@ -424,6 +424,7 @@ final class ProviderSetupService
         return [
             'action' => $action,
             'provider' => $input['provider'] ?? 'vectavoip',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
