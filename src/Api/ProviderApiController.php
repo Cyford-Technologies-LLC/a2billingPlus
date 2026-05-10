@@ -13,6 +13,7 @@ use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\ProviderImportLogRepository;
 use A2BillingPlus\Module\Provider\ProviderRegistry;
 use A2BillingPlus\Module\Provider\RateImportRequest;
+use A2BillingPlus\Module\Provider\Twilio\TwilioApiClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
@@ -49,6 +50,12 @@ final class ProviderApiController
             'provider_status' => $this->providerStatus($request),
             'register_install' => $this->registerInstall($request),
             'test_connection' => $this->testConnection($request),
+            'twilio_inventory_snapshot' => $this->twilioInventorySnapshot($request),
+            'twilio_search_available_numbers' => $this->twilioSearchAvailableNumbers($request),
+            'twilio_purchase_number' => $this->twilioPurchaseNumber($request),
+            'twilio_create_trunk' => $this->twilioCreateTrunk($request),
+            'twilio_register_existing_trunk' => $this->twilioRegisterExistingTrunk($request),
+            'twilio_sync_inventory' => $this->twilioSyncInventory($request),
             'preview_rates' => $this->previewRates($request),
             'import_preview_rates' => $this->importPreviewRates($request),
             default => new JsonResponse(['error' => 'Unknown provider action.'], 400),
@@ -277,6 +284,228 @@ final class ProviderApiController
         return $connector;
     }
 
+    private function twilioInventorySnapshot(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio inventory is only available for the Twilio provider.'], 422);
+        }
+
+        try {
+            $credentials = $this->credentialsFromRequest($request);
+            $client = new TwilioApiClient();
+            $payload = [
+                'incoming_numbers' => $client->listIncomingPhoneNumbers($credentials, [
+                    'PageSize' => $this->boundedPageSize($request->getString('page_size', '25')),
+                ]),
+                'trunks' => $client->listTrunks($credentials, [
+                    'PageSize' => $this->boundedPageSize($request->getString('trunks_page_size', '25')),
+                ]),
+                'byoc_trunks' => $client->listByocTrunks($credentials, [
+                    'PageSize' => $this->boundedPageSize($request->getString('trunks_page_size', '25')),
+                ]),
+            ];
+            $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+            if ($trunkSid !== '' && str_starts_with($trunkSid, 'TK')) {
+                $payload['trunk_numbers'] = $client->listTrunkPhoneNumbers($credentials, $trunkSid, [
+                    'PageSize' => $this->boundedPageSize($request->getString('trunk_numbers_page_size', '25')),
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio inventory failed: ' . $exception->getMessage()], 422);
+        }
+
+        return new JsonResponse($payload + ['success' => true, 'message' => 'Twilio inventory loaded.']);
+    }
+
+    private function twilioSearchAvailableNumbers(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio number search is only available for the Twilio provider.'], 422);
+        }
+
+        $filters = [
+            'PageSize' => $this->boundedPageSize($request->getString('page_size', '20')),
+        ];
+        foreach ([
+            'contains' => 'Contains',
+            'area_code' => 'AreaCode',
+            'sms_enabled' => 'SmsEnabled',
+            'voice_enabled' => 'VoiceEnabled',
+        ] as $input => $twilioKey) {
+            $value = $request->getString($input);
+            if ($value !== '') {
+                $filters[$twilioKey] = $value;
+            }
+        }
+
+        try {
+            $numbers = (new TwilioApiClient())->searchAvailableLocalNumbers(
+                $this->credentialsFromRequest($request),
+                $request->getString('country_code', 'US'),
+                $filters
+            );
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio number search failed: ' . $exception->getMessage()], 422);
+        }
+
+        return new JsonResponse(['success' => true, 'message' => 'Twilio number search completed.', 'available_numbers' => $numbers]);
+    }
+
+    private function twilioPurchaseNumber(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio number purchase is only available for the Twilio provider.'], 422);
+        }
+
+        $phoneNumber = $request->getString('phone_number');
+        if ($phoneNumber === '') {
+            return new JsonResponse(['success' => false, 'message' => 'Phone number is required.'], 422);
+        }
+
+        $payload = ['PhoneNumber' => $phoneNumber];
+        foreach ([
+            'voice_url' => 'VoiceUrl',
+            'sms_url' => 'SmsUrl',
+        ] as $input => $twilioKey) {
+            $value = $request->getString($input);
+            if ($value !== '') {
+                $payload[$twilioKey] = $value;
+            }
+        }
+
+        try {
+            $credentials = $this->credentialsFromRequest($request);
+            $client = new TwilioApiClient();
+            $purchase = $client->purchaseIncomingPhoneNumber($credentials, $payload);
+            $attach = null;
+            $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+            $phoneNumberSid = is_scalar($purchase['sid'] ?? null) ? (string)$purchase['sid'] : '';
+            if ($trunkSid !== '' && str_starts_with($trunkSid, 'TK') && $phoneNumberSid !== '') {
+                $attach = $client->attachPhoneNumberToTrunk($credentials, $trunkSid, $phoneNumberSid);
+            }
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio number purchase failed: ' . $exception->getMessage()], 422);
+        }
+
+        return new JsonResponse([
+            'success' => true,
+            'message' => 'Twilio number purchased.',
+            'purchase' => $purchase,
+            'trunk_attachment' => $attach,
+        ]);
+    }
+
+    private function twilioCreateTrunk(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio trunk setup is only available for the Twilio provider.'], 422);
+        }
+
+        $payload = [];
+        foreach ([
+            'friendly_name' => 'FriendlyName',
+            'domain_name' => 'DomainName',
+            'cnam_lookup_enabled' => 'CnamLookupEnabled',
+        ] as $input => $twilioKey) {
+            $value = $request->getString($input);
+            if ($value !== '') {
+                $payload[$twilioKey] = $value;
+            }
+        }
+        if ($payload === []) {
+            $payload['FriendlyName'] = 'A2BillingPlus Trunk';
+        }
+
+        try {
+            $trunk = (new TwilioApiClient())->createTrunk($this->credentialsFromRequest($request), $payload);
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio trunk creation failed: ' . $exception->getMessage()], 422);
+        }
+
+        return new JsonResponse(['success' => true, 'message' => 'Twilio trunk created.', 'trunk' => $trunk]);
+    }
+
+    private function twilioRegisterExistingTrunk(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio trunk setup is only available for the Twilio provider.'], 422);
+        }
+
+        $credentials = $this->credentialsFromRequest($request);
+        $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+        if ($trunkSid === '') {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio trunk SID is required.'], 422);
+        }
+
+        try {
+            $client = new TwilioApiClient();
+            $trunk = (str_starts_with($trunkSid, 'BY') || str_starts_with($trunkSid, 'SIDBY'))
+                ? $client->getByocTrunk($credentials, $trunkSid)
+                : $client->getTrunk($credentials, $trunkSid);
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio trunk lookup failed: ' . $exception->getMessage()], 422);
+        }
+
+        return new JsonResponse(['success' => true, 'message' => 'Twilio trunk verified.', 'trunk' => $trunk]);
+    }
+
+    private function twilioSyncInventory(JsonRequest $request): JsonResponse
+    {
+        $connector = $this->getConnector($request);
+        if ($connector instanceof JsonResponse) {
+            return $connector;
+        }
+        if ($connector->getProviderCode() !== 'twilio') {
+            return new JsonResponse(['error' => 'Twilio inventory sync is only available for the Twilio provider.'], 422);
+        }
+
+        try {
+            $credentials = $this->credentialsFromRequest($request);
+            $client = new TwilioApiClient();
+            $payload = [
+                'incoming_numbers' => $client->listIncomingPhoneNumbers($credentials, [
+                    'PageSize' => $this->boundedPageSize($request->getString('page_size', '100')),
+                ]),
+                'trunks' => $client->listTrunks($credentials, [
+                    'PageSize' => $this->boundedPageSize($request->getString('trunks_page_size', '100')),
+                ]),
+                'byoc_trunks' => $client->listByocTrunks($credentials, [
+                    'PageSize' => $this->boundedPageSize($request->getString('trunks_page_size', '100')),
+                ]),
+            ];
+            $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+            if ($trunkSid !== '' && str_starts_with($trunkSid, 'TK')) {
+                $payload['trunk_numbers'] = $client->listTrunkPhoneNumbers($credentials, $trunkSid, [
+                    'PageSize' => $this->boundedPageSize($request->getString('trunk_numbers_page_size', '100')),
+                ]);
+            }
+        } catch (\Throwable $exception) {
+            return new JsonResponse(['success' => false, 'message' => 'Twilio inventory sync failed: ' . $exception->getMessage()], 422);
+        }
+
+        return new JsonResponse($payload + ['success' => true, 'message' => 'Twilio inventory sync completed.']);
+    }
+
     private function requestUnlockToken(JsonRequest $request): string
     {
         $token = $request->getString('provider_unlock_token');
@@ -289,12 +518,52 @@ final class ProviderApiController
 
     private function credentialsFromRequest(JsonRequest $request): ProviderCredentials
     {
+        $provider = $request->getString('provider', 'vectavoip');
+        $metadata = $this->stringMap($request->getArray('metadata'));
+        foreach (['account_sid', 'byoc_trunk_sid'] as $metadataKey) {
+            $value = $request->getString($metadataKey);
+            if ($value !== '') {
+                $metadata[$metadataKey] = $value;
+            }
+        }
+
+        $baseUrlDefault = $provider === 'twilio'
+            ? TwilioApiClient::API_BASE_URL
+            : $this->envString('VECTAVOIP_API_BASE_URL', VectaVoIPConnector::API_BASE_URL);
+        $apiKeyDefault = $provider === 'twilio'
+            ? $this->envString('TWILIO_API_KEY', $this->envString('TWILIO_ACCOUNT_SID'))
+            : $this->envString('VECTAVOIP_API_KEY');
+        $apiSecretDefault = $provider === 'twilio'
+            ? $this->envString('TWILIO_API_SECRET', $this->envString('TWILIO_AUTH_TOKEN'))
+            : $this->envString('VECTAVOIP_API_SECRET');
+
+        if ($provider === 'twilio' && ($metadata['account_sid'] ?? '') === '') {
+            $metadata['account_sid'] = $this->envString('TWILIO_ACCOUNT_SID');
+        }
+        if ($provider === 'twilio' && ($metadata['byoc_trunk_sid'] ?? '') === '') {
+            $metadata['byoc_trunk_sid'] = $this->envString('TWILIO_BYOC_TRUNK_SID');
+        }
+
+        $apiKey = $request->getString('api_key', $apiKeyDefault);
+        if ($provider === 'twilio' && $apiKey === '') {
+            $apiKey = $metadata['account_sid'] ?? '';
+        }
+
         return new ProviderCredentials(
-            $request->getString('base_url', $this->envString('VECTAVOIP_API_BASE_URL', VectaVoIPConnector::API_BASE_URL)),
-            $request->getString('api_key', $this->envString('VECTAVOIP_API_KEY')),
-            $request->getString('api_secret', $this->envString('VECTAVOIP_API_SECRET')),
-            $this->stringMap($request->getArray('metadata'))
+            $request->getString('base_url', $baseUrlDefault),
+            $apiKey,
+            $request->getString('api_secret', $apiSecretDefault),
+            $metadata
         );
+    }
+
+    private function boundedPageSize(string $value): string
+    {
+        if (!ctype_digit($value)) {
+            return '25';
+        }
+
+        return (string)max(1, min(1000, (int)$value));
     }
 
     private function envString(string $key, string $default = ''): string

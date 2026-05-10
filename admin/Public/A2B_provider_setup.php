@@ -45,6 +45,12 @@ $errors = [];
 $registration = [];
 $ratePreview = [];
 $rateImport = [];
+$twilioConnection = [];
+$twilioInventory = [];
+$twilioSearch = [];
+$twilioPurchase = [];
+$twilioTrunk = [];
+$twilioSync = [];
 
 $defaults = [
     'base_url' => envString('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com'),
@@ -59,6 +65,22 @@ $defaults = [
     'twilio_default_voice_url' => envString('TWILIO_DEFAULT_VOICE_URL'),
     'twilio_default_sms_url' => envString('TWILIO_DEFAULT_SMS_URL'),
     'twilio_byoc_trunk_sid' => envString('TWILIO_BYOC_TRUNK_SID'),
+    'twilio_page_size' => '25',
+    'twilio_trunks_page_size' => '25',
+    'twilio_trunk_numbers_page_size' => '25',
+    'twilio_search_page_size' => '20',
+    'twilio_country_code' => 'US',
+    'twilio_contains' => '',
+    'twilio_area_code' => '',
+    'twilio_sms_enabled' => 'true',
+    'twilio_voice_enabled' => 'true',
+    'twilio_phone_number' => '',
+    'twilio_voice_url' => envString('TWILIO_DEFAULT_VOICE_URL'),
+    'twilio_sms_url' => envString('TWILIO_DEFAULT_SMS_URL'),
+    'twilio_trunk_friendly_name' => 'A2BillingPlus Twilio Trunk',
+    'twilio_trunk_domain_name' => '',
+    'twilio_trunk_cnam_lookup_enabled' => '',
+    'twilio_sync_page_size' => '100',
     'company_name' => 'VectaVoIP',
     'company_domain' => 'VectaVoIP.com',
     'contact_name' => '',
@@ -111,6 +133,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if (providerModulesUnlocked()) {
         $input['provider_unlock_token'] = providerUnlockToken();
     }
+    if ($input['provider'] === 'twilio') {
+        $input = twilioApiInput($input);
+    }
 
     if (!in_array($formAction, ['set_ui_theme', 'save_upstream_settings'], true) && $input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
@@ -150,6 +175,62 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         }
         if (!$errors) {
             saveUpstreamSettings($envPath, $input, $messages, $errors);
+        }
+    }
+
+    if (!$errors && $formAction === 'test_twilio_connection') {
+        $twilioConnection = $providerSetup->testConnection($input);
+        if (($twilioConnection['success'] ?? false) !== true) {
+            $errors[] = (string)($twilioConnection['message'] ?? $twilioConnection['error'] ?? 'Twilio connection failed.');
+        } else {
+            $messages[] = (string)($twilioConnection['message'] ?? 'Twilio connection verified.');
+        }
+    }
+
+    if (!$errors && $formAction === 'twilio_inventory_snapshot') {
+        $twilioInventory = $providerSetup->twilioInventorySnapshot($input);
+        if (isset($twilioInventory['error']) || (($twilioInventory['success'] ?? true) !== true)) {
+            $errors[] = (string)($twilioInventory['message'] ?? $twilioInventory['error'] ?? 'Twilio inventory failed.');
+        } else {
+            $messages[] = (string)($twilioInventory['message'] ?? 'Twilio inventory loaded.');
+        }
+    }
+
+    if (!$errors && $formAction === 'twilio_search_available_numbers') {
+        $twilioSearch = $providerSetup->twilioSearchAvailableNumbers($input);
+        if (isset($twilioSearch['error']) || (($twilioSearch['success'] ?? true) !== true)) {
+            $errors[] = (string)($twilioSearch['message'] ?? $twilioSearch['error'] ?? 'Twilio number search failed.');
+        } else {
+            $messages[] = (string)($twilioSearch['message'] ?? 'Twilio number search completed.');
+        }
+    }
+
+    if (!$errors && $formAction === 'twilio_purchase_number') {
+        $twilioPurchase = $providerSetup->twilioPurchaseNumber($input);
+        if (isset($twilioPurchase['error']) || (($twilioPurchase['success'] ?? true) !== true)) {
+            $errors[] = (string)($twilioPurchase['message'] ?? $twilioPurchase['error'] ?? 'Twilio number purchase failed.');
+        } else {
+            $messages[] = (string)($twilioPurchase['message'] ?? 'Twilio number purchased.');
+        }
+    }
+
+    if (!$errors && in_array($formAction, ['twilio_create_trunk', 'twilio_register_existing_trunk'], true)) {
+        $twilioTrunk = $formAction === 'twilio_create_trunk'
+            ? $providerSetup->twilioCreateTrunk($input)
+            : $providerSetup->twilioRegisterExistingTrunk($input);
+        if (isset($twilioTrunk['error']) || (($twilioTrunk['success'] ?? true) !== true)) {
+            $errors[] = (string)($twilioTrunk['message'] ?? $twilioTrunk['error'] ?? 'Twilio trunk setup failed.');
+        } else {
+            $messages[] = (string)($twilioTrunk['message'] ?? 'Twilio trunk setup completed.');
+        }
+    }
+
+    if (!$errors && $formAction === 'twilio_sync_inventory') {
+        $twilioSync = $providerSetup->twilioSyncInventory($input);
+        if (isset($twilioSync['error']) || (($twilioSync['success'] ?? true) !== true)) {
+            $errors[] = (string)($twilioSync['message'] ?? $twilioSync['error'] ?? 'Twilio sync failed.');
+        } else {
+            $messages[] = (string)($twilioSync['message'] ?? 'Twilio sync completed.');
         }
     }
 
@@ -552,6 +633,66 @@ function envValue(string $value): string
     return $value;
 }
 
+/**
+ * @param array<string,string> $input
+ * @return array<string,string>
+ */
+function twilioApiInput(array $input): array
+{
+    $input['provider'] = 'twilio';
+    $input['base_url'] = \A2BillingPlus\Module\Provider\Twilio\TwilioApiClient::API_BASE_URL;
+    $input['account_sid'] = $input['twilio_account_sid'];
+    $input['api_key'] = $input['twilio_api_key'] !== '' ? $input['twilio_api_key'] : $input['twilio_account_sid'];
+    $input['api_secret'] = $input['twilio_api_secret'] !== '' ? $input['twilio_api_secret'] : $input['twilio_auth_token'];
+    $input['twilio_voice_url'] = $input['twilio_voice_url'] !== '' ? $input['twilio_voice_url'] : $input['twilio_default_voice_url'];
+    $input['twilio_sms_url'] = $input['twilio_sms_url'] !== '' ? $input['twilio_sms_url'] : $input['twilio_default_sms_url'];
+
+    return $input;
+}
+
+/**
+ * @param array<string,mixed> $result
+ * @return list<array{label:string,value:string}>
+ */
+function twilioResultRows(array $result): array
+{
+    $rows = [];
+    foreach ([
+        'incoming_numbers' => ['Incoming Numbers', 'incoming_phone_numbers'],
+        'available_numbers' => ['Available Numbers', 'available_phone_numbers'],
+        'trunks' => ['Elastic SIP Trunks', 'trunks'],
+        'byoc_trunks' => ['BYOC Trunks', 'byoc_trunks'],
+        'trunk_numbers' => ['Trunk Numbers', 'phone_numbers'],
+    ] as $key => [$label, $listKey]) {
+        if (!is_array($result[$key] ?? null)) {
+            continue;
+        }
+        $payload = $result[$key];
+        $items = is_array($payload[$listKey] ?? null) ? $payload[$listKey] : [];
+        $sample = '';
+        if (isset($items[0]) && is_array($items[0])) {
+            $sample = (string)($items[0]['phone_number'] ?? $items[0]['phoneNumber'] ?? $items[0]['friendly_name'] ?? $items[0]['friendlyName'] ?? $items[0]['sid'] ?? '');
+        }
+        $rows[] = [
+            'label' => $label,
+            'value' => count($items) . ($sample !== '' ? ' found; first: ' . $sample : ' found'),
+        ];
+    }
+
+    foreach (['purchase' => 'Purchased Number', 'trunk' => 'Trunk'] as $key => $label) {
+        if (!is_array($result[$key] ?? null)) {
+            continue;
+        }
+        $item = $result[$key];
+        $rows[] = [
+            'label' => $label,
+            'value' => (string)($item['phone_number'] ?? $item['phoneNumber'] ?? $item['friendly_name'] ?? $item['friendlyName'] ?? $item['sid'] ?? 'OK'),
+        ];
+    }
+
+    return $rows;
+}
+
 function h(string $value): string
 {
     return htmlspecialchars($value, ENT_QUOTES | ENT_SUBSTITUTE, 'UTF-8');
@@ -835,6 +976,85 @@ function tableExists(PDO $pdo, string $table): bool
                     </tr>
                 </table>
             </form>
+
+            <br>
+            <table width="100%" cellspacing="0" cellpadding="8" style="border-top:1px solid #ddd;">
+                <tr>
+                    <td class="form_head" colspan="2">Twilio DID, Voice, SMS, and Trunk Tools</td>
+                </tr>
+                <tr>
+                    <td colspan="2" style="color:#666;">
+                        Use these actions after saving credentials. They use the same Twilio Account SID, API/Auth credentials, callback URLs, and BYOC/trunk SID above.
+                    </td>
+                </tr>
+            </table>
+            <form method="post">
+                <input type="hidden" name="provider_context" value="twilio">
+                <input type="hidden" name="twilio_account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
+                <input type="hidden" name="twilio_api_key" value="<?php echo h($input['twilio_api_key']); ?>">
+                <input type="hidden" name="twilio_api_secret" value="<?php echo h($input['twilio_api_secret']); ?>">
+                <input type="hidden" name="twilio_auth_token" value="<?php echo h($input['twilio_auth_token']); ?>">
+                <input type="hidden" name="twilio_default_voice_url" value="<?php echo h($input['twilio_default_voice_url']); ?>">
+                <input type="hidden" name="twilio_default_sms_url" value="<?php echo h($input['twilio_default_sms_url']); ?>">
+                <input type="hidden" name="twilio_byoc_trunk_sid" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>">
+                <table width="100%" cellspacing="0" cellpadding="8">
+                    <tr>
+                        <td width="220">Connection</td>
+                        <td>
+                            <button class="form_input_button" name="form_action" type="submit" value="test_twilio_connection">Test Twilio Auth</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="twilio_inventory_snapshot">Load Inventory</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="twilio_sync_inventory">Sync Inventory</button>
+                            Page size <input name="twilio_page_size" type="text" size="5" value="<?php echo h($input['twilio_page_size']); ?>">
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_country_code">Search Available DIDs</label></td>
+                        <td>
+                            Country <input id="twilio_country_code" name="twilio_country_code" type="text" size="4" value="<?php echo h($input['twilio_country_code']); ?>">
+                            Area code <input name="twilio_area_code" type="text" size="8" value="<?php echo h($input['twilio_area_code']); ?>">
+                            Contains <input name="twilio_contains" type="text" size="18" value="<?php echo h($input['twilio_contains']); ?>">
+                            Limit <input name="twilio_search_page_size" type="text" size="5" value="<?php echo h($input['twilio_search_page_size']); ?>">
+                            <label><input name="twilio_voice_enabled" type="checkbox" value="true" <?php echo $input['twilio_voice_enabled'] !== '' ? 'checked' : ''; ?>> Voice</label>
+                            <label><input name="twilio_sms_enabled" type="checkbox" value="true" <?php echo $input['twilio_sms_enabled'] !== '' ? 'checked' : ''; ?>> SMS</label>
+                            <button class="form_input_button" name="form_action" type="submit" value="twilio_search_available_numbers">Search Numbers</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_phone_number">Purchase DID</label></td>
+                        <td>
+                            Number <input id="twilio_phone_number" name="twilio_phone_number" type="text" size="20" value="<?php echo h($input['twilio_phone_number']); ?>" placeholder="+15551234567">
+                            Voice URL <input name="twilio_voice_url" type="text" size="38" value="<?php echo h($input['twilio_voice_url']); ?>">
+                            SMS URL <input name="twilio_sms_url" type="text" size="38" value="<?php echo h($input['twilio_sms_url']); ?>">
+                            <button class="form_input_button" name="form_action" type="submit" value="twilio_purchase_number" onclick="return confirm('Purchase this DID from Twilio now?');">Purchase DID</button>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_trunk_friendly_name">Trunk/BYOC</label></td>
+                        <td>
+                            Name <input id="twilio_trunk_friendly_name" name="twilio_trunk_friendly_name" type="text" size="28" value="<?php echo h($input['twilio_trunk_friendly_name']); ?>">
+                            Domain <input name="twilio_trunk_domain_name" type="text" size="28" value="<?php echo h($input['twilio_trunk_domain_name']); ?>">
+                            <label><input name="twilio_trunk_cnam_lookup_enabled" type="checkbox" value="true" <?php echo $input['twilio_trunk_cnam_lookup_enabled'] !== '' ? 'checked' : ''; ?>> CNAM</label>
+                            <button class="form_input_button" name="form_action" type="submit" value="twilio_register_existing_trunk">Verify Saved Trunk</button>
+                            <button class="form_input_button" name="form_action" type="submit" value="twilio_create_trunk">Create Trunk</button>
+                        </td>
+                    </tr>
+                </table>
+            </form>
+
+            <?php $twilioResult = $twilioInventory ?: ($twilioSearch ?: ($twilioPurchase ?: ($twilioTrunk ?: $twilioSync))); ?>
+            <?php if ($twilioResult): ?>
+                <br>
+                <table width="100%" cellspacing="0" cellpadding="6" border="0">
+                    <tr><td class="form_head" colspan="6">Twilio Action Result</td></tr>
+                    <tr><td colspan="6"><?php echo h((string)($twilioResult['message'] ?? 'Completed.')); ?></td></tr>
+                    <?php foreach (twilioResultRows($twilioResult) as $row): ?>
+                        <tr>
+                            <td width="160"><strong><?php echo h((string)($row['label'] ?? 'Item')); ?></strong></td>
+                            <td><?php echo h((string)($row['value'] ?? '')); ?></td>
+                        </tr>
+                    <?php endforeach; ?>
+                </table>
+            <?php endif; ?>
 
             <br>
             <table width="100%" cellspacing="0" cellpadding="8" style="border-top:1px solid #ddd;">

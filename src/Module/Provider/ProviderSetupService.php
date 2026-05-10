@@ -49,6 +49,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'test_connection',
             'provider' => $input['provider'],
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
@@ -215,6 +216,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'twilio_inventory_snapshot',
             'provider' => 'twilio',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
@@ -234,6 +236,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'twilio_search_available_numbers',
             'provider' => 'twilio',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
@@ -256,6 +259,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'twilio_purchase_number',
             'provider' => 'twilio',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
@@ -276,6 +280,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'twilio_create_trunk',
             'provider' => 'twilio',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
@@ -296,6 +301,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'twilio_register_existing_trunk',
             'provider' => 'twilio',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
@@ -313,6 +319,7 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'twilio_sync_inventory',
             'provider' => 'twilio',
+            'provider_unlock_token' => $input['provider_unlock_token'] ?? '',
             'base_url' => $input['base_url'],
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
