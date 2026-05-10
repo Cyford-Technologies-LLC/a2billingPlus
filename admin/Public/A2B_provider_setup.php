@@ -119,6 +119,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($formAction === 'lock_provider_modules') {
         $_SESSION['a2bp_provider_modules_unlocked'] = false;
+        saveRuntimeSettings(['A2BP_PROVIDER_MODULES_UNLOCKED' => '0'], [], $messages, $errors);
         $messages[] = 'Locked non-VectaVoIP provider modules for this session.';
     }
 
@@ -549,12 +550,21 @@ function unlockProviderModules(string $token, array &$messages, array &$errors):
     }
 
     $_SESSION['a2bp_provider_modules_unlocked'] = true;
-    $messages[] = 'Unlocked non-VectaVoIP provider modules for this session.';
+    saveRuntimeSettings(['A2BP_PROVIDER_MODULES_UNLOCKED' => '1'], [], $messages, $errors);
+    if ($errors) {
+        return;
+    }
+
+    $messages[] = 'Unlocked non-VectaVoIP provider modules.';
 }
 
 function providerModulesUnlocked(): bool
 {
-    return !empty($_SESSION['a2bp_provider_modules_unlocked']);
+    if (!empty($_SESSION['a2bp_provider_modules_unlocked'])) {
+        return true;
+    }
+
+    return envString('A2BP_PROVIDER_MODULES_UNLOCKED', '0') === '1';
 }
 
 function providerUnlockToken(): string
