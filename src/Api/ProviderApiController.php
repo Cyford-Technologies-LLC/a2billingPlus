@@ -143,6 +143,7 @@ final class ProviderApiController
         }
 
         $targetRatecardId = (int)$request->getString('target_ratecard_id');
+        $targetTrunkId = max(0, (int)$request->getString('target_trunk_id'));
         $dryRun = $request->getString('dry_run', '1') !== '0';
         $updateExisting = $request->getString('update_existing', '0') === '1';
         $rateDeck = $request->getString('rate_deck', 'default');
@@ -173,7 +174,8 @@ final class ProviderApiController
                 $targetRatecardId,
                 'VectaVoIP:' . $rateDeck,
                 $dryRun,
-                $updateExisting
+                $updateExisting,
+                $targetTrunkId
             );
             $this->recordImportLog($pdo, $connector->getProviderCode(), $rateDeck, $targetRatecardId, $dryRun, $summary);
         } catch (\Throwable $exception) {
@@ -184,6 +186,7 @@ final class ProviderApiController
                 'skipped_rows' => 0,
                 'dry_run' => $dryRun,
                 'update_existing' => $updateExisting,
+                'target_trunk_id' => $targetTrunkId,
             ], 500);
         }
 
@@ -194,6 +197,7 @@ final class ProviderApiController
             'skipped_rows' => $summary->getSkippedRows(),
             'dry_run' => $dryRun,
             'update_existing' => $updateExisting,
+            'target_trunk_id' => $targetTrunkId,
         ], $summary->isSuccessful() ? 200 : 422);
     }
 

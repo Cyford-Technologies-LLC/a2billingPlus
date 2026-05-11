@@ -6,6 +6,9 @@ namespace A2BillingPlus\Module\Rate;
 
 final class RatecardImportService
 {
+    /** @var null|list<string> */
+    private ?array $ratecardColumns = null;
+
     public function __construct(
         private readonly \PDO $pdo,
         private readonly RatecardRowMapper $mapper = new RatecardRowMapper()
@@ -20,9 +23,9 @@ final class RatecardImportService
         int $tariffPlanId,
         string $tag,
         bool $dryRun,
-        bool $updateExisting = false
-    ): RatecardImportSummary
-    {
+        bool $updateExisting = false,
+        int $trunkId = 0
+    ): RatecardImportSummary {
         if ($tariffPlanId <= 0) {
             return new RatecardImportSummary(false, 0, count($providerRows), 'A target ratecard ID is required.');
         }
@@ -39,6 +42,14 @@ final class RatecardImportService
             $mappedRows[] = $this->mapper->map($providerRow, $tariffPlanId, $tag);
         }
 
+        $optionalColumns = [];
+        if ($this->ratecardHasColumn('musiconhold')) {
+            $optionalColumns['musiconhold'] = '';
+        }
+        if ($trunkId > 0 && $this->ratecardHasColumn('id_trunk')) {
+            $optionalColumns['id_trunk'] = $trunkId;
+        }
+
         $insertColumns = [
             'idtariffplan',
             'dialprefix',
@@ -50,26 +61,32 @@ final class RatecardImportService
             'initblock',
             'billingblock',
             'tag',
+            ...array_keys($optionalColumns),
         ];
-        $insertDefaults = [];
-        if ($this->columnExists('cc_ratecard', 'musiconhold')) {
-            $insertColumns[] = 'musiconhold';
-            $insertDefaults['musiconhold'] = '';
-        }
+        $insertPlaceholders = array_map(static fn (string $column): string => ':' . $column, $insertColumns);
 
         $insertStatement = $this->pdo->prepare(
             'INSERT INTO cc_ratecard (' . implode(', ', $insertColumns) . ')
-             VALUES (:' . implode(', :', $insertColumns) . ')'
+             VALUES (' . implode(', ', $insertPlaceholders) . ')'
         );
+        $updateAssignments = [
+            'destination = :destination',
+            'buyrate = :buyrate',
+            'buyrateinitblock = :buyrateinitblock',
+            'buyrateincrement = :buyrateincrement',
+            'rateinitial = :rateinitial',
+            'initblock = :initblock',
+            'billingblock = :billingblock',
+        ];
+        if (array_key_exists('musiconhold', $optionalColumns)) {
+            $updateAssignments[] = 'musiconhold = :musiconhold';
+        }
+        if (array_key_exists('id_trunk', $optionalColumns)) {
+            $updateAssignments[] = 'id_trunk = :id_trunk';
+        }
         $updateStatement = $this->pdo->prepare(
             'UPDATE cc_ratecard
-             SET destination = :destination,
-                 buyrate = :buyrate,
-                 buyrateinitblock = :buyrateinitblock,
-                 buyrateincrement = :buyrateincrement,
-                 rateinitial = :rateinitial,
-                 initblock = :initblock,
-                 billingblock = :billingblock
+             SET ' . implode(",\n                 ", $updateAssignments) . '
              WHERE idtariffplan = :idtariffplan AND dialprefix = :dialprefix AND tag = :tag'
         );
 
@@ -87,11 +104,11 @@ final class RatecardImportService
             }
 
             $this->upsertPrefix((string)$row['dialprefix'], (string)($row['destination_name'] ?? ''));
-            $dbRow = $this->ratecardDbRow($row);
+            $dbRow = array_merge($this->ratecardDbRow($row), $optionalColumns);
             if ($existing !== null) {
                 $updateStatement->execute($dbRow);
             } else {
-                $insertStatement->execute($dbRow + $insertDefaults);
+                $insertStatement->execute($dbRow);
             }
             $changedRows++;
         }
@@ -149,34 +166,32 @@ final class RatecardImportService
         }
     }
 
-    private function columnExists(string $table, string $column): bool
+    private function ratecardHasColumn(string $column): bool
     {
-        if (!preg_match('/^[A-Za-z0-9_]+$/', $table) || !preg_match('/^[A-Za-z0-9_]+$/', $column)) {
-            return false;
+        if (is_array($this->ratecardColumns)) {
+            return in_array($column, $this->ratecardColumns, true);
         }
 
         try {
-            $statement = $this->pdo->query('SHOW COLUMNS FROM `' . $table . '` LIKE ' . $this->pdo->quote($column));
-            if ($statement !== false && $statement->fetch(\PDO::FETCH_ASSOC) !== false) {
-                return true;
+            if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+                $statement = $this->pdo->query('PRAGMA table_info(cc_ratecard)');
+                $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+                $this->ratecardColumns = array_map(static fn (array $row): string => (string)($row['name'] ?? ''), $rows);
+                return in_array($column, $this->ratecardColumns, true);
             }
+
+            $statement = $this->pdo->prepare(
+                'SELECT COLUMN_NAME
+                 FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+            );
+            $statement->execute(['cc_ratecard']);
+            $this->ratecardColumns = array_map('strval', $statement->fetchAll(\PDO::FETCH_COLUMN));
         } catch (\Throwable) {
+            $this->ratecardColumns = [];
         }
 
-        try {
-            $statement = $this->pdo->query('PRAGMA table_info(' . $table . ')');
-            if ($statement === false) {
-                return false;
-            }
-            while (($row = $statement->fetch(\PDO::FETCH_ASSOC)) !== false) {
-                if (strcasecmp((string)($row['name'] ?? ''), $column) === 0) {
-                    return true;
-                }
-            }
-        } catch (\Throwable) {
-        }
-
-        return false;
+        return in_array($column, $this->ratecardColumns, true);
     }
 
     private function tableExists(string $table): bool

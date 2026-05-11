@@ -127,8 +127,29 @@ final class RatecardImportServiceTest extends TestCase
         ], 7, 'VectaVoIP:retail', false);
 
         $this->assertTrue($summary->isSuccessful());
-        $this->assertSame('1800', $pdo->query('SELECT destination FROM cc_ratecard')->fetchColumn());
+        $this->assertSame(1800, $pdo->query('SELECT destination FROM cc_ratecard')->fetchColumn());
         $this->assertSame('United States Toll-Free', $pdo->query('SELECT destination FROM cc_prefix WHERE prefix = 1800')->fetchColumn());
+    }
+
+    public function testBindsImportedRowsToTrunkWhenRatecardSupportsIt(): void
+    {
+        $pdo = $this->ratecardPdoWithTrunk();
+        $service = new RatecardImportService($pdo);
+
+        $summary = $service->importRows([
+            ['destination' => 'United States', 'prefix' => '1', 'rate' => '0.0100', 'increment' => 60],
+        ], 7, 'Twilio:retail', false, false, 3);
+
+        $this->assertTrue($summary->isSuccessful());
+        $this->assertSame(3, (int)$pdo->query('SELECT id_trunk FROM cc_ratecard')->fetchColumn());
+        $this->assertSame('', $pdo->query('SELECT musiconhold FROM cc_ratecard')->fetchColumn());
+
+        $updated = $service->importRows([
+            ['destination' => 'United States', 'prefix' => '1', 'rate' => '0.0200', 'increment' => 60],
+        ], 7, 'Twilio:retail', false, true, 4);
+
+        $this->assertTrue($updated->isSuccessful());
+        $this->assertSame(4, (int)$pdo->query('SELECT id_trunk FROM cc_ratecard')->fetchColumn());
     }
 
     private function ratecardPdo(): PDO
@@ -147,6 +168,31 @@ final class RatecardImportServiceTest extends TestCase
                 rateinitial TEXT,
                 initblock INTEGER,
                 billingblock INTEGER,
+                tag TEXT
+            )'
+        );
+
+        return $pdo;
+    }
+
+    private function ratecardPdoWithTrunk(): PDO
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec(
+            'CREATE TABLE cc_ratecard (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                idtariffplan INTEGER,
+                dialprefix TEXT,
+                destination INTEGER,
+                buyrate TEXT,
+                buyrateinitblock INTEGER,
+                buyrateincrement INTEGER,
+                rateinitial TEXT,
+                initblock INTEGER,
+                billingblock INTEGER,
+                id_trunk INTEGER DEFAULT -1,
+                musiconhold TEXT NOT NULL DEFAULT \'\',
                 tag TEXT
             )'
         );

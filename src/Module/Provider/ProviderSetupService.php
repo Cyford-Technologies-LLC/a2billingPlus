@@ -348,6 +348,9 @@ final class ProviderSetupService
     {
         $body = $this->providerRateRequestBody('import_preview_rates', $input);
         $body['target_ratecard_id'] = $input['target_ratecard_id'];
+        if (!empty($input['target_trunk_id'])) {
+            $body['target_trunk_id'] = $input['target_trunk_id'];
+        }
         $body['dry_run'] = $dryRun ? '1' : '0';
         $body['update_existing'] = $input['update_existing'] === '1' ? '1' : '0';
 

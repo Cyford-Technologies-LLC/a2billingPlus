@@ -49,10 +49,11 @@ final class RateImportController
 
         $dryRun = $request->getString('dry_run', '1') !== '0';
         $updateExisting = $request->getString('update_existing', '0') === '1';
+        $trunkId = max(0, $request->getInt('trunk_id'));
 
         try {
             $pdo = ($this->pdoFactory)();
-            $summary = (new RatecardImportService($pdo))->importRows($rows, $tariffPlanId, $tag, $dryRun, $updateExisting);
+            $summary = (new RatecardImportService($pdo))->importRows($rows, $tariffPlanId, $tag, $dryRun, $updateExisting, $trunkId);
             (new AuditLogRepository($pdo))->record(
                 $request->getHeader('X-A2BP-Actor') ?: 'service-key',
                 'rate.import.apply',
@@ -62,6 +63,7 @@ final class RateImportController
                     'tag' => $tag,
                     'dry_run' => $dryRun,
                     'update_existing' => $updateExisting,
+                    'trunk_id' => $trunkId,
                     'imported_rows' => $summary->getImportedRows(),
                     'skipped_rows' => $summary->getSkippedRows(),
                 ]
@@ -78,6 +80,7 @@ final class RateImportController
                 'skipped_rows' => $summary->getSkippedRows(),
                 'dry_run' => $dryRun,
                 'update_existing' => $updateExisting,
+                'trunk_id' => $trunkId,
             ],
         ], [
             'resource' => 'rate-imports',
