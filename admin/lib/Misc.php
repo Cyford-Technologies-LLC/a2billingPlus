@@ -454,6 +454,15 @@ function res_display_dateformat($mydate)
     return $mydate;
 }
 
+function res_display_zero_if_empty($value)
+{
+    if ($value === null || trim((string)$value) === '') {
+        return '0';
+    }
+
+    return $value;
+}
+
 function res_display_timeformat($mydate)
 {
     if (DB_TYPE == "mysql") {

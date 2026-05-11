@@ -1683,7 +1683,7 @@ class FormHandler
 
 					if ($this->FG_DEBUG == 1) echo "<br>$fields_name : ".$processed[$fields_name];
 					if ($i>0 && $this->FG_TABLE_EDITION[$i][3]!= "SPAN") $param_update .= ", ";
-					if (empty($processed[$fields_name]) && strtoupper(substr($this->FG_TABLE_EDITION[$i][13],3,4))=="NULL"){
+					if ((!isset($processed[$fields_name]) || trim((string)$processed[$fields_name]) === '') && strtoupper(substr($this->FG_TABLE_EDITION[$i][13],3,4))=="NULL"){
 						$param_update .= $fields_name." = NULL ";
 					} else {
 						if($this->FG_TABLE_EDITION[$i][3]!= "SPAN") {
