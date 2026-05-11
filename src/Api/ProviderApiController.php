@@ -713,7 +713,7 @@ final class ProviderApiController
             'success' => true,
             'message' => $attachedTrunk === []
                 ? 'Twilio phone number purchased.'
-                : 'Twilio phone number purchased and attached to the preferred BYOC trunk.',
+                : 'Twilio phone number purchased and attached to the preferred Twilio trunk.',
             'number' => $this->normalizeTwilioIncomingNumber($result),
             'attached_trunk' => $attachedTrunk,
         ], 201);
@@ -778,7 +778,7 @@ final class ProviderApiController
         if ($trunkSid === '') {
             return new JsonResponse([
                 'success' => false,
-                'message' => 'Twilio BYOC trunk SID is required.',
+                'message' => 'Twilio trunk SID is required.',
             ], 422);
         }
 
@@ -796,7 +796,7 @@ final class ProviderApiController
 
         return new JsonResponse([
             'success' => true,
-            'message' => 'Twilio BYOC trunk linked locally.',
+            'message' => 'Twilio trunk linked locally.',
             'remote_trunk' => $this->normalizeTwilioTrunk($result),
             'local_trunk' => $local,
         ]);
@@ -926,7 +926,9 @@ final class ProviderApiController
                 [
                     'api_version' => $request->getString('api_version', $this->envString($this->providerEnvKey($providerCode, 'API_VERSION'))),
                     'account_sid' => $request->getString('account_sid', $this->envString($this->providerEnvKey($providerCode, 'ACCOUNT_SID'))),
-                    'byoc_trunk_sid' => $request->getString('byoc_trunk_sid', $this->envString($this->providerEnvKey($providerCode, 'BYOC_TRUNK_SID'))),
+                    'byoc_trunk_sid' => $providerCode === 'twilio'
+                        ? $request->getString('byoc_trunk_sid', $this->envString('TWILIO_ELASTIC_TRUNK_SID', $this->envString($this->providerEnvKey($providerCode, 'BYOC_TRUNK_SID'))))
+                        : $request->getString('byoc_trunk_sid', $this->envString($this->providerEnvKey($providerCode, 'BYOC_TRUNK_SID'))),
                 ]
             )
         );
@@ -1015,7 +1017,17 @@ final class ProviderApiController
 
     private function preferredTwilioTrunkSid(JsonRequest $request): string
     {
-        return trim($request->getString('byoc_trunk_sid', $this->envString($this->providerEnvKey('twilio', 'BYOC_TRUNK_SID'))));
+        $requested = trim($request->getString('byoc_trunk_sid'));
+        if ($requested !== '') {
+            return $requested;
+        }
+
+        $elastic = $this->envString('TWILIO_ELASTIC_TRUNK_SID', $this->envString('TWILIO_TRUNK_SID'));
+        if ($elastic !== '') {
+            return trim($elastic);
+        }
+
+        return trim($this->envString($this->providerEnvKey('twilio', 'BYOC_TRUNK_SID')));
     }
 
     /**

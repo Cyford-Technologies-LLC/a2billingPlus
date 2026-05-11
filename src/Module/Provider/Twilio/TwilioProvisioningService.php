@@ -296,7 +296,7 @@ final class TwilioProvisioningService
             return 'sip.twilio.com';
         }
 
-        return '';
+        return $this->envHost('TWILIO_ELASTIC_TERMINATION_URI', 'vectavoip.pstn.twilio.com');
     }
 
     private function hostFromUri(string $value): string
@@ -316,6 +316,23 @@ final class TwilioProvisioningService
         }
 
         return preg_replace('#^[A-Za-z]+:#', '', $value) ?? '';
+    }
+
+    private function envHost(string $key, string $default = ''): string
+    {
+        $value = trim((string) getenv($key));
+        if ($value === '') {
+            $value = $default;
+        }
+        if ($value === '') {
+            return '';
+        }
+
+        $value = preg_replace('#^[A-Za-z]+:#', '', $value) ?? $value;
+        $value = preg_replace('#^//#', '', $value) ?? $value;
+        $value = preg_replace('#^([^@/]+@)#', '', $value) ?? $value;
+        $value = preg_replace('#[/?\#].*$#', '', $value) ?? $value;
+        return trim($value);
     }
 
     private function trunkTechnology(): string

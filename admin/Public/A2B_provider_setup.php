@@ -44,6 +44,8 @@ $errors = [];
 $registration = [];
 $ratePreview = [];
 $rateImport = [];
+$twilioRoutingMode = twilioRoutingMode(envString('TWILIO_ROUTING_MODE', 'elastic'));
+$twilioElasticTrunkSid = envString('TWILIO_ELASTIC_TRUNK_SID', envString('TWILIO_TRUNK_SID'));
 $twilioByocTrunkSid = envString('TWILIO_BYOC_TRUNK_SID');
 
 $defaults = [
@@ -58,8 +60,13 @@ $defaults = [
     'twilio_auth_token' => envString('TWILIO_AUTH_TOKEN'),
     'twilio_default_voice_url' => envString('TWILIO_DEFAULT_VOICE_URL'),
     'twilio_default_sms_url' => envString('TWILIO_DEFAULT_SMS_URL'),
+    'twilio_routing_mode' => $twilioRoutingMode,
+    'twilio_elastic_trunk_sid' => $twilioElasticTrunkSid,
+    'twilio_elastic_termination_uri' => envString('TWILIO_ELASTIC_TERMINATION_URI', 'vectavoip.pstn.twilio.com'),
+    'twilio_elastic_origination_uri' => envString('TWILIO_ELASTIC_ORIGINATION_URI', 'sip:sip.vectavoip.com'),
+    'twilio_sip_domain' => envString('TWILIO_SIP_DOMAIN', 'vectavoip.sip.twilio.com'),
     'twilio_byoc_trunk_sid' => $twilioByocTrunkSid,
-    'twilio_trunk_technology' => twilioDefaultTrunkTechnology($twilioByocTrunkSid),
+    'twilio_trunk_technology' => twilioDefaultTrunkTechnology($twilioRoutingMode, $twilioElasticTrunkSid, $twilioByocTrunkSid),
     'twilio_default_caller_id' => envString('TWILIO_DEFAULT_CALLER_ID'),
     'company_name' => 'VectaVoIP',
     'company_domain' => 'VectaVoIP.com',
@@ -110,6 +117,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
     $input['auto_create_ratecard'] = isset($_POST['auto_create_ratecard']) ? '1' : '';
     $input['twilio_sandbox_mode'] = isset($_POST['twilio_sandbox_mode']) ? '1' : '0';
+    $input['twilio_routing_mode'] = twilioRoutingMode($input['twilio_routing_mode']);
+    $input['twilio_elastic_termination_uri'] = twilioNormalizeHost($input['twilio_elastic_termination_uri']);
+    $input['twilio_elastic_origination_uri'] = twilioNormalizeSipUri($input['twilio_elastic_origination_uri']);
+    $input['twilio_sip_domain'] = twilioNormalizeHost($input['twilio_sip_domain']);
     $input['twilio_trunk_technology'] = twilioOutboundTrunkTechnology($input['twilio_trunk_technology']);
     $input['provider'] = trim((string)($_POST['provider_context'] ?? $_POST['provider'] ?? 'vectavoip'));
 
@@ -149,8 +160,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!in_array($input['default_upstream_provider'], ['local', 'twilio'], true)) {
             $errors[] = 'Default upstream provider must be local or twilio.';
         }
+        if (($input['provider'] ?? '') === 'twilio' && twilioOutboundTrunkHost($input) === '') {
+            $errors[] = 'Twilio outbound routing needs a termination host or SIP domain.';
+        }
         if (!$errors) {
             saveUpstreamSettings($envPath, $input, $messages, $errors);
+            if (!$errors && ($input['provider'] ?? '') === 'twilio') {
+                $trunkId = ensureTwilioOutboundTrunk(providerSetupPdo(), $input);
+                if ($trunkId > 0) {
+                    $messages[] = 'Created or updated A2Billing Twilio outbound trunk #' . $trunkId . ' for ' . twilioRoutingModeLabel($input['twilio_routing_mode']) . '.';
+                }
+            }
         }
     }
 
@@ -167,7 +187,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $rateImportPdo = providerSetupPdo();
         $twilioCidGroupId = 0;
         if (($input['provider'] ?? '') === 'twilio') {
-            $twilioTrunkId = ensureTwilioOutboundTrunk($rateImportPdo, $input['twilio_byoc_trunk_sid'], $input['twilio_trunk_technology']);
+            $twilioTrunkId = ensureTwilioOutboundTrunk($rateImportPdo, $input);
             if ($twilioTrunkId > 0) {
                 $input['target_trunk_id'] = (string)$twilioTrunkId;
             }
@@ -391,6 +411,11 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         'TWILIO_AUTH_TOKEN' => $input['twilio_auth_token'],
         'TWILIO_DEFAULT_VOICE_URL' => $input['twilio_default_voice_url'],
         'TWILIO_DEFAULT_SMS_URL' => $input['twilio_default_sms_url'],
+        'TWILIO_ROUTING_MODE' => twilioRoutingMode($input['twilio_routing_mode']),
+        'TWILIO_ELASTIC_TRUNK_SID' => $input['twilio_elastic_trunk_sid'],
+        'TWILIO_ELASTIC_TERMINATION_URI' => twilioNormalizeHost($input['twilio_elastic_termination_uri']),
+        'TWILIO_ELASTIC_ORIGINATION_URI' => twilioNormalizeSipUri($input['twilio_elastic_origination_uri']),
+        'TWILIO_SIP_DOMAIN' => twilioNormalizeHost($input['twilio_sip_domain']),
         'TWILIO_BYOC_TRUNK_SID' => $input['twilio_byoc_trunk_sid'],
         'TWILIO_TRUNK_TECHNOLOGY' => twilioOutboundTrunkTechnology($input['twilio_trunk_technology']),
         'TWILIO_DEFAULT_CALLER_ID' => $input['twilio_default_caller_id'],
@@ -625,7 +650,7 @@ function twilioModuleStatus(): string
     }
 
     if (envString('VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER', 'local') === 'twilio') {
-        return 'Configured - DID purchasing enabled';
+        return 'Configured - ' . twilioRoutingModeLabel(twilioRoutingMode(envString('TWILIO_ROUTING_MODE', 'elastic')));
     }
 
     return 'Configured';
@@ -678,18 +703,22 @@ function ensureTwilioOutboundRatePlan(PDO $pdo, string $ratecardName, string $ca
     ];
 }
 
-function ensureTwilioOutboundTrunk(PDO $pdo, string $byocTrunkSid, string $technology = ''): int
+/**
+ * @param array<string, string> $input
+ */
+function ensureTwilioOutboundTrunk(PDO $pdo, array $input): int
 {
-    $trunkId = findTwilioOutboundTrunkId($pdo, $byocTrunkSid);
+    $trunkId = findTwilioOutboundTrunkId($pdo, $input);
     if ($trunkId > 0) {
-        normalizeTwilioOutboundTrunk($pdo, $trunkId, $technology);
+        normalizeTwilioOutboundTrunk($pdo, $trunkId, $input);
         return $trunkId;
     }
 
-    $sid = twilioPreferredTrunkSid($byocTrunkSid);
-    if ($sid === '') {
+    $host = twilioOutboundTrunkHost($input);
+    if ($host === '') {
         return 0;
     }
+    $syncKey = twilioOutboundTrunkSyncKey($input);
 
     $providerId = findNamedId($pdo, 'cc_provider', 'provider_name', 'Twilio');
     if ($providerId <= 0) {
@@ -702,23 +731,45 @@ function ensureTwilioOutboundTrunk(PDO $pdo, string $byocTrunkSid, string $techn
         'INSERT INTO cc_trunk
             (trunkcode, trunkprefix, providertech, providerip, removeprefix, failover_trunk, addparameter,
              id_provider, inuse, maxuse, status, if_max_use)
-         VALUES (?, "", ?, "sip.twilio.com", "", 0, ?, ?, 0, -1, 1, 0)'
+         VALUES (?, "", ?, ?, "", 0, ?, ?, 0, -1, 1, 0)'
     );
     $statement->execute([
-        twilioTrunkCode($sid),
-        twilioOutboundTrunkTechnology($technology),
-        'twilio_trunk:' . $sid,
+        twilioTrunkCode($input),
+        twilioOutboundTrunkTechnology($input['twilio_trunk_technology'] ?? ''),
+        $host,
+        $syncKey,
         $providerId,
     ]);
 
     return (int)$pdo->lastInsertId();
 }
 
-function findTwilioOutboundTrunkId(PDO $pdo, string $byocTrunkSid): int
+/**
+ * @param array<string, string> $input
+ */
+function findTwilioOutboundTrunkId(PDO $pdo, array $input): int
 {
-    foreach (twilioTrunkSidCandidates($byocTrunkSid) as $sid) {
+    foreach (twilioOutboundTrunkSyncKeyCandidates($input) as $syncKey) {
         $statement = $pdo->prepare('SELECT id_trunk FROM cc_trunk WHERE addparameter = ? LIMIT 1');
-        $statement->execute(['twilio_trunk:' . $sid]);
+        $statement->execute([$syncKey]);
+        $id = $statement->fetchColumn();
+        if ($id !== false) {
+            return (int)$id;
+        }
+    }
+
+    $host = twilioOutboundTrunkHost($input);
+    if ($host !== '') {
+        $statement = $pdo->prepare(
+            "SELECT t.id_trunk
+             FROM cc_trunk t
+             LEFT JOIN cc_provider p ON p.id = t.id_provider
+             WHERE LOWER(t.providerip) = LOWER(?)
+               AND (LOWER(p.provider_name) = 'twilio' OR t.addparameter LIKE 'twilio_%:%' OR t.addparameter LIKE 'twilio_trunk:%')
+             ORDER BY t.id_trunk DESC
+             LIMIT 1"
+        );
+        $statement->execute([$host]);
         $id = $statement->fetchColumn();
         if ($id !== false) {
             return (int)$id;
@@ -731,6 +782,10 @@ function findTwilioOutboundTrunkId(PDO $pdo, string $byocTrunkSid): int
          LEFT JOIN cc_provider p ON p.id = t.id_provider
          WHERE t.addparameter = 'twilio_trunk'
             OR t.addparameter LIKE 'twilio_trunk:%'
+            OR t.addparameter LIKE 'twilio_elastic_trunk:%'
+            OR t.addparameter LIKE 'twilio_elastic_host:%'
+            OR t.addparameter LIKE 'twilio_sip_domain:%'
+            OR t.addparameter LIKE 'twilio_byoc_trunk:%'
             OR UPPER(t.trunkcode) LIKE 'TWILIO%'
             OR UPPER(t.trunkcode) LIKE 'TW%'
             OR LOWER(p.provider_name) = 'twilio'
@@ -819,21 +874,35 @@ function ensureTwilioOutboundCidGroup(PDO $pdo, string $callerId): int
     return $groupId;
 }
 
-function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, string $technology = ''): void
+/**
+ * @param array<string, string> $input
+ */
+function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, array $input): void
 {
+    $host = twilioOutboundTrunkHost($input);
+    if ($host === '') {
+        return;
+    }
+
     $statement = $pdo->prepare(
         'UPDATE cc_trunk
          SET providertech = ?,
-             providerip = CASE WHEN providerip IS NULL OR providerip = "" THEN "sip.twilio.com" ELSE providerip END,
+             providerip = ?,
+             addparameter = ?,
              status = 1
          WHERE id_trunk = ?'
     );
-    $statement->execute([twilioOutboundTrunkTechnology($technology), $trunkId]);
+    $statement->execute([
+        twilioOutboundTrunkTechnology($input['twilio_trunk_technology'] ?? ''),
+        $host,
+        twilioOutboundTrunkSyncKey($input),
+        $trunkId,
+    ]);
 }
 
-function twilioDefaultTrunkTechnology(string $byocTrunkSid): string
+function twilioDefaultTrunkTechnology(string $routingMode, string $elasticTrunkSid, string $byocTrunkSid): string
 {
-    $existing = twilioExistingTrunkTechnology($byocTrunkSid);
+    $existing = twilioExistingTrunkTechnology($routingMode, $elasticTrunkSid, $byocTrunkSid);
     if ($existing !== '') {
         return twilioOutboundTrunkTechnology($existing);
     }
@@ -841,11 +910,17 @@ function twilioDefaultTrunkTechnology(string $byocTrunkSid): string
     return twilioOutboundTrunkTechnology(envString('TWILIO_TRUNK_TECHNOLOGY'));
 }
 
-function twilioExistingTrunkTechnology(string $byocTrunkSid): string
+function twilioExistingTrunkTechnology(string $routingMode, string $elasticTrunkSid, string $byocTrunkSid): string
 {
     try {
         $pdo = providerSetupPdo();
-        $trunkId = findTwilioOutboundTrunkId($pdo, $byocTrunkSid);
+        $trunkId = findTwilioOutboundTrunkId($pdo, [
+            'twilio_routing_mode' => $routingMode,
+            'twilio_elastic_trunk_sid' => $elasticTrunkSid,
+            'twilio_elastic_termination_uri' => envString('TWILIO_ELASTIC_TERMINATION_URI', 'vectavoip.pstn.twilio.com'),
+            'twilio_sip_domain' => envString('TWILIO_SIP_DOMAIN', 'vectavoip.sip.twilio.com'),
+            'twilio_byoc_trunk_sid' => $byocTrunkSid,
+        ]);
         if ($trunkId <= 0) {
             return '';
         }
@@ -879,6 +954,111 @@ function twilioOutboundTrunkTechnology(string $technology = ''): string
     };
 }
 
+function twilioRoutingMode(string $mode): string
+{
+    $mode = strtolower(trim($mode));
+    return in_array($mode, ['elastic', 'sip_domain', 'byoc'], true) ? $mode : 'elastic';
+}
+
+function twilioRoutingModeLabel(string $mode): string
+{
+    return match (twilioRoutingMode($mode)) {
+        'sip_domain' => 'SIP Domain / TwiML',
+        'byoc' => 'BYOC Trunking',
+        default => 'Elastic SIP Trunking',
+    };
+}
+
+function twilioNormalizeHost(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    $value = preg_replace('#^[A-Za-z]+:#', '', $value) ?? $value;
+    $value = preg_replace('#^//#', '', $value) ?? $value;
+    $value = preg_replace('#^([^@/]+@)#', '', $value) ?? $value;
+    $value = preg_replace('#[/?\#].*$#', '', $value) ?? $value;
+    return trim($value);
+}
+
+function twilioNormalizeSipUri(string $value): string
+{
+    $value = trim($value);
+    if ($value === '') {
+        return '';
+    }
+
+    return preg_match('#^[A-Za-z][A-Za-z0-9+.-]*:#', $value) === 1 ? $value : 'sip:' . $value;
+}
+
+/**
+ * @param array<string, string> $input
+ */
+function twilioOutboundTrunkHost(array $input): string
+{
+    return match (twilioRoutingMode($input['twilio_routing_mode'] ?? 'elastic')) {
+        'sip_domain' => twilioNormalizeHost($input['twilio_sip_domain'] ?? ''),
+        'byoc' => twilioNormalizeHost($input['twilio_sip_domain'] ?? '') ?: 'sip.twilio.com',
+        default => twilioNormalizeHost($input['twilio_elastic_termination_uri'] ?? '') ?: 'vectavoip.pstn.twilio.com',
+    };
+}
+
+/**
+ * @param array<string, string> $input
+ */
+function twilioOutboundTrunkSyncKey(array $input): string
+{
+    $mode = twilioRoutingMode($input['twilio_routing_mode'] ?? 'elastic');
+    if ($mode === 'elastic') {
+        $sid = trim($input['twilio_elastic_trunk_sid'] ?? '');
+        if ($sid !== '') {
+            return 'twilio_elastic_trunk:' . $sid;
+        }
+
+        return 'twilio_elastic_host:' . twilioOutboundTrunkHost($input);
+    }
+
+    if ($mode === 'sip_domain') {
+        return 'twilio_sip_domain:' . twilioOutboundTrunkHost($input);
+    }
+
+    $sid = twilioPreferredTrunkSid($input['twilio_byoc_trunk_sid'] ?? '');
+    if ($sid !== '') {
+        return 'twilio_byoc_trunk:' . $sid;
+    }
+
+    return 'twilio_byoc_host:' . twilioOutboundTrunkHost($input);
+}
+
+/**
+ * @param array<string, string> $input
+ * @return list<string>
+ */
+function twilioOutboundTrunkSyncKeyCandidates(array $input): array
+{
+    $keys = [twilioOutboundTrunkSyncKey($input)];
+
+    foreach (twilioTrunkSidCandidates($input['twilio_elastic_trunk_sid'] ?? '') as $sid) {
+        $keys[] = 'twilio_elastic_trunk:' . $sid;
+        $keys[] = 'twilio_trunk:' . $sid;
+    }
+    foreach (twilioTrunkSidCandidates($input['twilio_byoc_trunk_sid'] ?? '') as $sid) {
+        $keys[] = 'twilio_byoc_trunk:' . $sid;
+        $keys[] = 'twilio_trunk:' . $sid;
+    }
+
+    $host = twilioOutboundTrunkHost($input);
+    if ($host !== '') {
+        $keys[] = 'twilio_elastic_host:' . $host;
+        $keys[] = 'twilio_sip_domain:' . $host;
+        $keys[] = 'twilio_byoc_host:' . $host;
+    }
+
+    return array_values(array_unique(array_filter($keys, static fn (string $value): bool => trim($value) !== '')));
+}
+
 /**
  * @return list<string>
  */
@@ -910,10 +1090,19 @@ function twilioPreferredTrunkSid(string $sid): string
     return trim($sid);
 }
 
-function twilioTrunkCode(string $sid): string
+/**
+ * @param array<string, string> $input
+ */
+function twilioTrunkCode(array $input): string
 {
-    $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $sid) ?? '');
-    return substr('TW' . ($safe !== '' ? $safe : 'TWILIO'), 0, 20);
+    $mode = twilioRoutingMode($input['twilio_routing_mode'] ?? 'elastic');
+    $seed = match ($mode) {
+        'sip_domain' => 'TWILIO_SIP_' . twilioOutboundTrunkHost($input),
+        'byoc' => 'TWILIO_BYOC_' . twilioPreferredTrunkSid($input['twilio_byoc_trunk_sid'] ?? ''),
+        default => 'TWILIO_ELASTIC_' . (($input['twilio_elastic_trunk_sid'] ?? '') ?: twilioOutboundTrunkHost($input)),
+    };
+    $safe = strtoupper(preg_replace('/[^A-Za-z0-9]+/', '', $seed) ?? '');
+    return substr($safe !== '' ? $safe : 'TWILIO', 0, 20);
 }
 
 function findNamedId(PDO $pdo, string $table, string $nameColumn, string $name): int
@@ -1054,7 +1243,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 </tr>
                 <tr>
                     <td colspan="2" style="color:#666;">
-                        Configure the Twilio module used for DID purchases, voice webhooks, and SMS webhooks. Test credentials from the Twilio Console can be used here.
+                        Configure Twilio for DID purchases, inbound webhooks, SMS, and outbound voice. Elastic SIP Trunking is the default because A2Billing can route directly to the trunk termination URI without a TwiML loop.
                     </td>
                 </tr>
             </table>
@@ -1080,6 +1269,45 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                             </label>
                             <br><span style="color:#666;">Use this only when you do not want any Twilio API call. It records a local PN_SANDBOX purchase.</span>
                             <br><span style="color:#666;">For Twilio Console test credentials, leave this unchecked, enter the Test Account SID below, put the Test auth token in Auth Token, and leave API Key/API Secret blank.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_routing_mode">Twilio Call Routing</label></td>
+                        <td>
+                            <select id="twilio_routing_mode" name="twilio_routing_mode">
+                                <option value="elastic" <?php echo $input['twilio_routing_mode'] === 'elastic' ? 'selected' : ''; ?>>Elastic SIP Trunking - recommended for A2Billing</option>
+                                <option value="sip_domain" <?php echo $input['twilio_routing_mode'] === 'sip_domain' ? 'selected' : ''; ?>>SIP Domain / TwiML application</option>
+                                <option value="byoc" <?php echo $input['twilio_routing_mode'] === 'byoc' ? 'selected' : ''; ?>>BYOC Trunking</option>
+                            </select>
+                            <br><span style="color:#666;">Changing this changes which Twilio fields are used to create the A2Billing outbound trunk.</span>
+                        </td>
+                    </tr>
+                    <tr data-twilio-mode="elastic">
+                        <td><label for="twilio_elastic_trunk_sid">Elastic SIP Trunk SID</label></td>
+                        <td>
+                            <input id="twilio_elastic_trunk_sid" name="twilio_elastic_trunk_sid" type="text" size="70" value="<?php echo h($input['twilio_elastic_trunk_sid']); ?>" placeholder="TK...">
+                            <br><span style="color:#666;">Twilio Console value from Voice &gt; Elastic SIP Trunking &gt; Trunk details. Used to sync/attach DIDs when available.</span>
+                        </td>
+                    </tr>
+                    <tr data-twilio-mode="elastic">
+                        <td><label for="twilio_elastic_termination_uri">Elastic Termination URI</label></td>
+                        <td>
+                            <input id="twilio_elastic_termination_uri" name="twilio_elastic_termination_uri" type="text" size="70" value="<?php echo h($input['twilio_elastic_termination_uri']); ?>" placeholder="vectavoip.pstn.twilio.com">
+                            <br><span style="color:#666;">A2Billing outbound calls are sent here. Current default: vectavoip.pstn.twilio.com.</span>
+                        </td>
+                    </tr>
+                    <tr data-twilio-mode="elastic">
+                        <td><label for="twilio_elastic_origination_uri">Elastic Origination URI</label></td>
+                        <td>
+                            <input id="twilio_elastic_origination_uri" name="twilio_elastic_origination_uri" type="text" size="70" value="<?php echo h($input['twilio_elastic_origination_uri']); ?>" placeholder="sip:sip.vectavoip.com">
+                            <br><span style="color:#666;">Use this in the Twilio trunk Origination URI so inbound PSTN calls reach this Asterisk install.</span>
+                        </td>
+                    </tr>
+                    <tr data-twilio-mode="sip_domain byoc">
+                        <td><label for="twilio_sip_domain">SIP Domain Host</label></td>
+                        <td>
+                            <input id="twilio_sip_domain" name="twilio_sip_domain" type="text" size="70" value="<?php echo h($input['twilio_sip_domain']); ?>" placeholder="vectavoip.sip.twilio.com">
+                            <br><span style="color:#666;">Only use this for SIP Domain/TwiML or BYOC flows. For Elastic outbound, use the termination URI above.</span>
                         </td>
                     </tr>
                     <tr>
@@ -1109,15 +1337,21 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     </tr>
                     <tr>
                         <td><label for="twilio_default_voice_url">Default Voice URL</label></td>
-                        <td><input id="twilio_default_voice_url" name="twilio_default_voice_url" type="text" size="70" value="<?php echo h($input['twilio_default_voice_url']); ?>"></td>
+                        <td>
+                            <input id="twilio_default_voice_url" name="twilio_default_voice_url" type="text" size="70" value="<?php echo h($input['twilio_default_voice_url']); ?>">
+                            <br><span style="color:#666;">Used when purchasing numbers with webhook/TwiML routing. Elastic trunk inbound voice uses the trunk Origination URI.</span>
+                        </td>
                     </tr>
                     <tr>
                         <td><label for="twilio_default_sms_url">Default SMS URL</label></td>
                         <td><input id="twilio_default_sms_url" name="twilio_default_sms_url" type="text" size="70" value="<?php echo h($input['twilio_default_sms_url']); ?>"></td>
                     </tr>
-                    <tr>
+                    <tr data-twilio-mode="byoc">
                         <td><label for="twilio_byoc_trunk_sid">BYOC Trunk SID</label></td>
-                        <td><input id="twilio_byoc_trunk_sid" name="twilio_byoc_trunk_sid" type="text" size="70" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>"></td>
+                        <td>
+                            <input id="twilio_byoc_trunk_sid" name="twilio_byoc_trunk_sid" type="text" size="70" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>" placeholder="BY...">
+                            <br><span style="color:#666;">BYOC is not the default A2Billing path. Use Elastic unless you are bringing your own carrier into Twilio Voice.</span>
+                        </td>
                     </tr>
                     <tr>
                         <td><label for="twilio_trunk_technology">Outbound Trunk Technology</label></td>
@@ -1139,10 +1373,31 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     </tr>
                     <tr>
                         <td></td>
-                        <td><input class="form_input_button" type="submit" value="Save Upstream Settings"></td>
+                        <td>
+                            <input class="form_input_button" type="submit" value="Save and Create Local Trunk">
+                            <br><span style="color:#666;">This saves the provider settings and creates or updates the matching A2Billing trunk for the selected routing mode.</span>
+                        </td>
                     </tr>
                 </table>
             </form>
+            <script type="text/javascript">
+            (function () {
+                var selector = document.getElementById('twilio_routing_mode');
+                if (!selector) {
+                    return;
+                }
+                var rows = document.querySelectorAll('[data-twilio-mode]');
+                var updateRows = function () {
+                    var mode = selector.value || 'elastic';
+                    for (var i = 0; i < rows.length; i++) {
+                        var modes = (rows[i].getAttribute('data-twilio-mode') || '').split(/\s+/);
+                        rows[i].style.display = modes.indexOf(mode) >= 0 ? '' : 'none';
+                    }
+                };
+                selector.onchange = updateRows;
+                updateRows();
+            }());
+            </script>
 
             <br>
             <table width="100%" cellspacing="0" cellpadding="8" style="border-top:1px solid #ddd;">
@@ -1162,6 +1417,11 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 <input type="hidden" name="account_sid" value="<?php echo h($input['twilio_account_sid']); ?>">
                 <input type="hidden" name="api_key" value="<?php echo h($input['twilio_api_key']); ?>">
                 <input type="hidden" name="api_secret" value="<?php echo h($input['twilio_api_secret'] !== '' ? $input['twilio_api_secret'] : $input['twilio_auth_token']); ?>">
+                <input type="hidden" name="twilio_routing_mode" value="<?php echo h($input['twilio_routing_mode']); ?>">
+                <input type="hidden" name="twilio_elastic_trunk_sid" value="<?php echo h($input['twilio_elastic_trunk_sid']); ?>">
+                <input type="hidden" name="twilio_elastic_termination_uri" value="<?php echo h($input['twilio_elastic_termination_uri']); ?>">
+                <input type="hidden" name="twilio_elastic_origination_uri" value="<?php echo h($input['twilio_elastic_origination_uri']); ?>">
+                <input type="hidden" name="twilio_sip_domain" value="<?php echo h($input['twilio_sip_domain']); ?>">
                 <input type="hidden" name="twilio_byoc_trunk_sid" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>">
                 <input type="hidden" name="twilio_trunk_technology" value="<?php echo h($input['twilio_trunk_technology']); ?>">
                 <input type="hidden" name="twilio_default_caller_id" value="<?php echo h($input['twilio_default_caller_id']); ?>">
@@ -1192,7 +1452,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     <tr>
                         <td>Outbound Trunk</td>
                         <td>
-                            Auto-detect Twilio trunk from the BYOC Trunk SID or synced Twilio trunk.
+                            Auto-detect or create the Twilio trunk from the selected routing mode: <?php echo h(twilioRoutingModeLabel($input['twilio_routing_mode'])); ?>.
                             <br><span style="color:#666;">Import binds the selected or created ratecard and Twilio rate rows to that trunk.</span>
                         </td>
                     </tr>

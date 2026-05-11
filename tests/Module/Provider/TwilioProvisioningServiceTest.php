@@ -66,6 +66,33 @@ final class TwilioProvisioningServiceTest extends TestCase
         }
     }
 
+    public function testMaterializeElasticTrunkUsesConfiguredTerminationUriWhenTwilioDoesNotReturnDomain(): void
+    {
+        $originalUri = getenv('TWILIO_ELASTIC_TERMINATION_URI');
+        putenv('TWILIO_ELASTIC_TERMINATION_URI=sip:vectavoip.pstn.twilio.com');
+        try {
+            $pdo = $this->pdo();
+            $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
+            $pdo->exec('CREATE TABLE cc_trunk (id_trunk INTEGER PRIMARY KEY AUTOINCREMENT, trunkcode TEXT, trunkprefix TEXT, providertech TEXT, providerip TEXT, removeprefix TEXT, failover_trunk INTEGER, addparameter TEXT, id_provider INTEGER, inuse INTEGER, maxuse INTEGER, status INTEGER, if_max_use INTEGER)');
+
+            $service = new TwilioProvisioningService($pdo);
+            $result = $service->materializeTrunk([
+                'sid' => 'TK00ac250290c975363757484ba9e660dd',
+                'friendly_name' => 'VectaVoip',
+            ]);
+
+            $this->assertTrue($result['success']);
+            $this->assertSame('vectavoip.pstn.twilio.com', $pdo->query('SELECT providerip FROM cc_trunk WHERE id_trunk = 1')->fetchColumn());
+            $this->assertSame('twilio_trunk:TK00ac250290c975363757484ba9e660dd', $pdo->query('SELECT addparameter FROM cc_trunk WHERE id_trunk = 1')->fetchColumn());
+        } finally {
+            if ($originalUri === false) {
+                putenv('TWILIO_ELASTIC_TERMINATION_URI');
+            } else {
+                putenv('TWILIO_ELASTIC_TERMINATION_URI=' . $originalUri);
+            }
+        }
+    }
+
     public function testSyncOwnedNumbersUpgradesLegacyInventoryTable(): void
     {
         $pdo = $this->pdo();
