@@ -96,7 +96,12 @@ if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]]; then
     -e 's#AGI(/usr/share/asterisk/agi-bin/a2billing/a2billing\.php#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
     -e 's#AGI(/opt/a2billingplus/AGI/a2billing\.php#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
     -e 's#AGI(/var/lib/asterisk/agi-bin/a2billingplus-did#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
+    -e 's#^exten => _+X\.,1,Goto(a2billing-tenant,${EXTEN},1)#exten => _+X.,1,Goto(a2billing-tenant,${EXTEN:1},1)#' \
     "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"
+  sed -i '/^exten => _+X\.,1,NoOp(Tenant outbound E\.164:/,/^$/ {
+    s#^ same => n,AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi,1)# same => n,Goto(a2billing-tenant,${EXTEN:1},1)#
+    /^ same => n,Hangup()$/d
+  }' "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"
   cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
 fi
 
