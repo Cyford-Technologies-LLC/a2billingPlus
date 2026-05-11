@@ -6,6 +6,9 @@ namespace A2BillingPlus\Module\Rate;
 
 final class RatecardImportService
 {
+    /** @var null|list<string> */
+    private ?array $ratecardColumns = null;
+
     public function __construct(
         private readonly \PDO $pdo,
         private readonly RatecardRowMapper $mapper = new RatecardRowMapper()
@@ -20,7 +23,8 @@ final class RatecardImportService
         int $tariffPlanId,
         string $tag,
         bool $dryRun,
-        bool $updateExisting = false
+        bool $updateExisting = false,
+        int $trunkId = 0
     ): RatecardImportSummary
     {
         if ($tariffPlanId <= 0) {
@@ -39,24 +43,51 @@ final class RatecardImportService
             $mappedRows[] = $this->mapper->map($providerRow, $tariffPlanId, $tag);
         }
 
+        $optionalColumns = [];
+        if ($this->ratecardHasColumn('musiconhold')) {
+            $optionalColumns['musiconhold'] = '';
+        }
+        if ($trunkId > 0 && $this->ratecardHasColumn('id_trunk')) {
+            $optionalColumns['id_trunk'] = $trunkId;
+        }
+
+        $insertColumns = [
+            'idtariffplan',
+            'dialprefix',
+            'destination',
+            'buyrate',
+            'buyrateinitblock',
+            'buyrateincrement',
+            'rateinitial',
+            'initblock',
+            'billingblock',
+            'tag',
+            ...array_keys($optionalColumns),
+        ];
+        $insertPlaceholders = array_map(static fn (string $column): string => ':' . $column, $insertColumns);
+
         $insertStatement = $this->pdo->prepare(
-            'INSERT INTO cc_ratecard (
-                idtariffplan, dialprefix, destination, buyrate, buyrateinitblock, buyrateincrement,
-                rateinitial, initblock, billingblock, tag
-            ) VALUES (
-                :idtariffplan, :dialprefix, :destination, :buyrate, :buyrateinitblock, :buyrateincrement,
-                :rateinitial, :initblock, :billingblock, :tag
-            )'
+            'INSERT INTO cc_ratecard (' . implode(', ', $insertColumns) . ')
+             VALUES (' . implode(', ', $insertPlaceholders) . ')'
         );
+        $updateAssignments = [
+            'destination = :destination',
+            'buyrate = :buyrate',
+            'buyrateinitblock = :buyrateinitblock',
+            'buyrateincrement = :buyrateincrement',
+            'rateinitial = :rateinitial',
+            'initblock = :initblock',
+            'billingblock = :billingblock',
+        ];
+        if (array_key_exists('musiconhold', $optionalColumns)) {
+            $updateAssignments[] = 'musiconhold = :musiconhold';
+        }
+        if (array_key_exists('id_trunk', $optionalColumns)) {
+            $updateAssignments[] = 'id_trunk = :id_trunk';
+        }
         $updateStatement = $this->pdo->prepare(
             'UPDATE cc_ratecard
-             SET destination = :destination,
-                 buyrate = :buyrate,
-                 buyrateinitblock = :buyrateinitblock,
-                 buyrateincrement = :buyrateincrement,
-                 rateinitial = :rateinitial,
-                 initblock = :initblock,
-                 billingblock = :billingblock
+             SET ' . implode(",\n                 ", $updateAssignments) . '
              WHERE idtariffplan = :idtariffplan AND dialprefix = :dialprefix AND tag = :tag'
         );
 
@@ -73,6 +104,7 @@ final class RatecardImportService
                 continue;
             }
 
+            $row = array_merge($row, $optionalColumns);
             if ($existing !== null) {
                 $updateStatement->execute($row);
             } else {
@@ -97,5 +129,33 @@ final class RatecardImportService
         $id = $statement->fetchColumn();
 
         return $id === false ? null : (int)$id;
+    }
+
+    private function ratecardHasColumn(string $column): bool
+    {
+        if (is_array($this->ratecardColumns)) {
+            return in_array($column, $this->ratecardColumns, true);
+        }
+
+        try {
+            if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+                $statement = $this->pdo->query('PRAGMA table_info(cc_ratecard)');
+                $rows = $statement ? $statement->fetchAll(\PDO::FETCH_ASSOC) : [];
+                $this->ratecardColumns = array_map(static fn (array $row): string => (string)($row['name'] ?? ''), $rows);
+                return in_array($column, $this->ratecardColumns, true);
+            }
+
+            $statement = $this->pdo->prepare(
+                'SELECT COLUMN_NAME
+                 FROM INFORMATION_SCHEMA.COLUMNS
+                 WHERE TABLE_SCHEMA = DATABASE() AND TABLE_NAME = ?'
+            );
+            $statement->execute(['cc_ratecard']);
+            $this->ratecardColumns = array_map('strval', $statement->fetchAll(\PDO::FETCH_COLUMN));
+        } catch (\Throwable) {
+            $this->ratecardColumns = [];
+        }
+
+        return in_array($column, $this->ratecardColumns, true);
     }
 }

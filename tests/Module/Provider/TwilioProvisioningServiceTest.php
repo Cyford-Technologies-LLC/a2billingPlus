@@ -24,6 +24,7 @@ final class TwilioProvisioningServiceTest extends TestCase
 
     public function testMaterializeTrunkCreatesProviderAndLocalTrunk(): void
     {
+        putenv('A2BP_ASTERISK_CHANNEL_DRIVER=');
         $pdo = $this->pdo();
         $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
         $pdo->exec('CREATE TABLE cc_trunk (id_trunk INTEGER PRIMARY KEY AUTOINCREMENT, trunkcode TEXT, trunkprefix TEXT, providertech TEXT, providerip TEXT, removeprefix TEXT, failover_trunk INTEGER, addparameter TEXT, id_provider INTEGER, inuse INTEGER, maxuse INTEGER, status INTEGER, if_max_use INTEGER)');
@@ -38,6 +39,7 @@ final class TwilioProvisioningServiceTest extends TestCase
         $this->assertTrue($result['success']);
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_provider WHERE provider_name = 'Twilio'")->fetchColumn());
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
+        $this->assertSame('PJSIP', $pdo->query("SELECT providertech FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
         $this->assertSame('twilio_trunk:TK1', $pdo->query("SELECT addparameter FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
     }
 

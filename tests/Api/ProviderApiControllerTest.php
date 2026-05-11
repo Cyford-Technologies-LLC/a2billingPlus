@@ -209,6 +209,25 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame('VectaVoIP:retail', $pdo->query('SELECT tag FROM cc_ratecard LIMIT 1')->fetchColumn());
     }
 
+    public function testImportsPreviewRatesWithTargetTrunk(): void
+    {
+        $pdo = $this->ratecardPdoWithTrunk();
+        $controller = new ProviderApiController($this->previewProviderRegistry(), null, fn (): PDO => $pdo);
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'import_preview_rates',
+            'provider' => 'vectavoip',
+            'target_ratecard_id' => '5',
+            'target_trunk_id' => '3',
+            'rate_deck' => 'retail',
+            'dry_run' => '0',
+        ]));
+
+        $this->assertSame(200, $response->getStatusCode());
+        $this->assertSame(3, (int)$response->getPayload()['target_trunk_id']);
+        $this->assertSame(3, (int)$pdo->query('SELECT id_trunk FROM cc_ratecard LIMIT 1')->fetchColumn());
+    }
+
     public function testRejectsUnknownProvider(): void
     {
         $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
@@ -1075,6 +1094,31 @@ final class ProviderApiControllerTest extends TestCase
                 rateinitial TEXT,
                 initblock INTEGER,
                 billingblock INTEGER,
+                tag TEXT
+            )'
+        );
+
+        return $pdo;
+    }
+
+    private function ratecardPdoWithTrunk(): PDO
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec(
+            'CREATE TABLE cc_ratecard (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                idtariffplan INTEGER,
+                dialprefix TEXT,
+                destination INTEGER,
+                buyrate TEXT,
+                buyrateinitblock INTEGER,
+                buyrateincrement INTEGER,
+                rateinitial TEXT,
+                initblock INTEGER,
+                billingblock INTEGER,
+                id_trunk INTEGER DEFAULT -1,
+                musiconhold TEXT NOT NULL DEFAULT \'\',
                 tag TEXT
             )'
         );

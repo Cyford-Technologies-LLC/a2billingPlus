@@ -8082,7 +8082,7 @@ CREATE TABLE `cc_ratecard` (
   `starttime` smallint(5) unsigned DEFAULT 0,
   `endtime` smallint(5) unsigned DEFAULT 10079,
   `id_trunk` int(11) DEFAULT -1,
-  `musiconhold` char(100) NOT NULL,
+  `musiconhold` char(100) NOT NULL DEFAULT '',
   `id_outbound_cidgroup` int(11) DEFAULT -1,
   `rounding_calltime` int(11) NOT NULL DEFAULT 0,
   `rounding_threshold` int(11) NOT NULL DEFAULT 0,

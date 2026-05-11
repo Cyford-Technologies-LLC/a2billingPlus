@@ -88,7 +88,7 @@ final class TwilioProvisioningService
         return (new CoreTrunkProjectionService($this->pdo))->upsertBySyncKey([
             'provider_id' => $providerId,
             'trunkcode' => $trunkCode,
-            'providertech' => 'SIP',
+            'providertech' => $this->trunkTechnology(),
             'providerip' => $this->trunkHostFor($trunk),
             'addparameter' => $parameter,
             'maxuse' => -1,
@@ -316,6 +316,16 @@ final class TwilioProvisioningService
         }
 
         return preg_replace('#^[A-Za-z]+:#', '', $value) ?? '';
+    }
+
+    private function trunkTechnology(): string
+    {
+        $driver = strtolower(trim((string) getenv('A2BP_ASTERISK_CHANNEL_DRIVER')));
+        return match ($driver) {
+            'sip', 'chan_sip' => 'SIP',
+            'iax', 'iax2' => 'IAX2',
+            default => 'PJSIP',
+        };
     }
 
     private function ensureSqliteColumn(string $table, string $column, string $definition): void
