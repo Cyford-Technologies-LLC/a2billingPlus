@@ -68,6 +68,7 @@ $defaults = [
     'twilio_sip_domain' => envString('TWILIO_SIP_DOMAIN', 'vectavoip.sip.twilio.com'),
     'twilio_byoc_trunk_sid' => $twilioByocTrunkSid,
     'twilio_trunk_technology' => twilioDefaultTrunkTechnology($twilioRoutingMode, $twilioElasticTrunkSid, $twilioByocTrunkSid),
+    'twilio_outbound_from_domain' => envString('TWILIO_OUTBOUND_FROM_DOMAIN', envString('TWILIO_ELASTIC_TERMINATION_URI', 'vectavoip.pstn.twilio.com')),
     'twilio_default_caller_id' => envString('TWILIO_DEFAULT_CALLER_ID'),
     'company_name' => 'VectaVoIP',
     'company_domain' => 'VectaVoIP.com',
@@ -422,6 +423,7 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         'TWILIO_SIP_DOMAIN' => twilioNormalizeHost($input['twilio_sip_domain']),
         'TWILIO_BYOC_TRUNK_SID' => $input['twilio_byoc_trunk_sid'],
         'TWILIO_TRUNK_TECHNOLOGY' => twilioOutboundTrunkTechnology($input['twilio_trunk_technology']),
+        'TWILIO_OUTBOUND_FROM_DOMAIN' => twilioOutboundFromDomain($input),
         'TWILIO_DEFAULT_CALLER_ID' => $input['twilio_default_caller_id'],
     ];
 
@@ -745,7 +747,10 @@ function ensureTwilioOutboundTrunk(PDO $pdo, array $input): int
         $providerId,
     ]);
 
-    return (int)$pdo->lastInsertId();
+    $trunkId = (int)$pdo->lastInsertId();
+    normalizeTwilioOutboundTrunk($pdo, $trunkId, $input);
+
+    return $trunkId;
 }
 
 /**
@@ -902,6 +907,11 @@ function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, array $input): voi
         twilioOutboundTrunkSyncKey($input),
         $trunkId,
     ]);
+
+    if (columnExists($pdo, 'cc_trunk', 'fromdomain')) {
+        $statement = $pdo->prepare('UPDATE cc_trunk SET fromdomain = ? WHERE id_trunk = ?');
+        $statement->execute([twilioOutboundFromDomain($input), $trunkId]);
+    }
 }
 
 function syncTwilioOutboundPjsipTrunk(PDO $pdo, int $trunkId, array &$messages, array &$errors): void
@@ -923,6 +933,10 @@ function syncTwilioOutboundPjsipTrunk(PDO $pdo, int $trunkId, array &$messages, 
             return;
         }
 
+        $host = (string)($trunk['providerip'] ?? '');
+        if (trim((string)($trunk['fromdomain'] ?? '')) === '') {
+            $trunk['fromdomain'] = $host;
+        }
         $result = (new PjsipProvisioningService($pdo))->syncLegacyTrunk($trunk, 'admin:provider-setup');
         if (($result['body']['success'] ?? false) !== true) {
             $errors[] = 'Twilio PJSIP endpoint sync failed: ' . (string)($result['body']['message'] ?? 'Unknown error.');
@@ -930,8 +944,8 @@ function syncTwilioOutboundPjsipTrunk(PDO $pdo, int $trunkId, array &$messages, 
         }
 
         $endpointId = (string)($result['body']['endpoint']['endpoint_id'] ?? '');
-        $host = (string)($trunk['providerip'] ?? '');
-        $messages[] = 'Synced PJSIP endpoint ' . ($endpointId !== '' ? $endpointId : 'for trunk #' . $trunkId) . ' to sip:' . $host . '.';
+        $fromDomain = (string)($trunk['fromdomain'] ?? '');
+        $messages[] = 'Synced PJSIP endpoint ' . ($endpointId !== '' ? $endpointId : 'for trunk #' . $trunkId) . ' to sip:' . $host . ($fromDomain !== '' ? ' with From domain ' . $fromDomain : '') . '.';
         reloadAsteriskPjsip($messages);
     } catch (Throwable $exception) {
         $errors[] = 'Twilio PJSIP endpoint sync failed: ' . $exception->getMessage();
@@ -1074,6 +1088,15 @@ function twilioOutboundTrunkHost(array $input): string
         'byoc' => twilioNormalizeHost($input['twilio_sip_domain'] ?? '') ?: 'sip.twilio.com',
         default => twilioNormalizeHost($input['twilio_elastic_termination_uri'] ?? '') ?: 'vectavoip.pstn.twilio.com',
     };
+}
+
+/**
+ * @param array<string, string> $input
+ */
+function twilioOutboundFromDomain(array $input): string
+{
+    $fromDomain = twilioNormalizeHost($input['twilio_outbound_from_domain'] ?? '');
+    return $fromDomain !== '' ? $fromDomain : twilioOutboundTrunkHost($input);
 }
 
 /**
@@ -1443,6 +1466,13 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                         </td>
                     </tr>
                     <tr>
+                        <td><label for="twilio_outbound_from_domain">Outbound From Domain</label></td>
+                        <td>
+                            <input id="twilio_outbound_from_domain" name="twilio_outbound_from_domain" type="text" size="70" value="<?php echo h($input['twilio_outbound_from_domain']); ?>" placeholder="vectavoip.pstn.twilio.com">
+                            <br><span style="color:#666;">Used on the PJSIP trunk From header domain. Leave this as the Elastic termination host unless the carrier requires another domain.</span>
+                        </td>
+                    </tr>
+                    <tr>
                         <td></td>
                         <td>
                             <input class="form_input_button" type="submit" value="Save and Create Local Trunk">
@@ -1496,6 +1526,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 <input type="hidden" name="twilio_byoc_trunk_sid" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>">
                 <input type="hidden" name="twilio_trunk_technology" value="<?php echo h($input['twilio_trunk_technology']); ?>">
                 <input type="hidden" name="twilio_default_caller_id" value="<?php echo h($input['twilio_default_caller_id']); ?>">
+                <input type="hidden" name="twilio_outbound_from_domain" value="<?php echo h($input['twilio_outbound_from_domain']); ?>">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
                         <td width="220"><label for="twilio_rate_deck">Rate Deck Tag</label></td>
