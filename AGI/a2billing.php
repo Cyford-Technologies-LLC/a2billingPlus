@@ -39,15 +39,25 @@ if (function_exists('pcntl_signal')) {
 
 error_reporting(E_ALL ^ (E_NOTICE | E_WARNING));
 
-require_once __DIR__ . '/../vendor/autoload.php';
+if (!defined('FSROOT')) {
+    define('FSROOT', __DIR__ . '/');
+}
+if (!defined('LIBDIR')) {
+    define('LIBDIR', FSROOT . 'lib/');
+}
 
-include(dirname(__FILE__) . "/lib/Class.Table.php");
-include(dirname(__FILE__) . "/lib/Class.A2Billing.php");
-include(dirname(__FILE__) . "/lib/Class.RateEngine.php");
-include(dirname(__FILE__) . "/lib/phpagi/phpagi.php");
-include(dirname(__FILE__) . "/lib/phpagi/phpagi-asmanager.php");
-include(dirname(__FILE__) . "/lib/Misc.php");
-include(dirname(__FILE__) . "/lib/interface/constants.php");
+$composerAutoload = __DIR__ . '/../vendor/autoload.php';
+if (is_file($composerAutoload)) {
+    require_once $composerAutoload;
+}
+
+include_once(dirname(__FILE__) . "/lib/Class.Table.php");
+include_once(dirname(__FILE__) . "/lib/Class.A2Billing.php");
+include_once(dirname(__FILE__) . "/lib/Class.RateEngine.php");
+include_once(dirname(__FILE__) . "/lib/phpagi/phpagi.php");
+include_once(dirname(__FILE__) . "/lib/phpagi/phpagi-asmanager.php");
+include_once(dirname(__FILE__) . "/lib/Misc.php");
+include_once(dirname(__FILE__) . "/lib/interface/constants.php");
 
 $charge_callback = 0;
 $G_startime = time();
