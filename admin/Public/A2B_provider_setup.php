@@ -231,6 +231,7 @@ $recentImports = $providerSetup->recentImports();
 $providerModulesUnlocked = providerModulesUnlocked();
 $selectedProvider = selectedProvider();
 $providerCards = providerCards($status, $providerModulesUnlocked, $selectedProvider);
+$twilioTrunkStatus = $selectedProvider === 'twilio' ? twilioOutboundTrunkStatus($input) : [];
 
 $smarty->display('main.tpl');
 echo $themeRenderer->stylesheetLink($theme);
@@ -985,6 +986,95 @@ function reloadAsteriskPjsip(array &$messages): void
     }
 }
 
+/**
+ * @param array<string, string> $input
+ * @return array<string, mixed>
+ */
+function twilioOutboundTrunkStatus(array $input): array
+{
+    $expectedHost = twilioOutboundTrunkHost($input);
+    $expectedContact = $expectedHost !== '' ? 'sip:' . $expectedHost : '';
+    $expectedFromDomain = twilioOutboundFromDomain($input);
+    $status = [
+        'ok' => false,
+        'message' => 'Twilio outbound trunk has not been created yet.',
+        'trunk_id' => 0,
+        'trunkcode' => '',
+        'providertech' => '',
+        'providerip' => '',
+        'addparameter' => '',
+        'endpoint_id' => '',
+        'contact' => '',
+        'from_domain' => '',
+        'expected_contact' => $expectedContact,
+        'expected_from_domain' => $expectedFromDomain,
+    ];
+
+    try {
+        $pdo = providerSetupPdo();
+        $trunkId = findTwilioOutboundTrunkId($pdo, $input);
+        if ($trunkId <= 0) {
+            return $status;
+        }
+
+        $statement = $pdo->prepare('SELECT id_trunk, trunkcode, providertech, providerip, addparameter FROM cc_trunk WHERE id_trunk = ? LIMIT 1');
+        $statement->execute([$trunkId]);
+        $trunk = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($trunk)) {
+            return $status;
+        }
+
+        $trunkcode = (string)($trunk['trunkcode'] ?? '');
+        $endpointId = pjsipEndpointId('trunk', $trunkcode);
+        $status['trunk_id'] = (int)$trunkId;
+        $status['trunkcode'] = $trunkcode;
+        $status['providertech'] = (string)($trunk['providertech'] ?? '');
+        $status['providerip'] = (string)($trunk['providerip'] ?? '');
+        $status['addparameter'] = (string)($trunk['addparameter'] ?? '');
+        $status['endpoint_id'] = $endpointId;
+
+        if (strtoupper(trim($status['providertech'])) !== 'PJSIP') {
+            $status['ok'] = true;
+            $status['message'] = 'A2Billing trunk is not PJSIP; realtime PJSIP endpoint sync is not required.';
+            return $status;
+        }
+
+        $statement = $pdo->prepare(
+            'SELECT e.from_domain, a.contact
+             FROM ps_endpoints e
+             LEFT JOIN ps_aors a ON a.id = e.aors
+             WHERE e.id = ?
+             LIMIT 1'
+        );
+        $statement->execute([$endpointId]);
+        $endpoint = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($endpoint)) {
+            $status['message'] = 'PJSIP endpoint ' . $endpointId . ' is missing. Click Save and Create Local Trunk to rebuild it.';
+            return $status;
+        }
+
+        $status['from_domain'] = (string)($endpoint['from_domain'] ?? '');
+        $status['contact'] = (string)($endpoint['contact'] ?? '');
+        $contactOk = $expectedContact === '' || strtolower($status['contact']) === strtolower($expectedContact);
+        $fromDomainOk = $expectedFromDomain === '' || strtolower($status['from_domain']) === strtolower($expectedFromDomain);
+        $status['ok'] = $contactOk && $fromDomainOk;
+        $status['message'] = $status['ok']
+            ? 'Twilio outbound PJSIP endpoint matches the selected routing settings.'
+            : 'Twilio outbound PJSIP endpoint does not match the selected routing settings. Click Save and Create Local Trunk to repair it.';
+    } catch (Throwable $exception) {
+        $status['message'] = 'Could not inspect Twilio outbound trunk status: ' . $exception->getMessage();
+    }
+
+    return $status;
+}
+
+function pjsipEndpointId(string $prefix, string $value): string
+{
+    $safe = strtolower(preg_replace('/[^A-Za-z0-9_.-]+/', '-', $value) ?? '');
+    $safe = trim($safe, '-');
+    return substr($prefix === '' ? $safe : $prefix . '-' . $safe, 0, 80);
+}
+
 function twilioDefaultTrunkTechnology(string $routingMode, string $elasticTrunkSid, string $byocTrunkSid): string
 {
     $existing = twilioExistingTrunkTechnology($routingMode, $elasticTrunkSid, $byocTrunkSid);
@@ -1341,6 +1431,36 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     </td>
                 </tr>
             </table>
+            <?php if ($twilioTrunkStatus): ?>
+            <table width="100%" cellspacing="0" cellpadding="8" style="border:1px solid <?php echo $twilioTrunkStatus['ok'] ? '#8abf7a' : '#d9a441'; ?>;background:#fff;margin:10px 0;">
+                <tr>
+                    <td class="form_head" colspan="4">Twilio Outbound Trunk Status</td>
+                </tr>
+                <tr>
+                    <td colspan="4" style="color:<?php echo $twilioTrunkStatus['ok'] ? '#256b1f' : '#8a5a00'; ?>;">
+                        <?php echo h((string)$twilioTrunkStatus['message']); ?>
+                    </td>
+                </tr>
+                <tr>
+                    <td width="170"><strong>A2Billing Trunk</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['trunk_id']); ?> / <?php echo h((string)$twilioTrunkStatus['trunkcode']); ?></td>
+                    <td width="170"><strong>PJSIP Endpoint</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['endpoint_id']); ?></td>
+                </tr>
+                <tr>
+                    <td><strong>Current Contact</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['contact']); ?></td>
+                    <td><strong>Expected Contact</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['expected_contact']); ?></td>
+                </tr>
+                <tr>
+                    <td><strong>Current From Domain</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['from_domain']); ?></td>
+                    <td><strong>Expected From Domain</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['expected_from_domain']); ?></td>
+                </tr>
+            </table>
+            <?php endif; ?>
             <form method="post">
                 <input type="hidden" name="form_action" value="save_upstream_settings">
                 <input type="hidden" name="provider_context" value="twilio">
