@@ -103,6 +103,9 @@ all agree.
 - [x] Central PJSIP trunk provisioning defaults `from_domain` to the trunk host
   when no provider-specific value is set, so installs and backfills do not
   create unroutable private-IP From headers.
+- [x] Install migrations repair existing PJSIP trunk endpoints with blank
+  `from_domain` from their AOR contact so upgraded installs do not require
+  manual SQL.
 - [ ] Provider setup must create provider, trunk, ratecard, call plan, and
   `cc_tariffgroup_plan` bindings in one operation.
 - [ ] Provider setup must save a reusable outbound trunk template that can use
