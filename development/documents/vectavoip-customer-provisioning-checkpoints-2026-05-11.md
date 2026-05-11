@@ -106,6 +106,9 @@ all agree.
 - [x] Install migrations repair existing PJSIP trunk endpoints with blank
   `from_domain` from their AOR contact so upgraded installs do not require
   manual SQL.
+- [x] Twilio outbound trunks default and repair the A2Billing ADD PREFIX field
+  to `+`, so Elastic SIP Trunking receives `+E.164` destinations without manual
+  rate/trunk edits.
 - [ ] Provider setup must create provider, trunk, ratecard, call plan, and
   `cc_tariffgroup_plan` bindings in one operation.
 - [ ] Provider setup must save a reusable outbound trunk template that can use

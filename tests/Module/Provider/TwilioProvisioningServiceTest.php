@@ -41,6 +41,7 @@ final class TwilioProvisioningServiceTest extends TestCase
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_provider WHERE provider_name = 'Twilio'")->fetchColumn());
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
         $this->assertSame('PJSIP', $pdo->query("SELECT providertech FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
+        $this->assertSame('+', $pdo->query("SELECT trunkprefix FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
         $this->assertSame('twilio_trunk:TK1', $pdo->query("SELECT addparameter FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
     }
 
@@ -83,6 +84,7 @@ final class TwilioProvisioningServiceTest extends TestCase
 
             $this->assertTrue($result['success']);
             $this->assertSame('vectavoip.pstn.twilio.com', $pdo->query('SELECT providerip FROM cc_trunk WHERE id_trunk = 1')->fetchColumn());
+            $this->assertSame('+', $pdo->query('SELECT trunkprefix FROM cc_trunk WHERE id_trunk = 1')->fetchColumn());
             $this->assertSame('twilio_trunk:TK00ac250290c975363757484ba9e660dd', $pdo->query('SELECT addparameter FROM cc_trunk WHERE id_trunk = 1')->fetchColumn());
         } finally {
             if ($originalUri === false) {

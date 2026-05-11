@@ -88,6 +88,7 @@ final class TwilioProvisioningService
         return (new CoreTrunkProjectionService($this->pdo))->upsertBySyncKey([
             'provider_id' => $providerId,
             'trunkcode' => $trunkCode,
+            'trunkprefix' => '+',
             'providertech' => $this->trunkTechnology(),
             'providerip' => $this->trunkHostFor($trunk),
             'addparameter' => $parameter,
