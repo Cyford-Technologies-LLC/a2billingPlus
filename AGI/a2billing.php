@@ -578,6 +578,11 @@ if ($mode == 'standard') {
                 $ans = $A2B->callingcard_ivr_authorize($agi, $RateEngine, $i, true);
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, 'ANSWER fct callingcard_ivr authorize:> ' . $ans);
 
+                if ($trusted_pjsip_dnid_call && $ans != 1 && $ans != "2DID") {
+                    $A2B->debug(INFO, $agi, __FILE__, __LINE__, '[TRUSTED PJSIP DNID CALL - authorization failed; stopping instead of prompting for another destination]');
+                    break;
+                }
+
                 if ($ans == 1) {
                     // PERFORM THE CALL
                     $result_callperf = $RateEngine->rate_engine_performcall($agi, $A2B->destination, $A2B);
