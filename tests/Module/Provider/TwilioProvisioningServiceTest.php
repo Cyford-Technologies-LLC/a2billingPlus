@@ -24,6 +24,7 @@ final class TwilioProvisioningServiceTest extends TestCase
 
     public function testMaterializeTrunkCreatesProviderAndLocalTrunk(): void
     {
+        putenv('TWILIO_TRUNK_TECHNOLOGY=');
         putenv('A2BP_ASTERISK_CHANNEL_DRIVER=');
         $pdo = $this->pdo();
         $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
@@ -41,6 +42,28 @@ final class TwilioProvisioningServiceTest extends TestCase
         $this->assertSame(1, (int) $pdo->query("SELECT COUNT(*) FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
         $this->assertSame('PJSIP', $pdo->query("SELECT providertech FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
         $this->assertSame('twilio_trunk:TK1', $pdo->query("SELECT addparameter FROM cc_trunk WHERE providerip = 'example.pstn.twilio.com'")->fetchColumn());
+    }
+
+    public function testMaterializeTrunkUsesConfiguredTwilioTechnology(): void
+    {
+        putenv('TWILIO_TRUNK_TECHNOLOGY=SIP');
+        try {
+            $pdo = $this->pdo();
+            $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT, description TEXT)');
+            $pdo->exec('CREATE TABLE cc_trunk (id_trunk INTEGER PRIMARY KEY AUTOINCREMENT, trunkcode TEXT, trunkprefix TEXT, providertech TEXT, providerip TEXT, removeprefix TEXT, failover_trunk INTEGER, addparameter TEXT, id_provider INTEGER, inuse INTEGER, maxuse INTEGER, status INTEGER, if_max_use INTEGER)');
+
+            $service = new TwilioProvisioningService($pdo);
+            $result = $service->materializeTrunk([
+                'sid' => 'TK2',
+                'friendly_name' => 'Twilio SIP',
+                'domain_name' => 'sip.example.twilio.com',
+            ]);
+
+            $this->assertTrue($result['success']);
+            $this->assertSame('SIP', $pdo->query("SELECT providertech FROM cc_trunk WHERE providerip = 'sip.example.twilio.com'")->fetchColumn());
+        } finally {
+            putenv('TWILIO_TRUNK_TECHNOLOGY=');
+        }
     }
 
     public function testSyncOwnedNumbersUpgradesLegacyInventoryTable(): void

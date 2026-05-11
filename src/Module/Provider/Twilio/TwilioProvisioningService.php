@@ -320,6 +320,11 @@ final class TwilioProvisioningService
 
     private function trunkTechnology(): string
     {
+        $configured = strtoupper(trim((string) getenv('TWILIO_TRUNK_TECHNOLOGY')));
+        if (in_array($configured, ['SIP', 'PJSIP', 'IAX2'], true)) {
+            return $configured;
+        }
+
         $driver = strtolower(trim((string) getenv('A2BP_ASTERISK_CHANNEL_DRIVER')));
         return match ($driver) {
             'sip', 'chan_sip' => 'SIP',

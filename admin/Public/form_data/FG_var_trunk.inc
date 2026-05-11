@@ -198,7 +198,7 @@ $HD_Form -> AddEditElement (gettext("PROVIDER TECH"),
 	"size=20 maxlength=15",
 	"0",
 	gettext("Insert the providertech"),
-	"" , "", "", "", "" , "" , "", gettext("Technology used on the trunk (SIP,IAX2,ZAP,H323)"));
+	"" , "", "", "", "" , "" , "", gettext("Technology used on the trunk (SIP,PJSIP,IAX2,ZAP,H323)"));
 
 $HD_Form -> AddEditElement (gettext("PROVIDER IP"),
 	"providerip",

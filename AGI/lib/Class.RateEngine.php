@@ -1263,23 +1263,7 @@ class RateEngine
 
     private function should_use_pjsip_trunk($tech, $addparameter)
     {
-        $tech = strtoupper(trim((string)$tech));
-        if ($tech === 'PJSIP') {
-            return true;
-        }
-        if ($tech !== 'SIP') {
-            return false;
-        }
-
-        $driver = strtolower(trim((string)getenv('A2BP_ASTERISK_CHANNEL_DRIVER')));
-        if ($driver === 'chan_sip' || $driver === 'sip') {
-            return false;
-        }
-        if ($driver === 'pjsip') {
-            return true;
-        }
-
-        return $this->is_provider_sync_parameter($addparameter);
+        return strtoupper(trim((string)$tech)) === 'PJSIP';
     }
 
     private function build_trunk_dial_string($tech, $ipaddress, $prefix, $destination, $dialparams, $switchdialcommand, $trunkcode, $addparameter, $has_dialingnumber_placeholder)
@@ -1395,7 +1379,6 @@ class RateEngine
                 $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "[EXEC SetCallerID : $outcid]");
             }
             $A2B->debug(DEBUG, $agi, __FILE__, __LINE__, "app_callingcard: CIDGROUPID='$cidgroupid' OUTBOUND CID SELECTED IS '$outcid'.");
-
             if ($maxuse == -1 || $inuse < $maxuse) {
                 // Count this call on the trunk
                 $this->trunk_start_inuse($agi, $A2B, 1);
