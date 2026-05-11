@@ -94,6 +94,9 @@ all agree.
 - [x] AGI honors `cc_trunk.providertech` instead of forcing PJSIP.
 - [ ] Provider setup must create provider, trunk, ratecard, call plan, and
   `cc_tariffgroup_plan` bindings in one operation.
+- [ ] Provider setup must save a reusable outbound trunk template that can use
+  A2Billing placeholders such as `%dialingnumber%` and `%cardnumber%` where the
+  selected upstream requires dynamic SIP URI construction.
 - [ ] Rate import must normalize prefixes consistently for AGI lookup
   (`+E.164`, `1NXXNXXXXXX`, and stripped NANP forms).
 - [ ] Rate import must include useful destinations where upstream pricing
@@ -134,6 +137,12 @@ all agree.
   CID group.
 - [ ] Ratecard or call-plan setup must bind the correct `id_outbound_cidgroup`
   so AGI can select an allowed caller ID without manual admin changes.
+- [ ] New-account provisioning must bind the customer's default outbound route
+  to the customer-owned CID group, so every outbound call can present a
+  customer-assigned DID dynamically instead of requiring a Twilio Bin per number.
+- [ ] Provisioning must preserve the A2Billing AGI caller ID controls
+  (`auto_setcallerid`, `force_callerid`, and `cid_sanitize`) and only override
+  them through database-backed provider/package policy.
 - [ ] Outbound voice must use an assigned DID as caller ID when the provider
   requires verified caller ID.
 - [ ] Removing a DID must remove or deactivate that caller ID for the customer.
