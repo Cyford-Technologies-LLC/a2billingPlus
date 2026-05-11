@@ -137,6 +137,11 @@ final class PjsipProvisioningService
         $endpointId = $this->endpointId('trunk', $trunkCode);
         $allow = $this->stringValue($payload, 'allow', 'ulaw,alaw');
         $register = $this->boolValue($payload, 'register', $username !== '' && $secret !== '');
+        $endpointOptions = $this->endpointOptionsFromPayload($payload);
+        if ((string)($endpointOptions['from_domain'] ?? '') === '') {
+            $endpointOptions['from_domain'] = $host;
+        }
+
         $this->writeTrunkEndpoint(
             $endpointId,
             $host,
@@ -145,7 +150,7 @@ final class PjsipProvisioningService
             'from-pstn',
             $allow,
             $register,
-            $this->endpointOptionsFromPayload($payload),
+            $endpointOptions,
             $this->aorOptionsFromPayload($payload)
         );
         $this->writeMapping($endpointId, 'trunk', 0, $trunkCode);

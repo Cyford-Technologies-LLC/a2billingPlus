@@ -79,6 +79,7 @@ final class PjsipProvisioningServiceTest extends TestCase
         $this->assertSame(201, $result['status']);
         $this->assertSame('trunk-vectavoip', $result['body']['endpoint']['endpoint_id']);
         $this->assertSame('sip:sip.vectavoip.com', $pdo->query("SELECT contact FROM ps_aors WHERE id = 'trunk-vectavoip'")->fetchColumn());
+        $this->assertSame('sip.vectavoip.com', $pdo->query("SELECT from_domain FROM ps_endpoints WHERE id = 'trunk-vectavoip'")->fetchColumn());
     }
 
     public function testProvisionsTwilioEdgeIpAsSubnetIdentifyMatch(): void
