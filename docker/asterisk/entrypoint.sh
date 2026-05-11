@@ -46,9 +46,28 @@ fi
 mkdir -p "${ASTERISK_RUNTIME_CONFIG_DIR}" /etc/asterisk
 mkdir -p "$(dirname "${AGI_WRAPPER_PATH}")"
 
-cat >"${AGI_WRAPPER_PATH}" <<EOF
+cat >"${AGI_WRAPPER_PATH}" <<'EOF'
 #!/usr/bin/env bash
-exec /usr/bin/php "${PROJECT_ROOT}/AGI/a2billing.php" "\$@"
+set -euo pipefail
+
+project_root="${A2BP_PROJECT_ROOT:-/opt/a2billingplus}"
+php_bin="${A2BP_PHP_BIN:-/usr/bin/php}"
+script="${A2BP_AGI_SCRIPT:-${project_root}/AGI/a2billing.php}"
+log_file="${A2BP_AGI_ERROR_LOG:-/var/log/a2billing/a2billing_agi_error.log}"
+
+mkdir -p "$(dirname "${log_file}")"
+
+if [[ ! -x "${php_bin}" ]]; then
+  printf '[%s] PHP binary not executable: %s\n' "$(date -Is)" "${php_bin}" >>"${log_file}"
+  exit 1
+fi
+
+if [[ ! -r "${script}" ]]; then
+  printf '[%s] AGI script not readable: %s\n' "$(date -Is)" "${script}" >>"${log_file}"
+  exit 1
+fi
+
+exec "${php_bin}" -d display_errors=stderr -d log_errors=1 -d error_log="${log_file}" "${script}" "$@" 2>>"${log_file}"
 EOF
 chmod 0755 "${AGI_WRAPPER_PATH}"
 ln -sf "$(basename "${AGI_WRAPPER_PATH}")" "${LEGACY_DID_AGI_WRAPPER_PATH}"
