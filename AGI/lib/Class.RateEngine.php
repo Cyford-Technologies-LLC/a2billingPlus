@@ -1261,6 +1261,23 @@ class RateEngine
         return $addparameter;
     }
 
+    private function normalize_provider_dialingnumber($addparameter, $dialingnumber)
+    {
+        $dialingnumber = trim((string)$dialingnumber);
+        if ($dialingnumber === '' || $dialingnumber[0] === '+') {
+            return $dialingnumber;
+        }
+
+        if (
+            preg_match('/^twilio_(trunk|elastic_trunk|elastic_host|sip_domain|byoc_trunk|byoc_host)(:|$)/i', trim((string)$addparameter)) === 1
+            && preg_match('/^[0-9]{10,15}$/', $dialingnumber) === 1
+        ) {
+            return '+' . $dialingnumber;
+        }
+
+        return $dialingnumber;
+    }
+
     private function should_use_pjsip_trunk($tech, $addparameter)
     {
         return strtoupper(trim((string)$tech)) === 'PJSIP';
@@ -1268,7 +1285,7 @@ class RateEngine
 
     private function build_trunk_dial_string($tech, $ipaddress, $prefix, $destination, $dialparams, $switchdialcommand, $trunkcode, $addparameter, $has_dialingnumber_placeholder)
     {
-        $dialingnumber = $prefix . $destination;
+        $dialingnumber = $this->normalize_provider_dialingnumber($addparameter, $prefix . $destination);
 
         if ($this->should_use_pjsip_trunk($tech, $addparameter)) {
             $endpoint = $this->pjsip_trunk_endpoint($trunkcode, $ipaddress);

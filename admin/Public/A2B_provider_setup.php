@@ -77,6 +77,7 @@ $defaults = [
     'twilio_byoc_trunk_sid' => $twilioByocTrunkSid,
     'twilio_trunk_technology' => twilioDefaultTrunkTechnology($twilioRoutingMode, $twilioElasticTrunkSid, $twilioByocTrunkSid),
     'twilio_outbound_from_domain' => envString('TWILIO_OUTBOUND_FROM_DOMAIN', envString('TWILIO_ELASTIC_TERMINATION_URI', 'vectavoip.pstn.twilio.com')),
+    'twilio_outbound_dial_prefix' => envString('TWILIO_OUTBOUND_DIAL_PREFIX', '+'),
     'twilio_default_caller_id' => envString('TWILIO_DEFAULT_CALLER_ID'),
     'twilio_page_size' => '25',
     'twilio_trunks_page_size' => '25',
@@ -151,6 +152,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input['twilio_elastic_origination_uri'] = twilioNormalizeSipUri($input['twilio_elastic_origination_uri']);
     $input['twilio_sip_domain'] = twilioNormalizeHost($input['twilio_sip_domain']);
     $input['twilio_trunk_technology'] = twilioOutboundTrunkTechnology($input['twilio_trunk_technology']);
+    $input['twilio_outbound_dial_prefix'] = twilioOutboundDialPrefix($input);
     $input['provider'] = trim((string)($_POST['provider_context'] ?? $_POST['provider'] ?? 'vectavoip'));
     if (providerModulesUnlocked()) {
         $input['provider_unlock_token'] = providerUnlockToken();
@@ -582,6 +584,7 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         'TWILIO_BYOC_TRUNK_SID' => $input['twilio_byoc_trunk_sid'],
         'TWILIO_TRUNK_TECHNOLOGY' => twilioOutboundTrunkTechnology($input['twilio_trunk_technology']),
         'TWILIO_OUTBOUND_FROM_DOMAIN' => twilioOutboundFromDomain($input),
+        'TWILIO_OUTBOUND_DIAL_PREFIX' => twilioOutboundDialPrefix($input),
         'TWILIO_DEFAULT_CALLER_ID' => $input['twilio_default_caller_id'],
     ];
 
@@ -1031,10 +1034,11 @@ function ensureTwilioOutboundTrunk(PDO $pdo, array $input): int
         'INSERT INTO cc_trunk
             (trunkcode, trunkprefix, providertech, providerip, removeprefix, failover_trunk, addparameter,
              id_provider, inuse, maxuse, status, if_max_use)
-         VALUES (?, "", ?, ?, "", 0, ?, ?, 0, -1, 1, 0)'
+         VALUES (?, ?, ?, ?, "", 0, ?, ?, 0, -1, 1, 0)'
     );
     $statement->execute([
         twilioTrunkCode($input),
+        twilioOutboundDialPrefix($input),
         twilioOutboundTrunkTechnology($input['twilio_trunk_technology'] ?? ''),
         $host,
         $syncKey,
@@ -1191,6 +1195,7 @@ function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, array $input): voi
         'UPDATE cc_trunk
          SET providertech = ?,
              providerip = ?,
+             trunkprefix = ?,
              addparameter = ?,
              status = 1
          WHERE id_trunk = ?'
@@ -1198,6 +1203,7 @@ function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, array $input): voi
     $statement->execute([
         twilioOutboundTrunkTechnology($input['twilio_trunk_technology'] ?? ''),
         $host,
+        twilioOutboundDialPrefix($input),
         twilioOutboundTrunkSyncKey($input),
         $trunkId,
     ]);
@@ -1288,17 +1294,20 @@ function twilioOutboundTrunkStatus(array $input): array
     $expectedHost = twilioOutboundTrunkHost($input);
     $expectedContact = $expectedHost !== '' ? 'sip:' . $expectedHost : '';
     $expectedFromDomain = twilioOutboundFromDomain($input);
+    $expectedTrunkPrefix = twilioOutboundDialPrefix($input);
     $status = [
         'ok' => false,
         'message' => 'Twilio outbound trunk has not been created yet.',
         'trunk_id' => 0,
         'trunkcode' => '',
+        'trunkprefix' => '',
         'providertech' => '',
         'providerip' => '',
         'addparameter' => '',
         'endpoint_id' => '',
         'contact' => '',
         'from_domain' => '',
+        'expected_trunkprefix' => $expectedTrunkPrefix,
         'expected_contact' => $expectedContact,
         'expected_from_domain' => $expectedFromDomain,
     ];
@@ -1310,7 +1319,7 @@ function twilioOutboundTrunkStatus(array $input): array
             return $status;
         }
 
-        $statement = $pdo->prepare('SELECT id_trunk, trunkcode, providertech, providerip, addparameter FROM cc_trunk WHERE id_trunk = ? LIMIT 1');
+        $statement = $pdo->prepare('SELECT id_trunk, trunkcode, trunkprefix, providertech, providerip, addparameter FROM cc_trunk WHERE id_trunk = ? LIMIT 1');
         $statement->execute([$trunkId]);
         $trunk = $statement->fetch(PDO::FETCH_ASSOC);
         if (!is_array($trunk)) {
@@ -1321,14 +1330,18 @@ function twilioOutboundTrunkStatus(array $input): array
         $endpointId = pjsipEndpointId('trunk', $trunkcode);
         $status['trunk_id'] = (int)$trunkId;
         $status['trunkcode'] = $trunkcode;
+        $status['trunkprefix'] = (string)($trunk['trunkprefix'] ?? '');
         $status['providertech'] = (string)($trunk['providertech'] ?? '');
         $status['providerip'] = (string)($trunk['providerip'] ?? '');
         $status['addparameter'] = (string)($trunk['addparameter'] ?? '');
         $status['endpoint_id'] = $endpointId;
 
+        $trunkPrefixOk = (string)$status['trunkprefix'] === (string)$expectedTrunkPrefix;
         if (strtoupper(trim($status['providertech'])) !== 'PJSIP') {
-            $status['ok'] = true;
-            $status['message'] = 'A2Billing trunk is not PJSIP; realtime PJSIP endpoint sync is not required.';
+            $status['ok'] = $trunkPrefixOk;
+            $status['message'] = $status['ok']
+                ? 'A2Billing trunk is not PJSIP; realtime PJSIP endpoint sync is not required.'
+                : 'A2Billing trunk dial prefix does not match the selected Twilio routing settings. Click Save and Create Local Trunk to repair it.';
             return $status;
         }
 
@@ -1350,7 +1363,7 @@ function twilioOutboundTrunkStatus(array $input): array
         $status['contact'] = (string)($endpoint['contact'] ?? '');
         $contactOk = $expectedContact === '' || strtolower($status['contact']) === strtolower($expectedContact);
         $fromDomainOk = $expectedFromDomain === '' || strtolower($status['from_domain']) === strtolower($expectedFromDomain);
-        $status['ok'] = $contactOk && $fromDomainOk;
+        $status['ok'] = $trunkPrefixOk && $contactOk && $fromDomainOk;
         $status['message'] = $status['ok']
             ? 'Twilio outbound PJSIP endpoint matches the selected routing settings.'
             : 'Twilio outbound PJSIP endpoint does not match the selected routing settings. Click Save and Create Local Trunk to repair it.';
@@ -1480,6 +1493,15 @@ function twilioOutboundFromDomain(array $input): string
 {
     $fromDomain = twilioNormalizeHost($input['twilio_outbound_from_domain'] ?? '');
     return $fromDomain !== '' ? $fromDomain : twilioOutboundTrunkHost($input);
+}
+
+/**
+ * @param array<string, string> $input
+ */
+function twilioOutboundDialPrefix(array $input): string
+{
+    $prefix = trim($input['twilio_outbound_dial_prefix'] ?? '+');
+    return $prefix !== '' ? $prefix : '+';
 }
 
 /**
@@ -1752,6 +1774,12 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     <td><strong>Expected From Domain</strong></td>
                     <td><?php echo h((string)$twilioTrunkStatus['expected_from_domain']); ?></td>
                 </tr>
+                <tr>
+                    <td><strong>Current Dial Prefix</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['trunkprefix']); ?></td>
+                    <td><strong>Expected Dial Prefix</strong></td>
+                    <td><?php echo h((string)$twilioTrunkStatus['expected_trunkprefix']); ?></td>
+                </tr>
             </table>
             <?php endif; ?>
             <form method="post">
@@ -1893,6 +1921,13 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                         <td>
                             <input id="twilio_outbound_from_domain" name="twilio_outbound_from_domain" type="text" size="70" value="<?php echo h($input['twilio_outbound_from_domain']); ?>" placeholder="vectavoip.pstn.twilio.com">
                             <br><span style="color:#666;">Used on the PJSIP trunk From header domain. Leave this as the Elastic termination host unless the carrier requires another domain.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_outbound_dial_prefix">Outbound Dial Prefix</label></td>
+                        <td>
+                            <input id="twilio_outbound_dial_prefix" name="twilio_outbound_dial_prefix" type="text" size="10" value="<?php echo h($input['twilio_outbound_dial_prefix']); ?>" placeholder="+">
+                            <br><span style="color:#666;">Writes the A2Billing trunk ADD PREFIX field. Elastic SIP Trunking should use + so Twilio receives E.164 destinations.</span>
                         </td>
                     </tr>
                     <tr>
@@ -2062,6 +2097,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 <input type="hidden" name="twilio_trunk_technology" value="<?php echo h($input['twilio_trunk_technology']); ?>">
                 <input type="hidden" name="twilio_default_caller_id" value="<?php echo h($input['twilio_default_caller_id']); ?>">
                 <input type="hidden" name="twilio_outbound_from_domain" value="<?php echo h($input['twilio_outbound_from_domain']); ?>">
+                <input type="hidden" name="twilio_outbound_dial_prefix" value="<?php echo h($input['twilio_outbound_dial_prefix']); ?>">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
                         <td width="220"><label for="twilio_rate_deck">Rate Deck Tag</label></td>
