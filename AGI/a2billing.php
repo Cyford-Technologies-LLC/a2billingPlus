@@ -524,7 +524,13 @@ if ($mode == 'standard') {
                 } while ($return_mainmenu);
             }
 
-            if ($A2B->agiconfig['sip_iax_friends'] == 1) {
+            $trusted_pjsip_dnid_call = $A2B->trusted_endpoint_accountcode
+                && $A2B->agiconfig['use_dnid'] == 1
+                && !in_array($A2B->dnid, $A2B->agiconfig['no_auth_dnid'])
+                && strlen($A2B->dnid) > 2
+                && $i == 0;
+
+            if ($A2B->agiconfig['sip_iax_friends'] == 1 && !$trusted_pjsip_dnid_call) {
 
                 if ($A2B->agiconfig['sip_iax_pstn_direct_call'] == 1) {
 
