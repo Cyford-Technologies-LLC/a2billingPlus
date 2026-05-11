@@ -51,6 +51,7 @@ $twilioSearch = [];
 $twilioPurchase = [];
 $twilioTrunk = [];
 $twilioSync = [];
+$twilioByocTrunkSid = envString('TWILIO_BYOC_TRUNK_SID');
 
 $defaults = [
     'base_url' => envString('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com'),
@@ -65,7 +66,9 @@ $defaults = [
     'twilio_auth_token' => envString('TWILIO_AUTH_TOKEN'),
     'twilio_default_voice_url' => envString('TWILIO_DEFAULT_VOICE_URL'),
     'twilio_default_sms_url' => envString('TWILIO_DEFAULT_SMS_URL'),
-    'twilio_byoc_trunk_sid' => envString('TWILIO_BYOC_TRUNK_SID'),
+    'twilio_byoc_trunk_sid' => $twilioByocTrunkSid,
+    'twilio_trunk_technology' => twilioDefaultTrunkTechnology($twilioByocTrunkSid),
+    'twilio_default_caller_id' => envString('TWILIO_DEFAULT_CALLER_ID'),
     'twilio_page_size' => '25',
     'twilio_trunks_page_size' => '25',
     'twilio_trunk_numbers_page_size' => '25',
@@ -132,6 +135,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input['update_existing'] = isset($_POST['update_existing']) ? '1' : '';
     $input['auto_create_ratecard'] = isset($_POST['auto_create_ratecard']) ? '1' : '';
     $input['twilio_sandbox_mode'] = isset($_POST['twilio_sandbox_mode']) ? '1' : '0';
+    $input['twilio_trunk_technology'] = twilioOutboundTrunkTechnology($input['twilio_trunk_technology']);
     $input['provider'] = trim((string)($_POST['provider_context'] ?? $_POST['provider'] ?? 'vectavoip'));
     if (providerModulesUnlocked()) {
         $input['provider_unlock_token'] = providerUnlockToken();
@@ -280,10 +284,14 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if (!$errors && in_array($formAction, ['dry_run_import_rates', 'import_rates'], true)) {
         $rateImportPdo = providerSetupPdo();
+        $twilioCidGroupId = 0;
         if (($input['provider'] ?? '') === 'twilio') {
-            $twilioTrunkId = ensureTwilioOutboundTrunk($rateImportPdo, $input['twilio_byoc_trunk_sid']);
+            $twilioTrunkId = ensureTwilioOutboundTrunk($rateImportPdo, $input['twilio_byoc_trunk_sid'], $input['twilio_trunk_technology']);
             if ($twilioTrunkId > 0) {
                 $input['target_trunk_id'] = (string)$twilioTrunkId;
+            }
+            if ($formAction === 'import_rates' && $input['twilio_default_caller_id'] !== '') {
+                $twilioCidGroupId = ensureTwilioOutboundCidGroup($rateImportPdo, $input['twilio_default_caller_id']);
             }
         }
         if (($input['provider'] ?? '') === 'twilio' && (int)$input['target_ratecard_id'] <= 0) {
@@ -306,8 +314,8 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $errors[] = (string)($rateImport['message'] ?? 'Rate import failed.');
             } else {
                 if (($input['provider'] ?? '') === 'twilio' && $formAction === 'import_rates' && (int)$input['target_trunk_id'] > 0) {
-                    bindTwilioImportedRateRows($rateImportPdo, (int)$input['target_ratecard_id'], (int)$input['target_trunk_id'], 'Twilio:' . $input['rate_deck']);
-                    $messages[] = 'Bound Twilio ratecard and imported rates to trunk #' . (int)$input['target_trunk_id'] . '.';
+                    bindTwilioImportedRateRows($rateImportPdo, (int)$input['target_ratecard_id'], (int)$input['target_trunk_id'], 'Twilio:' . $input['rate_deck'], $twilioCidGroupId);
+                    $messages[] = 'Bound Twilio ratecard and imported rates to trunk #' . (int)$input['target_trunk_id'] . ($twilioCidGroupId > 0 ? ' and outbound CID group #' . $twilioCidGroupId : '') . '.';
                 }
                 $messages[] = (string)($rateImport['message'] ?? 'Rate import completed.');
             }
@@ -535,6 +543,8 @@ function saveUpstreamSettings(string $envPath, array $input, array &$messages, a
         'TWILIO_DEFAULT_VOICE_URL' => $input['twilio_default_voice_url'],
         'TWILIO_DEFAULT_SMS_URL' => $input['twilio_default_sms_url'],
         'TWILIO_BYOC_TRUNK_SID' => $input['twilio_byoc_trunk_sid'],
+        'TWILIO_TRUNK_TECHNOLOGY' => twilioOutboundTrunkTechnology($input['twilio_trunk_technology']),
+        'TWILIO_DEFAULT_CALLER_ID' => $input['twilio_default_caller_id'],
     ];
 
     saveRuntimeSettings($values, ['TWILIO_API_KEY', 'TWILIO_API_SECRET', 'TWILIO_AUTH_TOKEN'], $messages, $errors);
@@ -955,11 +965,11 @@ function ensureTwilioOutboundRatePlan(PDO $pdo, string $ratecardName, string $ca
     ];
 }
 
-function ensureTwilioOutboundTrunk(PDO $pdo, string $byocTrunkSid): int
+function ensureTwilioOutboundTrunk(PDO $pdo, string $byocTrunkSid, string $technology = ''): int
 {
     $trunkId = findTwilioOutboundTrunkId($pdo, $byocTrunkSid);
     if ($trunkId > 0) {
-        normalizeTwilioOutboundTrunk($pdo, $trunkId);
+        normalizeTwilioOutboundTrunk($pdo, $trunkId, $technology);
         return $trunkId;
     }
 
@@ -983,7 +993,7 @@ function ensureTwilioOutboundTrunk(PDO $pdo, string $byocTrunkSid): int
     );
     $statement->execute([
         twilioTrunkCode($sid),
-        twilioOutboundTrunkTechnology(),
+        twilioOutboundTrunkTechnology($technology),
         'twilio_trunk:' . $sid,
         $providerId,
     ]);
@@ -1032,17 +1042,71 @@ function bindTwilioOutboundRatePlan(PDO $pdo, int $tariffPlanId, int $trunkId): 
     $statement->execute([$trunkId, $tariffPlanId]);
 }
 
-function bindTwilioImportedRateRows(PDO $pdo, int $tariffPlanId, int $trunkId, string $tag): void
+function bindTwilioImportedRateRows(PDO $pdo, int $tariffPlanId, int $trunkId, string $tag, int $cidGroupId = 0): void
 {
-    if ($tariffPlanId <= 0 || $trunkId <= 0 || !columnExists($pdo, 'cc_ratecard', 'id_trunk')) {
+    if ($tariffPlanId <= 0) {
         return;
     }
 
-    $statement = $pdo->prepare('UPDATE cc_ratecard SET id_trunk = ? WHERE idtariffplan = ? AND tag = ?');
-    $statement->execute([$trunkId, $tariffPlanId, $tag]);
+    $assignments = [];
+    $values = [];
+    if ($trunkId > 0 && columnExists($pdo, 'cc_ratecard', 'id_trunk')) {
+        $assignments[] = 'id_trunk = ?';
+        $values[] = $trunkId;
+    }
+    if ($cidGroupId > 0 && columnExists($pdo, 'cc_ratecard', 'id_outbound_cidgroup')) {
+        $assignments[] = 'id_outbound_cidgroup = ?';
+        $values[] = $cidGroupId;
+    }
+    if (!$assignments) {
+        return;
+    }
+
+    $values[] = $tariffPlanId;
+    $values[] = $tag;
+    $statement = $pdo->prepare('UPDATE cc_ratecard SET ' . implode(', ', $assignments) . ' WHERE idtariffplan = ? AND tag = ?');
+    $statement->execute($values);
 }
 
-function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId): void
+function ensureTwilioOutboundCidGroup(PDO $pdo, string $callerId): int
+{
+    $callerId = trim($callerId);
+    if ($callerId === '' || !tableExists($pdo, 'cc_outbound_cid_group') || !tableExists($pdo, 'cc_outbound_cid_list')) {
+        return 0;
+    }
+
+    foreach (['cid', 'outbound_cid_group', 'activated'] as $column) {
+        if (!columnExists($pdo, 'cc_outbound_cid_list', $column)) {
+            return 0;
+        }
+    }
+
+    $groupName = 'Twilio Default Caller ID';
+    $groupId = findNamedId($pdo, 'cc_outbound_cid_group', 'group_name', $groupName);
+    if ($groupId <= 0) {
+        $statement = $pdo->prepare('INSERT INTO cc_outbound_cid_group (group_name) VALUES (?)');
+        $statement->execute([$groupName]);
+        $groupId = (int)$pdo->lastInsertId();
+    }
+    if ($groupId <= 0) {
+        return 0;
+    }
+
+    $statement = $pdo->prepare('SELECT id FROM cc_outbound_cid_list WHERE outbound_cid_group = ? AND cid = ? LIMIT 1');
+    $statement->execute([$groupId, $callerId]);
+    $cidId = $statement->fetchColumn();
+    if ($cidId === false) {
+        $insert = $pdo->prepare('INSERT INTO cc_outbound_cid_list (cid, outbound_cid_group, activated) VALUES (?, ?, 1)');
+        $insert->execute([$callerId, $groupId]);
+    } else {
+        $update = $pdo->prepare('UPDATE cc_outbound_cid_list SET activated = 1 WHERE id = ?');
+        $update->execute([(int)$cidId]);
+    }
+
+    return $groupId;
+}
+
+function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, string $technology = ''): void
 {
     $statement = $pdo->prepare(
         'UPDATE cc_trunk
@@ -1051,11 +1115,49 @@ function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId): void
              status = 1
          WHERE id_trunk = ?'
     );
-    $statement->execute([twilioOutboundTrunkTechnology(), $trunkId]);
+    $statement->execute([twilioOutboundTrunkTechnology($technology), $trunkId]);
 }
 
-function twilioOutboundTrunkTechnology(): string
+function twilioDefaultTrunkTechnology(string $byocTrunkSid): string
 {
+    $existing = twilioExistingTrunkTechnology($byocTrunkSid);
+    if ($existing !== '') {
+        return twilioOutboundTrunkTechnology($existing);
+    }
+
+    return twilioOutboundTrunkTechnology(envString('TWILIO_TRUNK_TECHNOLOGY'));
+}
+
+function twilioExistingTrunkTechnology(string $byocTrunkSid): string
+{
+    try {
+        $pdo = providerSetupPdo();
+        $trunkId = findTwilioOutboundTrunkId($pdo, $byocTrunkSid);
+        if ($trunkId <= 0) {
+            return '';
+        }
+
+        $statement = $pdo->prepare('SELECT providertech FROM cc_trunk WHERE id_trunk = ? LIMIT 1');
+        $statement->execute([$trunkId]);
+        $technology = $statement->fetchColumn();
+        return is_string($technology) ? trim($technology) : '';
+    } catch (Throwable) {
+        return '';
+    }
+}
+
+function twilioOutboundTrunkTechnology(string $technology = ''): string
+{
+    $configured = strtoupper(trim($technology));
+    if (in_array($configured, ['SIP', 'PJSIP', 'IAX2'], true)) {
+        return $configured;
+    }
+
+    $configured = strtoupper(trim(envString('TWILIO_TRUNK_TECHNOLOGY')));
+    if (in_array($configured, ['SIP', 'PJSIP', 'IAX2'], true)) {
+        return $configured;
+    }
+
     $driver = strtolower(envString('A2BP_ASTERISK_CHANNEL_DRIVER', 'pjsip'));
     return match ($driver) {
         'sip', 'chan_sip' => 'SIP',
@@ -1315,6 +1417,24 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                         <td><input id="twilio_byoc_trunk_sid" name="twilio_byoc_trunk_sid" type="text" size="70" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>"></td>
                     </tr>
                     <tr>
+                        <td><label for="twilio_trunk_technology">Outbound Trunk Technology</label></td>
+                        <td>
+                            <select id="twilio_trunk_technology" name="twilio_trunk_technology">
+                                <?php foreach (['PJSIP', 'SIP', 'IAX2'] as $technology): ?>
+                                    <option value="<?php echo h($technology); ?>" <?php echo $input['twilio_trunk_technology'] === $technology ? 'selected' : ''; ?>><?php echo h($technology); ?></option>
+                                <?php endforeach; ?>
+                            </select>
+                            <br><span style="color:#666;">This writes the trunk Provider Tech field. The AGI honors the trunk value and does not auto-convert SIP to PJSIP.</span>
+                        </td>
+                    </tr>
+                    <tr>
+                        <td><label for="twilio_default_caller_id">Default Outbound Caller ID</label></td>
+                        <td>
+                            <input id="twilio_default_caller_id" name="twilio_default_caller_id" type="text" size="35" value="<?php echo h($input['twilio_default_caller_id']); ?>" placeholder="+14045550100">
+                            <br><span style="color:#666;">Optional. Rate import stores this as an A2Billing outbound CID group on Twilio rate rows. Leave blank to use the customer or device caller ID.</span>
+                        </td>
+                    </tr>
+                    <tr>
                         <td></td>
                         <td><input class="form_input_button" type="submit" value="Save Settings and Verify Twilio"></td>
                     </tr>
@@ -1447,6 +1567,8 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 <input type="hidden" name="twilio_api_secret" value="<?php echo h($input['twilio_api_secret']); ?>">
                 <input type="hidden" name="twilio_auth_token" value="<?php echo h($input['twilio_auth_token']); ?>">
                 <input type="hidden" name="twilio_byoc_trunk_sid" value="<?php echo h($input['twilio_byoc_trunk_sid']); ?>">
+                <input type="hidden" name="twilio_trunk_technology" value="<?php echo h($input['twilio_trunk_technology']); ?>">
+                <input type="hidden" name="twilio_default_caller_id" value="<?php echo h($input['twilio_default_caller_id']); ?>">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
                         <td width="220"><label for="twilio_rate_deck">Rate Deck Tag</label></td>

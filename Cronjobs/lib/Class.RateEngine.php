@@ -1264,23 +1264,7 @@ class RateEngine
 
     private function should_use_pjsip_trunk($tech, $addparameter)
     {
-        $tech = strtoupper(trim((string)$tech));
-        if ($tech === 'PJSIP') {
-            return true;
-        }
-        if ($tech !== 'SIP') {
-            return false;
-        }
-
-        $driver = strtolower(trim((string)getenv('A2BP_ASTERISK_CHANNEL_DRIVER')));
-        if ($driver === 'chan_sip' || $driver === 'sip') {
-            return false;
-        }
-        if ($driver === 'pjsip') {
-            return true;
-        }
-
-        return $this->is_provider_sync_parameter($addparameter);
+        return strtoupper(trim((string)$tech)) === 'PJSIP';
     }
 
     private function build_trunk_dial_string($tech, $ipaddress, $prefix, $destination, $dialparams, $switchdialcommand, $trunkcode, $addparameter, $has_dialingnumber_placeholder)
