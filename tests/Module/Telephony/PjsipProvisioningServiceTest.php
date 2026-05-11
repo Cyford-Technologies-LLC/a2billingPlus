@@ -17,13 +17,51 @@ final class PjsipProvisioningServiceTest extends TestCase
             'customer_id' => 10,
             'username' => '1001',
             'secret' => 'strong-device-secret',
+            'accountcode' => '1667128551',
         ], 'admin:root');
 
         $this->assertSame(201, $result['status']);
-        $this->assertSame('cust-10-1001', $result['body']['endpoint']['endpoint_id']);
+        $this->assertSame('c10-1001', $result['body']['endpoint']['endpoint_id']);
         $this->assertArrayNotHasKey('secret', $result['body']['endpoint']);
-        $this->assertSame('strong-device-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = 'cust-10-1001-auth'")->fetchColumn());
+        $this->assertSame('strong-device-secret', $pdo->query("SELECT password FROM ps_auths WHERE id = 'c10-1001-auth'")->fetchColumn());
+        $this->assertSame('1667128551', $pdo->query("SELECT accountcode FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame('rfc4733', $pdo->query("SELECT dtmf_mode FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame(60, (int)$pdo->query("SELECT qualify_frequency FROM ps_aors WHERE id = 'c10-1001'")->fetchColumn());
         $this->assertSame('pjsip.customer_device.provision', $pdo->query('SELECT action FROM cc_a2bp_audit_log')->fetchColumn());
+    }
+
+    public function testSyncLegacySipAccountCopiesSipOptionsToPjsip(): void
+    {
+        $pdo = $this->pdo();
+        $service = new PjsipProvisioningService($pdo);
+
+        $result = $service->syncLegacySipAccount([
+            'id_cc_card' => 10,
+            'username' => '1001',
+            'secret' => 'strong-device-secret',
+            'accountcode' => '1667128551',
+            'callerid' => '"Test User" <1965588621>',
+            'context' => 'a2billing',
+            'allow' => 'ulaw',
+            'dtmfmode' => 'RFC2833',
+            'language' => 'en',
+            'mailbox' => '1001@default',
+            'mohsuggest' => 'default',
+            'rtpkeepalive' => '15',
+            'rtptimeout' => '30',
+            'rtpholdtimeout' => '60',
+            'outboundproxy' => 'sip:proxy.example.com',
+            'qualify' => 'yes',
+            'setvar' => 'TENANT=10',
+        ], 'admin:root');
+
+        $this->assertSame(201, $result['status']);
+        $this->assertSame('"Test User" <1965588621>', $pdo->query("SELECT callerid FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame('rfc4733', $pdo->query("SELECT dtmf_mode FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame('1001@default', $pdo->query("SELECT mailboxes FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame(15, (int)$pdo->query("SELECT rtp_keepalive FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame(60, (int)$pdo->query("SELECT qualify_frequency FROM ps_aors WHERE id = 'c10-1001'")->fetchColumn());
+        $this->assertSame('TENANT=10', $pdo->query("SELECT set_var FROM ps_endpoints WHERE id = 'c10-1001'")->fetchColumn());
     }
 
     public function testProvisionsTrunkEndpoint(): void
@@ -54,8 +92,8 @@ final class PjsipProvisioningServiceTest extends TestCase
         ], 'admin:root');
 
         $list = $service->listEndpoints(10, 0, 'customer_device', 10);
-        $detail = $service->endpointDetail('cust-10-1001');
-        $update = $service->updateEndpoint('cust-10-1001', [
+        $detail = $service->endpointDetail('c10-1001');
+        $update = $service->updateEndpoint('c10-1001', [
             'context' => 'from-internal',
             'allow' => 'ulaw',
             'max_contacts' => 2,

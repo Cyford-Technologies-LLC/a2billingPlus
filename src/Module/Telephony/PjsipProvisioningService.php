@@ -8,6 +8,39 @@ use A2BillingPlus\Module\Security\AuditLogRepository;
 
 final class PjsipProvisioningService
 {
+    private const PJSIP_AUTH_COMPAT_COLUMNS = [
+        'realm' => 'VARCHAR(255) DEFAULT NULL',
+        'md5_cred' => 'VARCHAR(40) DEFAULT NULL',
+        'nonce_lifetime' => 'INT DEFAULT NULL',
+    ];
+
+    private const PJSIP_AOR_COMPAT_COLUMNS = [
+        'qualify_frequency' => 'INT NOT NULL DEFAULT 60',
+        'authenticate_qualify' => 'VARCHAR(3) NOT NULL DEFAULT "no"',
+        'default_expiration' => 'INT NOT NULL DEFAULT 3600',
+        'maximum_expiration' => 'INT NOT NULL DEFAULT 7200',
+        'minimum_expiration' => 'INT NOT NULL DEFAULT 60',
+    ];
+
+    private const PJSIP_ENDPOINT_COMPAT_COLUMNS = [
+        'callerid' => 'VARCHAR(120) NOT NULL DEFAULT ""',
+        'dtmf_mode' => 'VARCHAR(20) NOT NULL DEFAULT "rfc4733"',
+        'language' => 'VARCHAR(20) NOT NULL DEFAULT "en"',
+        'mailboxes' => 'VARCHAR(120) NOT NULL DEFAULT ""',
+        'moh_suggest' => 'VARCHAR(80) NOT NULL DEFAULT "default"',
+        'from_user' => 'VARCHAR(80) NOT NULL DEFAULT ""',
+        'from_domain' => 'VARCHAR(120) NOT NULL DEFAULT ""',
+        'outbound_proxy' => 'VARCHAR(255) NOT NULL DEFAULT ""',
+        'rtp_keepalive' => 'INT NOT NULL DEFAULT 0',
+        'rtp_timeout' => 'INT NOT NULL DEFAULT 0',
+        'rtp_timeout_hold' => 'INT NOT NULL DEFAULT 0',
+        'send_rpid' => 'VARCHAR(3) NOT NULL DEFAULT "no"',
+        'trust_id_inbound' => 'VARCHAR(3) NOT NULL DEFAULT "no"',
+        'trust_id_outbound' => 'VARCHAR(3) NOT NULL DEFAULT "no"',
+        'allow_transfer' => 'VARCHAR(3) NOT NULL DEFAULT "yes"',
+        'set_var' => 'VARCHAR(255) NOT NULL DEFAULT ""',
+    ];
+
     public function __construct(
         private readonly \PDO $pdo,
         private readonly ?AuditLogRepository $auditLog = null
@@ -36,7 +69,19 @@ final class PjsipProvisioningService
         $accountcode = $this->stringValue($payload, 'accountcode') ?: $this->customerAccountCode($customerId);
 
         // SIP username = endpointId so Asterisk auth_username lookup is globally unique
-        $this->writeEndpoint($endpointId, $endpointId, $secret, $context, $allow, null, 1, 'auth_username,username', $accountcode);
+        $this->writeEndpoint(
+            $endpointId,
+            $endpointId,
+            $secret,
+            $context,
+            $allow,
+            null,
+            1,
+            'auth_username,username',
+            $accountcode,
+            $this->endpointOptionsFromPayload($payload),
+            $this->aorOptionsFromPayload($payload)
+        );
         $this->writeMapping($endpointId, 'customer_device', $customerId, $extension);
         $this->audit($actor, 'pjsip.customer_device.provision', $endpointId, ['customer_id' => $customerId, 'extension' => $extension]);
 
@@ -56,6 +101,22 @@ final class PjsipProvisioningService
             'context'     => $account['context'] ?? null,
             'allow'       => $account['allow'] ?? 'ulaw,alaw',
             'accountcode' => $account['accountcode'] ?? '',
+            'callerid' => $account['callerid'] ?? '',
+            'dtmfmode' => $account['dtmfmode'] ?? '',
+            'language' => $account['language'] ?? '',
+            'mailbox' => $account['mailbox'] ?? '',
+            'mohsuggest' => $account['mohsuggest'] ?? ($account['musiconhold'] ?? ''),
+            'rtpkeepalive' => $account['rtpkeepalive'] ?? '',
+            'rtptimeout' => $account['rtptimeout'] ?? '',
+            'rtpholdtimeout' => $account['rtpholdtimeout'] ?? '',
+            'fromuser' => $account['fromuser'] ?? '',
+            'fromdomain' => $account['fromdomain'] ?? '',
+            'outboundproxy' => $account['outboundproxy'] ?? '',
+            'sendrpid' => $account['sendrpid'] ?? '',
+            'trustrpid' => $account['trustrpid'] ?? '',
+            'allowtransfer' => $account['allowtransfer'] ?? '',
+            'setvar' => $account['setvar'] ?? '',
+            'qualify' => $account['qualify'] ?? '',
         ], $actor);
     }
 
@@ -76,7 +137,17 @@ final class PjsipProvisioningService
         $endpointId = $this->endpointId('trunk', $trunkCode);
         $allow = $this->stringValue($payload, 'allow', 'ulaw,alaw');
         $register = $this->boolValue($payload, 'register', $username !== '' && $secret !== '');
-        $this->writeTrunkEndpoint($endpointId, $host, $username, $secret, 'from-pstn', $allow, $register);
+        $this->writeTrunkEndpoint(
+            $endpointId,
+            $host,
+            $username,
+            $secret,
+            'from-pstn',
+            $allow,
+            $register,
+            $this->endpointOptionsFromPayload($payload),
+            $this->aorOptionsFromPayload($payload)
+        );
         $this->writeMapping($endpointId, 'trunk', 0, $trunkCode);
         $this->audit($actor, 'pjsip.trunk.provision', $endpointId, ['trunkcode' => $trunkCode, 'host' => $host]);
 
@@ -96,6 +167,14 @@ final class PjsipProvisioningService
             'secret' => $trunk['secret'] ?? '',
             'allow' => $trunk['allow'] ?? 'ulaw,alaw',
             'register' => $trunk['register'] ?? false,
+            'dtmfmode' => $trunk['dtmfmode'] ?? '',
+            'fromuser' => $trunk['fromuser'] ?? '',
+            'fromdomain' => $trunk['fromdomain'] ?? '',
+            'outboundproxy' => $trunk['outboundproxy'] ?? '',
+            'rtpkeepalive' => $trunk['rtpkeepalive'] ?? '',
+            'rtptimeout' => $trunk['rtptimeout'] ?? '',
+            'rtpholdtimeout' => $trunk['rtpholdtimeout'] ?? '',
+            'qualify' => $trunk['qualify'] ?? '',
         ], $actor);
     }
 
@@ -166,6 +245,22 @@ final class PjsipProvisioningService
                 e.identify_by,
                 e.disallow,
                 e.allow,
+                e.callerid,
+                e.dtmf_mode,
+                e.language,
+                e.mailboxes,
+                e.moh_suggest,
+                e.from_user,
+                e.from_domain,
+                e.outbound_proxy,
+                e.rtp_keepalive,
+                e.rtp_timeout,
+                e.rtp_timeout_hold,
+                e.send_rpid,
+                e.trust_id_inbound,
+                e.trust_id_outbound,
+                e.allow_transfer,
+                e.set_var,
                 e.direct_media,
                 e.rtp_symmetric,
                 e.force_rport,
@@ -173,6 +268,8 @@ final class PjsipProvisioningService
                 a.max_contacts,
                 a.remove_existing,
                 a.contact,
+                a.qualify_frequency,
+                a.authenticate_qualify,
                 m.created_at,
                 m.updated_at
              FROM cc_a2bp_pjsip_endpoint_map m
@@ -198,11 +295,42 @@ final class PjsipProvisioningService
         }
 
         $endpointUpdates = [];
-        foreach (['context', 'allow', 'identify_by', 'accountcode'] as $field) {
+        $endpointStringFields = [
+            'context' => [100, true],
+            'allow' => [100, true],
+            'identify_by' => [100, true],
+            'accountcode' => [100, true],
+            'callerid' => [120, false],
+            'dtmf_mode' => [20, true],
+            'language' => [20, false],
+            'mailboxes' => [120, false],
+            'moh_suggest' => [80, false],
+            'from_user' => [80, false],
+            'from_domain' => [120, false],
+            'outbound_proxy' => [255, false],
+            'send_rpid' => [3, false],
+            'trust_id_inbound' => [3, false],
+            'trust_id_outbound' => [3, false],
+            'allow_transfer' => [3, false],
+            'set_var' => [255, false],
+        ];
+        foreach ($endpointStringFields as $field => [$maxLength, $required]) {
             if (array_key_exists($field, $payload)) {
                 $value = $this->stringValue($payload, $field);
-                if ($value === '' || strlen($value) > 100) {
-                    return $this->error(422, 'pjsip_validation_failed', $field . ' must be 1 to 100 characters.', $field);
+                if (($required && $value === '') || strlen($value) > $maxLength) {
+                    return $this->error(422, 'pjsip_validation_failed', $field . ' is invalid.', $field);
+                }
+                if ($field === 'dtmf_mode') {
+                    $value = $this->normalizeDtmfMode($value);
+                }
+                $endpointUpdates[$field] = $value;
+            }
+        }
+        foreach (['rtp_keepalive', 'rtp_timeout', 'rtp_timeout_hold'] as $field) {
+            if (array_key_exists($field, $payload)) {
+                $value = $this->intValue($payload, $field);
+                if (($value ?? -1) < 0 || ($value ?? -1) > 86400) {
+                    return $this->error(422, 'pjsip_validation_failed', $field . ' must be between 0 and 86400.', $field);
                 }
                 $endpointUpdates[$field] = $value;
             }
@@ -223,6 +351,13 @@ final class PjsipProvisioningService
             }
             $aorUpdates['max_contacts'] = $maxContacts;
         }
+        if (array_key_exists('qualify_frequency', $payload)) {
+            $qualifyFrequency = $this->intValue($payload, 'qualify_frequency');
+            if (($qualifyFrequency ?? -1) < 0 || ($qualifyFrequency ?? -1) > 86400) {
+                return $this->error(422, 'pjsip_validation_failed', 'qualify_frequency must be between 0 and 86400.', 'qualify_frequency');
+            }
+            $aorUpdates['qualify_frequency'] = $qualifyFrequency;
+        }
 
         $this->pdo->beginTransaction();
         try {
@@ -240,7 +375,11 @@ final class PjsipProvisioningService
         return ['status' => 200, 'body' => ['success' => true, 'endpoint' => $this->endpointDetail($endpointId)]];
     }
 
-    private function writeEndpoint(string $endpointId, string $username, string $secret, string $context, string $allow, ?string $contact, int $maxContacts, string $identifyBy, string $accountcode = ''): void
+    /**
+     * @param array<string,mixed> $endpointOptions
+     * @param array<string,mixed> $aorOptions
+     */
+    private function writeEndpoint(string $endpointId, string $username, string $secret, string $context, string $allow, ?string $contact, int $maxContacts, string $identifyBy, string $accountcode = '', array $endpointOptions = [], array $aorOptions = []): void
     {
         $realm = $this->stringValue([
             'realm' => getenv('A2BP_ASTERISK_REALM') ?: 'asterisk',
@@ -257,12 +396,12 @@ final class PjsipProvisioningService
                 'realm' => $realm,
                 'md5_cred' => md5($username . ':' . $realm . ':' . $secret),
             ]);
-            $this->upsert('ps_aors', ['id' => $endpointId], [
+            $this->upsert('ps_aors', ['id' => $endpointId], array_merge([
                 'max_contacts' => $maxContacts,
                 'remove_existing' => 'yes',
                 'contact' => $contact ?? '',
-            ]);
-            $this->upsert('ps_endpoints', ['id' => $endpointId], [
+            ], $aorOptions));
+            $this->upsert('ps_endpoints', ['id' => $endpointId], array_merge([
                 'transport' => 'transport-udp',
                 'aors' => $endpointId,
                 'auth' => $endpointId . '-auth',
@@ -275,7 +414,7 @@ final class PjsipProvisioningService
                 'rtp_symmetric' => 'yes',
                 'force_rport' => 'yes',
                 'rewrite_contact' => 'yes',
-            ]);
+            ], $endpointOptions));
             if ($ownsTransaction) {
                 $this->pdo->commit();
             }
@@ -287,7 +426,11 @@ final class PjsipProvisioningService
         }
     }
 
-    private function writeTrunkEndpoint(string $endpointId, string $host, string $username, string $secret, string $context, string $allow, bool $register): void
+    /**
+     * @param array<string,mixed> $endpointOptions
+     * @param array<string,mixed> $aorOptions
+     */
+    private function writeTrunkEndpoint(string $endpointId, string $host, string $username, string $secret, string $context, string $allow, bool $register, array $endpointOptions = [], array $aorOptions = []): void
     {
         $realm = $this->stringValue([
             'realm' => getenv('A2BP_ASTERISK_REALM') ?: 'asterisk',
@@ -307,12 +450,12 @@ final class PjsipProvisioningService
                     'md5_cred' => md5($username . ':' . $realm . ':' . $secret),
                 ]);
             }
-            $this->upsert('ps_aors', ['id' => $endpointId], [
+            $this->upsert('ps_aors', ['id' => $endpointId], array_merge([
                 'max_contacts' => 0,
                 'remove_existing' => 'yes',
                 'contact' => 'sip:' . $host,
-            ]);
-            $this->upsert('ps_endpoints', ['id' => $endpointId], [
+            ], $aorOptions));
+            $this->upsert('ps_endpoints', ['id' => $endpointId], array_merge([
                 'transport' => 'transport-udp',
                 'aors' => $endpointId,
                 'auth' => $authId,
@@ -324,7 +467,7 @@ final class PjsipProvisioningService
                 'rtp_symmetric' => 'yes',
                 'force_rport' => 'yes',
                 'rewrite_contact' => 'yes',
-            ]);
+            ], $endpointOptions));
             $this->upsert('ps_endpoint_id_ips', ['id' => $endpointId], [
                 'endpoint' => $endpointId,
                 'match' => $this->identifyMatchForHost($host),
@@ -344,7 +487,7 @@ final class PjsipProvisioningService
                     'forbidden_retry_interval' => 600,
                     'fatal_retry_interval' => 600,
                     'max_retries' => 10000,
-                    'outbound_proxy' => '',
+                    'outbound_proxy' => (string)($endpointOptions['outbound_proxy'] ?? ''),
                     'support_path' => 'no',
                     'line' => 'no',
                     'auth_rejection_permanent' => 'no',
@@ -369,6 +512,119 @@ final class PjsipProvisioningService
         }
 
         return $host;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function endpointOptionsFromPayload(array $payload): array
+    {
+        return [
+            'callerid' => $this->stringAlias($payload, ['callerid'], ''),
+            'dtmf_mode' => $this->normalizeDtmfMode($this->stringAlias($payload, ['dtmf_mode', 'dtmfmode'], 'rfc4733')),
+            'language' => $this->stringAlias($payload, ['language'], 'en'),
+            'mailboxes' => $this->stringAlias($payload, ['mailboxes', 'mailbox'], ''),
+            'moh_suggest' => $this->stringAlias($payload, ['moh_suggest', 'mohsuggest', 'musiconhold'], 'default'),
+            'from_user' => $this->stringAlias($payload, ['from_user', 'fromuser'], ''),
+            'from_domain' => $this->stringAlias($payload, ['from_domain', 'fromdomain'], ''),
+            'outbound_proxy' => $this->stringAlias($payload, ['outbound_proxy', 'outboundproxy'], ''),
+            'rtp_keepalive' => $this->intAlias($payload, ['rtp_keepalive', 'rtpkeepalive'], 0),
+            'rtp_timeout' => $this->intAlias($payload, ['rtp_timeout', 'rtptimeout'], 0),
+            'rtp_timeout_hold' => $this->intAlias($payload, ['rtp_timeout_hold', 'rtpholdtimeout'], 0),
+            'send_rpid' => $this->yesNoAlias($payload, ['send_rpid', 'sendrpid'], 'no'),
+            'trust_id_inbound' => $this->yesNoAlias($payload, ['trust_id_inbound', 'trustrpid'], 'no'),
+            'trust_id_outbound' => $this->yesNoAlias($payload, ['trust_id_outbound'], 'no'),
+            'allow_transfer' => $this->yesNoAlias($payload, ['allow_transfer', 'allowtransfer'], 'yes'),
+            'set_var' => $this->stringAlias($payload, ['set_var', 'setvar'], ''),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @return array<string,mixed>
+     */
+    private function aorOptionsFromPayload(array $payload): array
+    {
+        return [
+            'qualify_frequency' => $this->qualifyFrequency($payload),
+            'authenticate_qualify' => 'no',
+            'default_expiration' => $this->intAlias($payload, ['default_expiration'], 3600),
+            'maximum_expiration' => $this->intAlias($payload, ['maximum_expiration'], 7200),
+            'minimum_expiration' => $this->intAlias($payload, ['minimum_expiration'], 60),
+        ];
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @param list<string> $keys
+     */
+    private function stringAlias(array $payload, array $keys, string $default = ''): string
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $payload)) {
+                $value = $this->stringValue($payload, $key, $default);
+                return $value === '' ? $default : $value;
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @param list<string> $keys
+     */
+    private function intAlias(array $payload, array $keys, int $default = 0): int
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $payload)) {
+                return max(0, $this->intValue($payload, $key) ?? $default);
+            }
+        }
+
+        return $default;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     * @param list<string> $keys
+     */
+    private function yesNoAlias(array $payload, array $keys, string $default): string
+    {
+        foreach ($keys as $key) {
+            if (array_key_exists($key, $payload)) {
+                return $this->boolValue($payload, $key, $default === 'yes') ? 'yes' : 'no';
+            }
+        }
+
+        return $default;
+    }
+
+    private function normalizeDtmfMode(string $mode): string
+    {
+        $mode = strtolower(trim($mode));
+        return $mode === '' || $mode === 'rfc2833' ? 'rfc4733' : $mode;
+    }
+
+    /**
+     * @param array<string,mixed> $payload
+     */
+    private function qualifyFrequency(array $payload): int
+    {
+        if (array_key_exists('qualify_frequency', $payload)) {
+            return $this->intValue($payload, 'qualify_frequency') ?? 60;
+        }
+
+        $qualify = strtolower($this->stringAlias($payload, ['qualify'], 'yes'));
+        if (in_array($qualify, ['no', 'false', '0', 'off'], true)) {
+            return 0;
+        }
+        if (ctype_digit($qualify)) {
+            return (int)$qualify;
+        }
+
+        return 60;
     }
 
     /**
@@ -470,6 +726,7 @@ final class PjsipProvisioningService
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_registrations (id TEXT PRIMARY KEY, transport TEXT, outbound_auth TEXT, server_uri TEXT, client_uri TEXT, contact_user TEXT, endpoint TEXT, expiration INTEGER, retry_interval INTEGER, forbidden_retry_interval INTEGER, fatal_retry_interval INTEGER, max_retries INTEGER, outbound_proxy TEXT, support_path TEXT, line TEXT, auth_rejection_permanent TEXT)');
             $this->pdo->exec('CREATE TABLE IF NOT EXISTS cc_a2bp_pjsip_endpoint_map (endpoint_id TEXT PRIMARY KEY, endpoint_type TEXT, owner_id INTEGER, label TEXT, created_at TEXT, updated_at TEXT)');
             $this->ensureColumn('ps_endpoints', 'accountcode', 'TEXT NOT NULL DEFAULT ""');
+            $this->ensurePjsipCompatibilityColumns();
             return;
         }
 
@@ -480,6 +737,20 @@ final class PjsipProvisioningService
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS ps_registrations (id VARCHAR(80) NOT NULL, transport VARCHAR(80) NOT NULL DEFAULT "transport-udp", outbound_auth VARCHAR(80) NOT NULL DEFAULT "", server_uri VARCHAR(255) NOT NULL DEFAULT "", client_uri VARCHAR(255) NOT NULL DEFAULT "", contact_user VARCHAR(80) NOT NULL DEFAULT "", endpoint VARCHAR(80) NOT NULL DEFAULT "", expiration INT NOT NULL DEFAULT 3600, retry_interval INT NOT NULL DEFAULT 60, forbidden_retry_interval INT NOT NULL DEFAULT 600, fatal_retry_interval INT NOT NULL DEFAULT 600, max_retries INT NOT NULL DEFAULT 10000, outbound_proxy VARCHAR(255) NOT NULL DEFAULT "", support_path VARCHAR(3) NOT NULL DEFAULT "no", line VARCHAR(3) NOT NULL DEFAULT "no", auth_rejection_permanent VARCHAR(3) NOT NULL DEFAULT "no", PRIMARY KEY (id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->pdo->exec('CREATE TABLE IF NOT EXISTS cc_a2bp_pjsip_endpoint_map (endpoint_id VARCHAR(80) NOT NULL, endpoint_type VARCHAR(32) NOT NULL, owner_id BIGINT NOT NULL DEFAULT 0, label VARCHAR(120) NOT NULL DEFAULT "", created_at DATETIME NOT NULL, updated_at DATETIME NOT NULL, PRIMARY KEY (endpoint_id), KEY idx_a2bp_pjsip_owner (endpoint_type, owner_id)) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
         $this->ensureColumn('ps_endpoints', 'accountcode', 'VARCHAR(80) NOT NULL DEFAULT "" AFTER auth');
+        $this->ensurePjsipCompatibilityColumns();
+    }
+
+    private function ensurePjsipCompatibilityColumns(): void
+    {
+        foreach (self::PJSIP_AUTH_COMPAT_COLUMNS as $column => $definition) {
+            $this->ensureColumn('ps_auths', $column, $definition);
+        }
+        foreach (self::PJSIP_AOR_COMPAT_COLUMNS as $column => $definition) {
+            $this->ensureColumn('ps_aors', $column, $definition);
+        }
+        foreach (self::PJSIP_ENDPOINT_COMPAT_COLUMNS as $column => $definition) {
+            $this->ensureColumn('ps_endpoints', $column, $definition);
+        }
     }
 
     private function customerAccountCode(int $customerId): string
@@ -548,7 +819,7 @@ final class PjsipProvisioningService
         if (is_int($value)) {
             return $value;
         }
-        if (is_string($value) && preg_match('/^[1-9][0-9]*$/', $value) === 1) {
+        if (is_string($value) && preg_match('/^[0-9]+$/', $value) === 1) {
             return (int)$value;
         }
 

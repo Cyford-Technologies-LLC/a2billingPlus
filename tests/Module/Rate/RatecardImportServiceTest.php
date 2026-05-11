@@ -143,7 +143,7 @@ final class RatecardImportServiceTest extends TestCase
         $this->assertTrue($summary->isSuccessful());
         $this->assertSame(3, (int)$pdo->query('SELECT id_trunk FROM cc_ratecard')->fetchColumn());
         $this->assertSame('', $pdo->query('SELECT musiconhold FROM cc_ratecard')->fetchColumn());
-        $this->assertSame('2099-12-31 23:59:59', $pdo->query('SELECT stopdate FROM cc_ratecard')->fetchColumn());
+        $this->assertSame('2037-12-31 23:59:59', $pdo->query('SELECT stopdate FROM cc_ratecard')->fetchColumn());
         $this->assertSame(0, (int)$pdo->query('SELECT starttime FROM cc_ratecard')->fetchColumn());
         $this->assertSame(10079, (int)$pdo->query('SELECT endtime FROM cc_ratecard')->fetchColumn());
 

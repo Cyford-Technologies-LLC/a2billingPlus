@@ -6,7 +6,7 @@ namespace A2BillingPlus\Module\Rate;
 
 final class RatecardImportService
 {
-    private const OPEN_ENDED_STOP_DATE = '2099-12-31 23:59:59';
+    private const OPEN_ENDED_STOP_DATE = '2037-12-31 23:59:59';
 
     /** @var null|list<string> */
     private ?array $ratecardColumns = null;
