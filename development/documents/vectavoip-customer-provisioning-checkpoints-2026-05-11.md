@@ -100,6 +100,9 @@ all agree.
 - [x] Twilio setup exposes and syncs the outbound PJSIP From domain so the
   carrier sees the selected trunk domain instead of the container/private IP
   while still allowing dynamic caller ID.
+- [x] Central PJSIP trunk provisioning defaults `from_domain` to the trunk host
+  when no provider-specific value is set, so installs and backfills do not
+  create unroutable private-IP From headers.
 - [ ] Provider setup must create provider, trunk, ratecard, call plan, and
   `cc_tariffgroup_plan` bindings in one operation.
 - [ ] Provider setup must save a reusable outbound trunk template that can use
