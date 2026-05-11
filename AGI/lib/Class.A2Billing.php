@@ -132,6 +132,7 @@ class A2Billing
     public $channel;
     public $uniqueid;
     public $accountcode;
+    public $trusted_endpoint_accountcode = false;
     public $dnid;
     public $orig_dnid;
     public $orig_ext;
@@ -756,6 +757,10 @@ class A2Billing
         }
         //Call function to find the cid number
         $this->isolate_cid();
+        if (strlen($this->accountcode) > 0 && $this->get_pjsip_endpoint_from_channel($agi) != '') {
+            $this->trusted_endpoint_accountcode = true;
+            $this->debug(INFO, $agi, __FILE__, __LINE__, "[TRUSTED PJSIP ACCOUNT CODE accountcode=$this->accountcode]");
+        }
 
         $this->debug(INFO, $agi, __FILE__, __LINE__, ' get_agi_request_parameter = ' . $this->CallerID . ' ; ' . $this->channel . ' ; ' . $this->uniqueid . ' ; ' . $this->accountcode . ' ; ' . $this->dnid);
     }
@@ -796,6 +801,7 @@ class A2Billing
             if (is_array($result) && isset($result[0][0]) && strlen($result[0][0]) > 0) {
                 $this->accountcode = $this->username = $this->sanitize_agi_data($result[0][0]);
                 if (strlen($this->accountcode) > 0) {
+                    $this->trusted_endpoint_accountcode = true;
                     $agi->set_variable('CHANNEL(accountcode)', $this->accountcode);
                     $this->debug(INFO, $agi, __FILE__, __LINE__, "[PJSIP ACCOUNT RECOVERY endpoint=$endpoint accountcode=$this->accountcode]");
                     return true;
@@ -2729,7 +2735,7 @@ class A2Billing
         $callerID_enable = $this->agiconfig['cid_enable'];
 
         // -%-%-%-%-%-%- FIRST TRY WITH THE CALLERID AUTHENTICATION -%-%-%-%-%-%-
-        if ($callerID_enable == 1 && is_numeric($this->CallerID) && $this->CallerID > 0) {
+        if ($callerID_enable == 1 && is_numeric($this->CallerID) && $this->CallerID > 0 && !$this->trusted_endpoint_accountcode) {
 
             $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[CID_ENABLE - CID_CONTROL - CID:" . $this->CallerID . "]");
 
