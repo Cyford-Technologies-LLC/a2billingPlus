@@ -151,7 +151,8 @@ class RateEngine
         id_cc_package_offer, tp_trunk.status, rt_trunk.status, tp_trunk.inuse, rt_trunk.inuse,
         tp_trunk.maxuse, rt_trunk.maxuse, tp_trunk.if_max_use, rt_trunk.if_max_use, cc_ratecard.rounding_calltime AS rounding_calltime,
         cc_ratecard.rounding_threshold AS rounding_threshold, cc_ratecard.additional_block_charge AS additional_block_charge, cc_ratecard.additional_block_charge_time AS additional_block_charge_time,
-        cc_ratecard.additional_grace AS additional_grace, cc_ratecard.minimal_cost AS minimal_cost, disconnectcharge_after, announce_time_correction
+        cc_ratecard.additional_grace AS additional_grace, cc_ratecard.minimal_cost AS minimal_cost, disconnectcharge_after, announce_time_correction,
+        tp_trunk.trunkcode AS tp_trunkcode, rt_trunk.trunkcode AS rc_trunkcode
 
         FROM cc_tariffgroup
         RIGHT JOIN cc_tariffgroup_plan ON cc_tariffgroup_plan.idtariffgroup = cc_tariffgroup.id
@@ -1227,6 +1228,81 @@ class RateEngine
         return 0;
     }
 
+
+    private function pjsip_trunk_endpoint($trunkcode, $ipaddress)
+    {
+        $source = trim((string)$trunkcode);
+        if ($source === '') {
+            $source = trim((string)$ipaddress);
+        }
+
+        $endpoint = strtolower(preg_replace('/[^A-Za-z0-9_.-]+/', '-', $source));
+        $endpoint = trim($endpoint, '-');
+        if ($endpoint === '') {
+            return '';
+        }
+
+        return substr('trunk-' . $endpoint, 0, 80);
+    }
+
+    private function is_provider_sync_parameter($addparameter)
+    {
+        return preg_match('/^[A-Za-z][A-Za-z0-9_]*:/', trim((string)$addparameter)) === 1;
+    }
+
+    private function normalize_dial_addparameter($addparameter, $cardnumber, $dialingnumber)
+    {
+        $addparameter = str_replace("%cardnumber%", $cardnumber, (string)$addparameter);
+        $addparameter = str_replace("%dialingnumber%", $dialingnumber, $addparameter);
+
+        if ($this->is_provider_sync_parameter($addparameter)) {
+            return '';
+        }
+
+        return $addparameter;
+    }
+
+    private function should_use_pjsip_trunk($tech, $addparameter)
+    {
+        $tech = strtoupper(trim((string)$tech));
+        if ($tech === 'PJSIP') {
+            return true;
+        }
+        if ($tech !== 'SIP') {
+            return false;
+        }
+
+        $driver = strtolower(trim((string)getenv('A2BP_ASTERISK_CHANNEL_DRIVER')));
+        if ($driver === 'chan_sip' || $driver === 'sip') {
+            return false;
+        }
+        if ($driver === 'pjsip') {
+            return true;
+        }
+
+        return $this->is_provider_sync_parameter($addparameter);
+    }
+
+    private function build_trunk_dial_string($tech, $ipaddress, $prefix, $destination, $dialparams, $switchdialcommand, $trunkcode, $addparameter, $has_dialingnumber_placeholder)
+    {
+        $dialingnumber = $prefix . $destination;
+
+        if ($this->should_use_pjsip_trunk($tech, $addparameter)) {
+            $endpoint = $this->pjsip_trunk_endpoint($trunkcode, $ipaddress);
+            if ($endpoint !== '') {
+                return "PJSIP/$dialingnumber@$endpoint" . $dialparams;
+            }
+        }
+
+        if ($has_dialingnumber_placeholder !== false) {
+            return "$tech/$ipaddress" . $dialparams;
+        }
+        if ($switchdialcommand == 1) {
+            return "$tech/$dialingnumber@$ipaddress" . $dialparams;
+        }
+
+        return "$tech/$ipaddress/$dialingnumber" . $dialparams;
+    }
     /*
         RATE ENGINE - PERFORM CALLS
         $typecall = 1->predictive dialer
@@ -1261,6 +1337,7 @@ class RateEngine
             $inuse          = $this->ratecard_obj[$k][48 + $usetrunk_failover];
             $maxuse         = $this->ratecard_obj[$k][50 + $usetrunk_failover];
             $ifmaxuse       = $this->ratecard_obj[$k][52 + $usetrunk_failover];
+            $trunkcode      = ($usetrunk == 34) ? ($this->ratecard_obj[$k]['rc_trunkcode'] ?? '') : ($this->ratecard_obj[$k]['tp_trunkcode'] ?? '');
 
             if (strncmp($destination, $removeprefix, strlen($removeprefix)) == 0)
                 $destination = substr($destination, strlen($removeprefix));
@@ -1289,20 +1366,11 @@ class RateEngine
             $ipaddress = str_replace("%cardnumber%", $A2B->cardnumber, $ipaddress);
             $ipaddress = str_replace("%dialingnumber%", $prefix . $destination, $ipaddress);
 
-            if ($pos_dialingnumber !== false) {
-                $dialstr = "$tech/$ipaddress" . $dialparams;
-            } else {
-                if ($A2B->agiconfig['switchdialcommand'] == 1) {
-                    $dialstr = "$tech/$prefix$destination@$ipaddress" . $dialparams;
-                } else {
-                    $dialstr = "$tech/$ipaddress/$prefix$destination" . $dialparams;
-                }
-            }
+            $dialstr = $this->build_trunk_dial_string($tech, $ipaddress, $prefix, $destination, $dialparams, $A2B->agiconfig['switchdialcommand'], $trunkcode, $addparameter, $pos_dialingnumber);
 
             //ADDITIONAL PARAMETER             %dialingnumber%, %cardnumber%
             if (strlen($addparameter) > 0) {
-                $addparameter = str_replace("%cardnumber%", $A2B->cardnumber, $addparameter);
-                $addparameter = str_replace("%dialingnumber%", $prefix . $destination, $addparameter);
+                $addparameter = $this->normalize_dial_addparameter($addparameter, $A2B->cardnumber, $prefix . $destination);
                 $dialstr .= $addparameter;
             }
 
@@ -1375,7 +1443,7 @@ class RateEngine
 
                 $destination = $old_destination;
 
-                $QUERY = "SELECT trunkprefix, providertech, providerip, removeprefix, failover_trunk, status, inuse, maxuse, if_max_use FROM cc_trunk WHERE id_trunk = '$failover_trunk'";
+                $QUERY = "SELECT trunkprefix, providertech, providerip, removeprefix, failover_trunk, status, inuse, maxuse, if_max_use, trunkcode, addparameter FROM cc_trunk WHERE id_trunk = '$failover_trunk'";
                 $A2B->instance_table = new Table();
                 $result = $A2B->instance_table->SQLExec($A2B->DBHandle, $QUERY);
 
@@ -1391,6 +1459,8 @@ class RateEngine
                     $inuse               = $result[0][6];
                     $maxuse              = $result[0][7];
                     $ifmaxuse            = $result[0][8];
+                    $trunkcode           = $result[0][9];
+                    $addparameter        = $result[0][10];
 
                     if (strncmp($destination, $removeprefix, strlen($removeprefix)) == 0) {
                         $destination = substr($destination, strlen($removeprefix));
@@ -1424,15 +1494,14 @@ class RateEngine
                     $ipaddress = str_replace("%dialingnumber%", $prefix . $destination, $ipaddress);
 
                     $dialparams = str_replace("%timeout%", min($timeout * 1000, $max_long), $A2B->agiconfig['dialcommand_param']);
+                    $dialparams = str_replace("%timeoutsec%", min($timeout, $max_long), $dialparams);
 
-                    if ($pos_dialingnumber !== false) {
-                        $dialstr = "$tech/$ipaddress" . $dialparams;
-                    } else {
-                        if ($A2B->agiconfig['switchdialcommand'] == 1) {
-                            $dialstr = "$tech/$prefix$destination@$ipaddress" . $dialparams;
-                        } else {
-                            $dialstr = "$tech/$ipaddress/$prefix$destination" . $dialparams;
-                        }
+
+                    $dialstr = $this->build_trunk_dial_string($tech, $ipaddress, $prefix, $destination, $dialparams, $A2B->agiconfig['switchdialcommand'], $trunkcode, $addparameter, $pos_dialingnumber);
+
+                    if (strlen($addparameter) > 0) {
+                        $addparameter = $this->normalize_dial_addparameter($addparameter, $A2B->cardnumber, $prefix . $destination);
+                        $dialstr .= $addparameter;
                     }
 
                     $A2B->debug(INFO, $agi, __FILE__, __LINE__, "FAILOVER app_callingcard: Dialing '$dialstr' with timeout of '$timeout'.\n");
