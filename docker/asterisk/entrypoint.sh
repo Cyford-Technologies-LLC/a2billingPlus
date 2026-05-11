@@ -51,14 +51,29 @@ cat >"${AGI_WRAPPER_PATH}" <<'EOF'
 set -euo pipefail
 
 project_root="${A2BP_PROJECT_ROOT:-/opt/a2billingplus}"
-php_bin="${A2BP_PHP_BIN:-/usr/bin/php}"
+php_bin="${A2BP_PHP_BIN:-}"
 script="${A2BP_AGI_SCRIPT:-${project_root}/AGI/a2billing.php}"
 log_file="${A2BP_AGI_ERROR_LOG:-/var/log/a2billing/a2billing_agi_error.log}"
 
 mkdir -p "$(dirname "${log_file}")"
 
-if [[ ! -x "${php_bin}" ]]; then
-  printf '[%s] PHP binary not executable: %s\n' "$(date -Is)" "${php_bin}" >>"${log_file}"
+if [[ -z "${php_bin}" ]]; then
+  php_bin="$(command -v php 2>/dev/null || true)"
+fi
+if [[ -n "${php_bin}" && "${php_bin}" != */* ]]; then
+  php_bin="$(command -v "${php_bin}" 2>/dev/null || true)"
+fi
+if [[ -z "${php_bin}" ]]; then
+  for candidate in /usr/bin/php /usr/local/bin/php /bin/php; do
+    if [[ -x "${candidate}" ]]; then
+      php_bin="${candidate}"
+      break
+    fi
+  done
+fi
+
+if [[ -z "${php_bin}" || ! -x "${php_bin}" ]]; then
+  printf '[%s] PHP binary not found or not executable. Set A2BP_PHP_BIN or rebuild the Asterisk image with php-cli.\n' "$(date -Is)" >>"${log_file}"
   exit 1
 fi
 
