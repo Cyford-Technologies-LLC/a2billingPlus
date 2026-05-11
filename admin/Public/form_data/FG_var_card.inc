@@ -902,7 +902,7 @@ if (has_rights (ACX_MODIFY_CUSTOMERS) && !($popup_select>=1)) {
                    "4",
                    gettext("Insert the traffic per month for this customer"),
                    "" , "", "", "", "", "" , "NO-NULL", "",
-                   '', '', gettext("TARGET TRAFFIC"));
+                   '', 'res_display_zero_if_empty', gettext("TARGET TRAFFIC"));
 
     $HD_Form -> AddEditElement (gettext("TARGET TRAFFIC"),
                     "traffic_target",
