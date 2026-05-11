@@ -62,6 +62,21 @@ done
 
 cp "${ASTERISK_RUNTIME_CONFIG_DIR}"/*.conf /etc/asterisk/
 
+if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/logger.conf" ]]; then
+  if ! grep -Eq '^[[:space:]]*security\.log[[:space:]]*=>' "${ASTERISK_RUNTIME_CONFIG_DIR}/logger.conf"; then
+    if grep -Eq '^[[:space:]]*\[logfiles\]' "${ASTERISK_RUNTIME_CONFIG_DIR}/logger.conf"; then
+      sed -i '/^[[:space:]]*\[logfiles\]/a security.log => security' "${ASTERISK_RUNTIME_CONFIG_DIR}/logger.conf"
+    else
+      cat >>"${ASTERISK_RUNTIME_CONFIG_DIR}/logger.conf" <<'EOF'
+
+[logfiles]
+security.log => security
+EOF
+    fi
+  fi
+  cp "${ASTERISK_RUNTIME_CONFIG_DIR}/logger.conf" /etc/asterisk/logger.conf
+fi
+
 if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]]; then
   sed -i \
     -e 's#AGI(a2billing/a2billing\.php#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
