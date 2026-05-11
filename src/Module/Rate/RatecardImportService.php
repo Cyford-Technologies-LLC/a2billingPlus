@@ -6,6 +6,8 @@ namespace A2BillingPlus\Module\Rate;
 
 final class RatecardImportService
 {
+    private const OPEN_ENDED_STOP_DATE = '2099-12-31 23:59:59';
+
     /** @var null|list<string> */
     private ?array $ratecardColumns = null;
 
@@ -46,6 +48,15 @@ final class RatecardImportService
         if ($this->ratecardHasColumn('musiconhold')) {
             $optionalColumns['musiconhold'] = '';
         }
+        if ($this->ratecardHasColumn('stopdate')) {
+            $optionalColumns['stopdate'] = self::OPEN_ENDED_STOP_DATE;
+        }
+        if ($this->ratecardHasColumn('starttime')) {
+            $optionalColumns['starttime'] = 0;
+        }
+        if ($this->ratecardHasColumn('endtime')) {
+            $optionalColumns['endtime'] = 10079;
+        }
         if ($trunkId > 0 && $this->ratecardHasColumn('id_trunk')) {
             $optionalColumns['id_trunk'] = $trunkId;
         }
@@ -78,11 +89,8 @@ final class RatecardImportService
             'initblock = :initblock',
             'billingblock = :billingblock',
         ];
-        if (array_key_exists('musiconhold', $optionalColumns)) {
-            $updateAssignments[] = 'musiconhold = :musiconhold';
-        }
-        if (array_key_exists('id_trunk', $optionalColumns)) {
-            $updateAssignments[] = 'id_trunk = :id_trunk';
+        foreach (array_keys($optionalColumns) as $optionalColumn) {
+            $updateAssignments[] = $optionalColumn . ' = :' . $optionalColumn;
         }
         $updateStatement = $this->pdo->prepare(
             'UPDATE cc_ratecard
