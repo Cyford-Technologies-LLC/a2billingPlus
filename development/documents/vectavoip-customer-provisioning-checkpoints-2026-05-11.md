@@ -92,6 +92,8 @@ all agree.
   plan.
 - [x] Imported Twilio rates can bind rows to a selected trunk.
 - [x] AGI honors `cc_trunk.providertech` instead of forcing PJSIP.
+- [x] Provider setup defaults Twilio to Elastic SIP Trunking and creates or
+  updates the matching A2Billing trunk from the selected routing mode.
 - [ ] Provider setup must create provider, trunk, ratecard, call plan, and
   `cc_tariffgroup_plan` bindings in one operation.
 - [ ] Provider setup must save a reusable outbound trunk template that can use
@@ -188,6 +190,9 @@ all agree.
   webhook defaults must be database-backed.
 - [ ] `.env` may provide initial defaults but must not be the only durable
   source for provider setup.
+- [x] Twilio setup must expose the selected carrier path clearly: Elastic SIP
+  Trunking, SIP Domain/TwiML, or BYOC, with Elastic selected by default for
+  A2Billing.
 - [ ] Provider setup should have one "Validate and Apply" path that checks
   credentials, syncs provider data, imports rates, creates trunk, binds call
   plan, and reports every created/updated id.

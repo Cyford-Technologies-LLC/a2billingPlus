@@ -312,7 +312,7 @@ final class ProviderApiController
                     'PageSize' => $this->boundedPageSize($request->getString('trunks_page_size', '25')),
                 ]),
             ];
-            $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+            $trunkSid = $this->preferredTwilioTrunkSid($request, $credentials);
             if ($trunkSid !== '' && str_starts_with($trunkSid, 'TK')) {
                 $payload['trunk_numbers'] = $client->listTrunkPhoneNumbers($credentials, $trunkSid, [
                     'PageSize' => $this->boundedPageSize($request->getString('trunk_numbers_page_size', '25')),
@@ -394,7 +394,7 @@ final class ProviderApiController
             $client = new TwilioApiClient();
             $purchase = $client->purchaseIncomingPhoneNumber($credentials, $payload);
             $attach = null;
-            $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+            $trunkSid = $this->preferredTwilioTrunkSid($request, $credentials);
             $phoneNumberSid = is_scalar($purchase['sid'] ?? null) ? (string)$purchase['sid'] : '';
             if ($trunkSid !== '' && str_starts_with($trunkSid, 'TK') && $phoneNumberSid !== '') {
                 $attach = $client->attachPhoneNumberToTrunk($credentials, $trunkSid, $phoneNumberSid);
@@ -405,7 +405,9 @@ final class ProviderApiController
 
         return new JsonResponse([
             'success' => true,
-            'message' => 'Twilio number purchased.',
+            'message' => $attach === null
+                ? 'Twilio number purchased.'
+                : 'Twilio number purchased and attached to the configured Twilio trunk.',
             'purchase' => $purchase,
             'trunk_attachment' => $attach,
         ]);
@@ -456,7 +458,7 @@ final class ProviderApiController
         }
 
         $credentials = $this->credentialsFromRequest($request);
-        $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+        $trunkSid = $this->preferredTwilioTrunkSid($request, $credentials);
         if ($trunkSid === '') {
             return new JsonResponse(['success' => false, 'message' => 'Twilio trunk SID is required.'], 422);
         }
@@ -497,7 +499,7 @@ final class ProviderApiController
                     'PageSize' => $this->boundedPageSize($request->getString('trunks_page_size', '100')),
                 ]),
             ];
-            $trunkSid = $request->getString('byoc_trunk_sid', $credentials->getMetadataValue('byoc_trunk_sid'));
+            $trunkSid = $this->preferredTwilioTrunkSid($request, $credentials);
             if ($trunkSid !== '' && str_starts_with($trunkSid, 'TK')) {
                 $payload['trunk_numbers'] = $client->listTrunkPhoneNumbers($credentials, $trunkSid, [
                     'PageSize' => $this->boundedPageSize($request->getString('trunk_numbers_page_size', '100')),
@@ -545,7 +547,10 @@ final class ProviderApiController
             $metadata['account_sid'] = $this->envString('TWILIO_ACCOUNT_SID');
         }
         if ($provider === 'twilio' && ($metadata['byoc_trunk_sid'] ?? '') === '') {
-            $metadata['byoc_trunk_sid'] = $this->envString('TWILIO_BYOC_TRUNK_SID');
+            $metadata['byoc_trunk_sid'] = $this->envString(
+                'TWILIO_ELASTIC_TRUNK_SID',
+                $this->envString('TWILIO_TRUNK_SID', $this->envString('TWILIO_BYOC_TRUNK_SID'))
+            );
         }
 
         $apiKey = $request->getString('api_key', $apiKeyDefault);
@@ -568,6 +573,28 @@ final class ProviderApiController
         }
 
         return (string)max(1, min(1000, (int)$value));
+    }
+
+    private function preferredTwilioTrunkSid(JsonRequest $request, ?ProviderCredentials $credentials = null): string
+    {
+        $requested = trim($request->getString('byoc_trunk_sid'));
+        if ($requested !== '') {
+            return $requested;
+        }
+
+        if ($credentials !== null) {
+            $metadata = trim($credentials->getMetadataValue('byoc_trunk_sid'));
+            if ($metadata !== '') {
+                return $metadata;
+            }
+        }
+
+        $elastic = $this->envString('TWILIO_ELASTIC_TRUNK_SID', $this->envString('TWILIO_TRUNK_SID'));
+        if ($elastic !== '') {
+            return trim($elastic);
+        }
+
+        return trim($this->envString('TWILIO_BYOC_TRUNK_SID'));
     }
 
     private function envString(string $key, string $default = ''): string

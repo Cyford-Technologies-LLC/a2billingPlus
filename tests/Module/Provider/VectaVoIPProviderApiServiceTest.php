@@ -159,66 +159,98 @@ final class VectaVoIPProviderApiServiceTest extends TestCase
 
     public function testCanSetDefaultUpstreamAndPurchaseDidFromTwilio(): void
     {
+        $originalElasticTrunkSid = getenv('TWILIO_ELASTIC_TRUNK_SID');
+        putenv('TWILIO_ELASTIC_TRUNK_SID=TK00ac250290c975363757484ba9e660dd');
         $pdo = new PDO('sqlite::memory:');
         $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
         $capturedPayload = [];
-        $service = new VectaVoIPProviderApiService(
-            new VectaVoIPInstallationRepository($pdo),
-            function () use (&$capturedPayload) {
-                return new class ($capturedPayload) {
-                    /** @var array<string, string> */
-                    private array $capturedPayload;
+        $attached = [];
+        try {
+            $service = new VectaVoIPProviderApiService(
+                new VectaVoIPInstallationRepository($pdo),
+                function () use (&$capturedPayload, &$attached) {
+                    return new class ($capturedPayload, $attached) {
+                        /** @var array<string, string> */
+                        private array $capturedPayload;
 
-                    /**
-                     * @param array<string, string> $capturedPayload
-                     */
-                    public function __construct(array &$capturedPayload)
-                    {
-                        $this->capturedPayload = &$capturedPayload;
-                    }
+                        /** @var array<string, string> */
+                        private array $attached;
 
-                    /**
-                     * @param array<string, string> $payload
-                     * @return array<string, string>
-                     */
-                    public function purchaseIncomingPhoneNumber(object $credentials, array $payload): array
-                    {
-                        $this->capturedPayload = $payload;
-                        return [
-                            'sid' => 'PN123',
-                            'phone_number' => $payload['PhoneNumber'],
-                            'friendly_name' => 'Twilio DID',
-                        ];
-                    }
-                };
+                        /**
+                         * @param array<string, string> $capturedPayload
+                         * @param array<string, string> $attached
+                         */
+                        public function __construct(array &$capturedPayload, array &$attached)
+                        {
+                            $this->capturedPayload = &$capturedPayload;
+                            $this->attached = &$attached;
+                        }
+
+                        /**
+                         * @param array<string, string> $payload
+                         * @return array<string, string>
+                         */
+                        public function purchaseIncomingPhoneNumber(object $credentials, array $payload): array
+                        {
+                            $this->capturedPayload = $payload;
+                            return [
+                                'sid' => 'PN123',
+                                'phone_number' => $payload['PhoneNumber'],
+                                'friendly_name' => 'Twilio DID',
+                            ];
+                        }
+
+                        /**
+                         * @return array<string, string>
+                         */
+                        public function attachPhoneNumberToTrunk(object $credentials, string $trunkSid, string $phoneNumberSid): array
+                        {
+                            $this->attached = [
+                                'trunk_sid' => $trunkSid,
+                                'phone_number_sid' => $phoneNumberSid,
+                            ];
+
+                            return $this->attached;
+                        }
+                    };
+                }
+            );
+            $registration = $service->registerInstallation($this->registrationPayload());
+            $apiKey = (string)$registration['body']['api_key'];
+            $apiSecret = (string)$registration['body']['api_secret'];
+            $account = $service->createAccount([
+                'name' => 'Acme Main',
+                'email' => 'ops@example.test',
+            ], $apiKey, $apiSecret);
+
+            $setDefault = $service->setUpstreamDefault(['provider' => 'twilio'], $apiKey, $apiSecret);
+            $default = $service->upstreamDefault($apiKey, $apiSecret);
+            $purchase = $service->purchaseDid([
+                'account_id' => (int)$account['body']['account']['id'],
+                'did' => '+12125550100',
+                'features' => ['voice', 'sms'],
+                'voice_url' => 'https://voice.example.test/twilio',
+            ], $apiKey, $apiSecret);
+
+            $this->assertSame(200, $setDefault['status']);
+            $this->assertSame('twilio', $default['body']['default_upstream_provider']);
+            $this->assertSame(201, $purchase['status']);
+            $this->assertSame('twilio', $purchase['body']['upstream_provider']);
+            $this->assertFalse($purchase['body']['upstream']['sandbox']);
+            $this->assertSame('+12125550100', $capturedPayload['PhoneNumber']);
+            $this->assertSame('https://voice.example.test/twilio', $capturedPayload['VoiceUrl']);
+            $this->assertSame('TK00ac250290c975363757484ba9e660dd', $attached['trunk_sid']);
+            $this->assertSame('PN123', $attached['phone_number_sid']);
+            $this->assertSame('twilio', $pdo->query("SELECT provider_code FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+            $this->assertSame('TK00ac250290c975363757484ba9e660dd', $pdo->query("SELECT provider_trunk_reference FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+            $this->assertSame('assigned', $pdo->query("SELECT status FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        } finally {
+            if ($originalElasticTrunkSid === false) {
+                putenv('TWILIO_ELASTIC_TRUNK_SID');
+            } else {
+                putenv('TWILIO_ELASTIC_TRUNK_SID=' . $originalElasticTrunkSid);
             }
-        );
-        $registration = $service->registerInstallation($this->registrationPayload());
-        $apiKey = (string)$registration['body']['api_key'];
-        $apiSecret = (string)$registration['body']['api_secret'];
-        $account = $service->createAccount([
-            'name' => 'Acme Main',
-            'email' => 'ops@example.test',
-        ], $apiKey, $apiSecret);
-
-        $setDefault = $service->setUpstreamDefault(['provider' => 'twilio'], $apiKey, $apiSecret);
-        $default = $service->upstreamDefault($apiKey, $apiSecret);
-        $purchase = $service->purchaseDid([
-            'account_id' => (int)$account['body']['account']['id'],
-            'did' => '+12125550100',
-            'features' => ['voice', 'sms'],
-            'voice_url' => 'https://voice.example.test/twilio',
-        ], $apiKey, $apiSecret);
-
-        $this->assertSame(200, $setDefault['status']);
-        $this->assertSame('twilio', $default['body']['default_upstream_provider']);
-        $this->assertSame(201, $purchase['status']);
-        $this->assertSame('twilio', $purchase['body']['upstream_provider']);
-        $this->assertFalse($purchase['body']['upstream']['sandbox']);
-        $this->assertSame('+12125550100', $capturedPayload['PhoneNumber']);
-        $this->assertSame('https://voice.example.test/twilio', $capturedPayload['VoiceUrl']);
-        $this->assertSame('twilio', $pdo->query("SELECT provider_code FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
-        $this->assertSame('assigned', $pdo->query("SELECT status FROM cc_vectavoip_did_inventory WHERE did = '+12125550100'")->fetchColumn());
+        }
     }
 
     public function testTwilioSandboxModeRecordsPurchaseWithoutCallingTwilio(): void

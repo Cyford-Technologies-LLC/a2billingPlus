@@ -55,7 +55,7 @@ final class ProviderSetupService
             'api_secret' => $input['api_secret'],
             'api_version' => $input['api_version'] ?? '',
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
         ]);
     }
 
@@ -221,7 +221,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
             'page_size' => $input['twilio_page_size'] ?? '25',
             'trunks_page_size' => $input['twilio_trunks_page_size'] ?? '25',
         ]);
@@ -264,7 +264,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
             'phone_number' => $input['twilio_phone_number'] ?? '',
             'voice_url' => $input['twilio_voice_url'] ?? '',
             'sms_url' => $input['twilio_sms_url'] ?? '',
@@ -285,9 +285,9 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
             'friendly_name' => $input['twilio_trunk_friendly_name'] ?? '',
-            'domain_name' => $input['twilio_trunk_domain_name'] ?? '',
+            'domain_name' => $input['twilio_trunk_domain_name'] ?? $input['twilio_elastic_termination_uri'] ?? '',
             'cnam_lookup_enabled' => $input['twilio_trunk_cnam_lookup_enabled'] ?? '',
         ]);
     }
@@ -306,7 +306,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
         ]);
     }
 
@@ -324,7 +324,7 @@ final class ProviderSetupService
             'api_key' => $input['api_key'],
             'api_secret' => $input['api_secret'],
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
             'page_size' => $input['twilio_sync_page_size'] ?? '100',
             'trunks_page_size' => $input['twilio_trunks_page_size'] ?? '100',
             'trunk_numbers_page_size' => $input['twilio_trunk_numbers_page_size'] ?? '100',
@@ -440,11 +440,27 @@ final class ProviderSetupService
             'api_secret' => $input['api_secret'],
             'api_version' => $input['api_version'] ?? '',
             'account_sid' => $input['account_sid'] ?? '',
-            'byoc_trunk_sid' => $input['twilio_byoc_trunk_sid'] ?? '',
+            'byoc_trunk_sid' => $this->preferredTwilioRemoteTrunkSid($input),
             'rate_deck' => $input['rate_deck'],
             'currency' => $input['currency'],
             'filters' => $filters,
         ];
+    }
+
+    /**
+     * @param array<string, string> $input
+     */
+    private function preferredTwilioRemoteTrunkSid(array $input): string
+    {
+        $mode = strtolower(trim($input['twilio_routing_mode'] ?? 'elastic'));
+        if ($mode === 'elastic') {
+            return trim($input['twilio_elastic_trunk_sid'] ?? '');
+        }
+        if ($mode === 'byoc') {
+            return trim($input['twilio_byoc_trunk_sid'] ?? '');
+        }
+
+        return '';
     }
 
     private function pdo(): \PDO

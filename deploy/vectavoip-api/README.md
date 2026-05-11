@@ -48,8 +48,20 @@ that authenticate with the account SID plus auth token. Optional defaults:
 ```text
 TWILIO_DEFAULT_VOICE_URL
 TWILIO_DEFAULT_SMS_URL
+TWILIO_ROUTING_MODE
+TWILIO_ELASTIC_TRUNK_SID
+TWILIO_ELASTIC_TERMINATION_URI
+TWILIO_ELASTIC_ORIGINATION_URI
+TWILIO_SIP_DOMAIN
 TWILIO_BYOC_TRUNK_SID
+TWILIO_TRUNK_TECHNOLOGY
+TWILIO_DEFAULT_CALLER_ID
 ```
+
+For A2Billing-backed deployments, use `TWILIO_ROUTING_MODE=elastic` and set
+`TWILIO_ELASTIC_TERMINATION_URI` to the Elastic SIP Trunking termination host,
+for example `vectavoip.pstn.twilio.com`. Use `TWILIO_ELASTIC_TRUNK_SID` for the
+Twilio `TK...` trunk SID so purchased DIDs can be attached to the same trunk.
 
 For sandbox testing, use:
 

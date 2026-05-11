@@ -434,6 +434,18 @@ final class VectaVoIPInstallationRepository
 
     private function ensureRuntimeSettingsTable(): void
     {
+        if ($this->pdo->getAttribute(\PDO::ATTR_DRIVER_NAME) === 'sqlite') {
+            $this->pdo->exec(
+                'CREATE TABLE IF NOT EXISTS cc_a2bp_runtime_settings (
+                    setting_key TEXT NOT NULL PRIMARY KEY,
+                    setting_value TEXT NOT NULL,
+                    is_secret INTEGER NOT NULL DEFAULT 0,
+                    updated_at TEXT NOT NULL
+                )'
+            );
+            return;
+        }
+
         $this->pdo->exec(
             'CREATE TABLE IF NOT EXISTS cc_a2bp_runtime_settings (
                 setting_key VARCHAR(191) NOT NULL,

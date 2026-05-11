@@ -499,9 +499,18 @@ final class VectaVoIPProviderApiService
 
         try {
             $twilioPayload = $this->twilioPurchasePayload($did, $payload);
-            $twilioNumber = $this->twilioSandboxMode()
-                ? $this->sandboxTwilioNumber($did, $twilioPayload)
-                : $this->twilioClient()->purchaseIncomingPhoneNumber($this->twilioCredentials(), $twilioPayload);
+            $preferredTrunkSid = $this->preferredTwilioTrunkSid($payload);
+            if ($this->twilioSandboxMode()) {
+                $twilioNumber = $this->sandboxTwilioNumber($did, $twilioPayload, $preferredTrunkSid);
+            } else {
+                $client = $this->twilioClient();
+                $credentials = $this->twilioCredentials();
+                $twilioNumber = $client->purchaseIncomingPhoneNumber($credentials, $twilioPayload);
+                if ($preferredTrunkSid !== '' && $this->stringValue($twilioNumber, 'sid') !== '' && method_exists($client, 'attachPhoneNumberToTrunk')) {
+                    $client->attachPhoneNumberToTrunk($credentials, $preferredTrunkSid, $this->stringValue($twilioNumber, 'sid'));
+                    $twilioNumber['trunk_sid'] = $preferredTrunkSid;
+                }
+            }
         } catch (\Throwable $exception) {
             return ['status' => 422, 'body' => ['message' => 'Twilio DID purchase failed: ' . $exception->getMessage()]];
         }
@@ -515,7 +524,7 @@ final class VectaVoIPProviderApiService
             $this->stringValue($payload, 'webhook_url'),
             'twilio',
             $this->stringValue($twilioNumber, 'sid'),
-            $this->stringValue($twilioNumber, 'trunk_sid', $this->stringValue($payload, 'trunk_sid', $this->envString('TWILIO_BYOC_TRUNK_SID'))),
+            $this->stringValue($twilioNumber, 'trunk_sid', $this->preferredTwilioTrunkSid($payload)),
             $this->stringValue($twilioNumber, 'friendly_name')
         );
 
@@ -582,14 +591,32 @@ final class VectaVoIPProviderApiService
      * @param array<string, string> $payload
      * @return array<string, string>
      */
-    private function sandboxTwilioNumber(string $did, array $payload): array
+    private function sandboxTwilioNumber(string $did, array $payload, string $preferredTrunkSid = ''): array
     {
         return [
             'sid' => 'PN_SANDBOX_' . substr(strtoupper(hash('sha256', $did)), 0, 20),
             'phone_number' => $did,
             'friendly_name' => $payload['FriendlyName'] ?? 'VectaVoIP Twilio Sandbox DID',
-            'trunk_sid' => $this->envString('TWILIO_BYOC_TRUNK_SID'),
+            'trunk_sid' => $preferredTrunkSid,
         ];
+    }
+
+    /**
+     * @param array<string, mixed> $payload
+     */
+    private function preferredTwilioTrunkSid(array $payload = []): string
+    {
+        $requested = $this->stringValue($payload, 'trunk_sid');
+        if ($requested !== '') {
+            return $requested;
+        }
+
+        $elastic = $this->envString('TWILIO_ELASTIC_TRUNK_SID', $this->envString('TWILIO_TRUNK_SID'));
+        if ($elastic !== '') {
+            return $elastic;
+        }
+
+        return $this->envString('TWILIO_BYOC_TRUNK_SID');
     }
 
     private function twilioSandboxMode(): bool
