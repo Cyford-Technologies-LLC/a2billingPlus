@@ -17,6 +17,9 @@ PJSIP_REALM="${A2BP_ASTERISK_REALM:-sip.vectavoip.com}"
 PJSIP_USER_AGENT="${A2BP_ASTERISK_USER_AGENT:-A2BillingPlus Sandbox}"
 PJSIP_IDENTIFIER_ORDER="${A2BP_ASTERISK_IDENTIFIER_ORDER:-auth_username,username,ip,anonymous}"
 ODBC_DRIVER_PATH="${A2BP_ODBC_DRIVER_PATH:-}"
+PROJECT_ROOT="${A2BP_PROJECT_ROOT:-/opt/a2billingplus}"
+AGI_WRAPPER_PATH="/var/lib/asterisk/agi-bin/a2billingplus-agi"
+LEGACY_DID_AGI_WRAPPER_PATH="/var/lib/asterisk/agi-bin/a2billingplus-did"
 
 DB_HOST="${RAW_DB_HOST}"
 if [[ "${RAW_DB_HOST}" == *:* ]]; then
@@ -25,6 +28,14 @@ if [[ "${RAW_DB_HOST}" == *:* ]]; then
 fi
 
 mkdir -p "${ASTERISK_RUNTIME_CONFIG_DIR}" /etc/asterisk
+mkdir -p "$(dirname "${AGI_WRAPPER_PATH}")"
+
+cat >"${AGI_WRAPPER_PATH}" <<EOF
+#!/usr/bin/env bash
+exec /usr/bin/php "${PROJECT_ROOT}/AGI/a2billing.php" "\$@"
+EOF
+chmod 0755 "${AGI_WRAPPER_PATH}"
+ln -sf "$(basename "${AGI_WRAPPER_PATH}")" "${LEGACY_DID_AGI_WRAPPER_PATH}"
 
 if [[ -z "${ODBC_DRIVER_PATH}" ]]; then
   for candidate in \
@@ -64,20 +75,30 @@ done
 
 cp "${ASTERISK_RUNTIME_CONFIG_DIR}"/*.conf /etc/asterisk/
 
+if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]]; then
+  sed -i \
+    -e 's#AGI(a2billing/a2billing\.php#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
+    -e 's#AGI(/usr/share/asterisk/agi-bin/a2billing/a2billing\.php#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
+    -e 's#AGI(/opt/a2billingplus/AGI/a2billing\.php#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
+    -e 's#AGI(/var/lib/asterisk/agi-bin/a2billingplus-did#AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi#g' \
+    "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"
+  cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
+fi
+
 if [[ -f "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" ]] && ! grep -q '^\[from-pstn\]' "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf"; then
   cat >>"${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" <<'EOF'
 
 [from-pstn]
 exten => s,1,NoOp(Inbound PSTN call without URI user)
- same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi,1,did)
  same => n,Hangup()
 
 exten => _+X.,1,NoOp(Inbound PSTN DID call to ${EXTEN})
- same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi,1,did)
  same => n,Hangup()
 
 exten => _X.,1,NoOp(Inbound PSTN DID call to ${EXTEN})
- same => n,AGI(a2billing/a2billing.php,1,did)
+ same => n,AGI(/var/lib/asterisk/agi-bin/a2billingplus-agi,1,did)
  same => n,Hangup()
 EOF
   cp "${ASTERISK_RUNTIME_CONFIG_DIR}/extensions.conf" /etc/asterisk/extensions.conf
