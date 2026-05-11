@@ -760,6 +760,86 @@ class A2Billing
         $this->debug(INFO, $agi, __FILE__, __LINE__, ' get_agi_request_parameter = ' . $this->CallerID . ' ; ' . $this->channel . ' ; ' . $this->uniqueid . ' ; ' . $this->accountcode . ' ; ' . $this->dnid);
     }
 
+    public function recover_accountcode_from_pjsip($agi)
+    {
+        if (strlen($this->accountcode) > 0 || !is_object($this->instance_table) || empty($this->DBHandle)) {
+            return false;
+        }
+
+        $endpoint = $this->get_pjsip_endpoint_from_channel($agi);
+        if (strlen($endpoint) == 0) {
+            return false;
+        }
+
+        $queries = array();
+        if ($this->agi_table_exists('ps_endpoints')) {
+            $queries[] = "SELECT accountcode FROM ps_endpoints WHERE id = '$endpoint' AND COALESCE(accountcode, '') <> '' LIMIT 1";
+        }
+        if ($this->agi_table_exists('cc_a2bp_pjsip_endpoint_map')) {
+            $queries[] = "SELECT cc_card.username FROM cc_a2bp_pjsip_endpoint_map " .
+                "INNER JOIN cc_card ON cc_card.id = cc_a2bp_pjsip_endpoint_map.owner_id " .
+                "WHERE cc_a2bp_pjsip_endpoint_map.endpoint_id = '$endpoint' " .
+                "AND cc_a2bp_pjsip_endpoint_map.endpoint_type = 'customer_device' " .
+                "AND COALESCE(cc_card.username, '') <> '' LIMIT 1";
+        }
+        if ($this->agi_table_exists('cc_sip_buddies')) {
+            $queries[] = "SELECT accountcode FROM cc_sip_buddies WHERE (name = '$endpoint' OR username = '$endpoint') AND COALESCE(accountcode, '') <> '' LIMIT 1";
+            $queries[] = "SELECT cc_card.username FROM cc_sip_buddies " .
+                "INNER JOIN cc_card ON cc_card.id = cc_sip_buddies.id_cc_card " .
+                "WHERE (cc_sip_buddies.name = '$endpoint' OR cc_sip_buddies.username = '$endpoint') " .
+                "AND COALESCE(cc_card.username, '') <> '' LIMIT 1";
+        }
+        $queries[] = "SELECT username FROM cc_card WHERE username = '$endpoint' LIMIT 1";
+
+        foreach ($queries as $QUERY) {
+            $result = $this->instance_table->SQLExec($this->DBHandle, $QUERY);
+            if (is_array($result) && isset($result[0][0]) && strlen($result[0][0]) > 0) {
+                $this->accountcode = $this->username = $this->sanitize_agi_data($result[0][0]);
+                if (strlen($this->accountcode) > 0) {
+                    $agi->set_variable('CHANNEL(accountcode)', $this->accountcode);
+                    $this->debug(INFO, $agi, __FILE__, __LINE__, "[PJSIP ACCOUNT RECOVERY endpoint=$endpoint accountcode=$this->accountcode]");
+                    return true;
+                }
+            }
+        }
+
+        $this->debug(WARN, $agi, __FILE__, __LINE__, "[PJSIP ACCOUNT RECOVERY failed endpoint=$endpoint]");
+        return false;
+    }
+
+    public function get_pjsip_endpoint_from_channel($agi)
+    {
+        if (!isset($agi->request['agi_channel'])) {
+            return '';
+        }
+
+        $channel = $agi->request['agi_channel'];
+        if (substr($channel, 0, 6) != 'PJSIP/') {
+            return '';
+        }
+
+        $endpoint = substr($channel, 6);
+        $endpoint = preg_replace('/-[^-]+$/', '', $endpoint);
+        return $this->sanitize_agi_data($endpoint);
+    }
+
+    public function agi_table_exists($table)
+    {
+        $table = preg_replace('/[^A-Za-z0-9_]/', '', $table);
+        if (strlen($table) == 0) {
+            return false;
+        }
+
+        if (defined('DB_TYPE') && DB_TYPE == 'postgres') {
+            $QUERY = "SELECT tablename FROM pg_tables WHERE tablename = '$table' LIMIT 1";
+        } else {
+            $QUERY = "SHOW TABLES LIKE '$table'";
+        }
+
+        $result = $this->instance_table->SQLExec($this->DBHandle, $QUERY);
+        return is_array($result);
+    }
+
 
 
     /*

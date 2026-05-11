@@ -153,6 +153,7 @@ if (!$A2B->DbConnect()) {
 define("WRITELOG_QUERY", true);
 $instance_table = new Table();
 $A2B->set_instance_table($instance_table);
+$A2B->recover_accountcode_from_pjsip($agi);
 
 //GET CURRENCIES FROM DATABASE
 $QUERY = "SELECT id, currency, name, value FROM cc_currencies ORDER BY id";
