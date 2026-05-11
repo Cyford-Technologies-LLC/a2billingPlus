@@ -94,6 +94,9 @@ all agree.
 - [x] AGI honors `cc_trunk.providertech` instead of forcing PJSIP.
 - [x] Provider setup defaults Twilio to Elastic SIP Trunking and creates or
   updates the matching A2Billing trunk from the selected routing mode.
+- [x] Provider setup syncs the matching PJSIP realtime trunk endpoint after
+  saving or importing Twilio settings, so Asterisk dials the selected Elastic
+  termination host without manual `ps_*` table edits.
 - [ ] Provider setup must create provider, trunk, ratecard, call plan, and
   `cc_tariffgroup_plan` bindings in one operation.
 - [ ] Provider setup must save a reusable outbound trunk template that can use
