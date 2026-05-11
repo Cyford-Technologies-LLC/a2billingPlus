@@ -95,6 +95,9 @@ final class RatecardImportServiceTest extends TestCase
         $this->assertTrue($summary->isSuccessful());
         $this->assertSame(3, (int)$pdo->query('SELECT id_trunk FROM cc_ratecard')->fetchColumn());
         $this->assertSame('', $pdo->query('SELECT musiconhold FROM cc_ratecard')->fetchColumn());
+        $this->assertSame('2099-12-31 23:59:59', $pdo->query('SELECT stopdate FROM cc_ratecard')->fetchColumn());
+        $this->assertSame(0, (int)$pdo->query('SELECT starttime FROM cc_ratecard')->fetchColumn());
+        $this->assertSame(10079, (int)$pdo->query('SELECT endtime FROM cc_ratecard')->fetchColumn());
 
         $updated = $service->importRows([
             ['destination' => 'United States', 'prefix' => '1', 'rate' => '0.0200', 'increment' => 60],
@@ -145,6 +148,9 @@ final class RatecardImportServiceTest extends TestCase
                 billingblock INTEGER,
                 id_trunk INTEGER DEFAULT -1,
                 musiconhold TEXT NOT NULL DEFAULT \'\',
+                stopdate TEXT NOT NULL DEFAULT \'0000-00-00 00:00:00\',
+                starttime INTEGER DEFAULT 0,
+                endtime INTEGER DEFAULT 10079,
                 tag TEXT
             )'
         );
