@@ -100,7 +100,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
     if ($formAction === 'lock_provider_modules') {
         $_SESSION['a2bp_provider_modules_unlocked'] = false;
-        $messages[] = 'Locked non-VectaVoIP provider modules for this session.';
+        setProviderModulesUnlocked(false, $messages, $errors);
     }
 
     foreach ($defaults as $key => $default) {
@@ -213,9 +213,13 @@ echo $themeRenderer->stylesheetLink($theme);
 function providerSetupService(): ProviderSetupService
 {
     $pdoFactory = fn (): PDO => providerSetupPdo();
+    $accessPolicy = new \A2BillingPlus\Module\Provider\ProviderAccessPolicy(
+        \A2BillingPlus\Config\AppConfig::fromEnvironment(),
+        providerModulesUnlocked()
+    );
 
     return new ProviderSetupService(
-        new ProviderApiController(ProviderRegistryFactory::createDefault(), null, $pdoFactory),
+        new ProviderApiController(ProviderRegistryFactory::createDefault(), null, $pdoFactory, $accessPolicy),
         $pdoFactory
     );
 }
@@ -426,12 +430,72 @@ function unlockProviderModules(string $token, array &$messages, array &$errors):
     }
 
     $_SESSION['a2bp_provider_modules_unlocked'] = true;
-    $messages[] = 'Unlocked non-VectaVoIP provider modules for this session.';
+    setProviderModulesUnlocked(true, $messages, $errors);
 }
 
 function providerModulesUnlocked(): bool
 {
-    return !empty($_SESSION['a2bp_provider_modules_unlocked']);
+    if (!empty($_SESSION['a2bp_provider_modules_unlocked'])) {
+        return true;
+    }
+
+    return providerModuleUnlockSetting() === '1';
+}
+
+function providerModuleUnlockSetting(): string
+{
+    try {
+        $pdo = providerSetupPdo();
+        ensureProviderModuleUnlockSetting($pdo);
+        $statement = $pdo->prepare("SELECT config_value FROM cc_config WHERE config_key = 'provider_modules_unlocked' ORDER BY id DESC LIMIT 1");
+        $statement->execute();
+        $value = $statement->fetchColumn();
+        return trim((string)$value) === '1' ? '1' : '0';
+    } catch (Throwable) {
+        return '0';
+    }
+}
+
+function setProviderModulesUnlocked(bool $unlocked, array &$messages, array &$errors): void
+{
+    try {
+        $pdo = providerSetupPdo();
+        ensureProviderModuleUnlockSetting($pdo, $unlocked ? '1' : '0');
+        $statement = $pdo->prepare("UPDATE cc_config SET config_value = ? WHERE config_key = 'provider_modules_unlocked'");
+        $statement->execute([$unlocked ? '1' : '0']);
+        $_SESSION['a2bp_provider_modules_unlocked'] = $unlocked;
+        $messages[] = $unlocked
+            ? 'Unlocked non-VectaVoIP provider modules persistently.'
+            : 'Locked non-VectaVoIP provider modules.';
+    } catch (Throwable $exception) {
+        $_SESSION['a2bp_provider_modules_unlocked'] = $unlocked;
+        $errors[] = 'Provider unlock state was only saved for this session: ' . $exception->getMessage();
+    }
+}
+
+function ensureProviderModuleUnlockSetting(PDO $pdo, string $value = '0'): void
+{
+    $statement = $pdo->prepare("SELECT id FROM cc_config WHERE config_key = 'provider_modules_unlocked' LIMIT 1");
+    $statement->execute();
+    if ($statement->fetchColumn() !== false) {
+        return;
+    }
+
+    $insert = $pdo->prepare(
+        'INSERT INTO cc_config
+            (config_title, config_key, config_value, config_description, config_valuetype, config_listvalues, config_group_title)
+         VALUES
+            (?, ?, ?, ?, ?, ?, ?)'
+    );
+    $insert->execute([
+        'Provider Modules Unlocked',
+        'provider_modules_unlocked',
+        $value === '1' ? '1' : '0',
+        'Persistently unlock non-VectaVoIP provider modules after the provider unlock token has been validated once.',
+        0,
+        '0,1',
+        'webui',
+    ]);
 }
 
 function providerUnlockToken(): string
@@ -926,7 +990,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     <input class="form_input_button" type="submit" value="Unlock Options">
                 <?php else: ?>
                     <input type="hidden" name="form_action" value="lock_provider_modules">
-                    <strong>Hidden provider modules unlocked for this admin session.</strong>
+                    <strong>Hidden provider modules are persistently unlocked.</strong>
                     <br>
                     <input class="form_input_button" type="submit" value="Lock Again">
                 <?php endif; ?>

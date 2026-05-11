@@ -37,4 +37,12 @@ final class ProviderAccessPolicyTest extends TestCase
         $this->assertFalse($policy->isAllowed('twilio'));
         $this->assertTrue($policy->isAllowed('twilio', '', 'test-unlock'));
     }
+
+    public function testPersistentUnlockAllowsLockedProviders(): void
+    {
+        $policy = new ProviderAccessPolicy(new AppConfig(), true);
+
+        $this->assertTrue($policy->isAllowed('twilio'));
+        $this->assertTrue($policy->isAllowed('didww'));
+    }
 }

@@ -10,13 +10,20 @@ final class ProviderAccessPolicy
 {
     private const BUILT_IN_PROVIDER = 'vectavoip';
 
-    public function __construct(private readonly AppConfig $config)
+    public function __construct(
+        private readonly AppConfig $config,
+        private readonly bool $persistentlyUnlocked = false
+    )
     {
     }
 
     public function isAllowed(string $providerCode, string $actor = '', string $unlockToken = ''): bool
     {
         if (!$this->isLocked($providerCode)) {
+            return true;
+        }
+
+        if ($this->persistentlyUnlocked) {
             return true;
         }
 
