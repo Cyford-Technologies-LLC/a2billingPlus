@@ -125,7 +125,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     if ($formAction === 'lock_provider_modules') {
         $_SESSION['a2bp_provider_modules_unlocked'] = false;
         saveRuntimeSettings(['A2BP_PROVIDER_MODULES_UNLOCKED' => '0'], [], $messages, $errors);
-        $messages[] = 'Locked non-VectaVoIP provider modules for this session.';
+        if (!$errors) {
+            $messages[] = 'Locked non-VectaVoIP provider modules.';
+        }
     }
 
     foreach ($defaults as $key => $default) {
@@ -336,9 +338,13 @@ echo $themeRenderer->stylesheetLink($theme);
 function providerSetupService(): ProviderSetupService
 {
     $pdoFactory = fn (): PDO => providerSetupPdo();
+    $accessPolicy = new \A2BillingPlus\Module\Provider\ProviderAccessPolicy(
+        \A2BillingPlus\Config\AppConfig::fromEnvironment(),
+        providerModulesUnlocked()
+    );
 
     return new ProviderSetupService(
-        new ProviderApiController(ProviderRegistryFactory::createDefault(), null, $pdoFactory),
+        new ProviderApiController(ProviderRegistryFactory::createDefault(), null, $pdoFactory, $accessPolicy),
         $pdoFactory
     );
 }
@@ -617,7 +623,7 @@ function unlockProviderModules(string $token, array &$messages, array &$errors):
         return;
     }
 
-    $messages[] = 'Unlocked non-VectaVoIP provider modules.';
+    $messages[] = 'Unlocked non-VectaVoIP provider modules persistently.';
 }
 
 function providerModulesUnlocked(): bool
@@ -1277,7 +1283,7 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                     <input class="form_input_button" type="submit" value="Unlock Options">
                 <?php else: ?>
                     <input type="hidden" name="form_action" value="lock_provider_modules">
-                    <strong>Hidden provider modules are unlocked.</strong>
+                    <strong>Hidden provider modules are persistently unlocked.</strong>
                     <br>
                     <input class="form_input_button" type="submit" value="Lock Again">
                 <?php endif; ?>
