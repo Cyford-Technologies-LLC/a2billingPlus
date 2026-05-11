@@ -10,6 +10,7 @@ use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Config\RuntimeSettingRepository;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
+use A2BillingPlus\Module\Telephony\PjsipProvisioningService;
 use A2BillingPlus\Module\Ui\NavigationRegistry;
 use A2BillingPlus\Module\Ui\NavigationRenderer;
 use A2BillingPlus\Module\Ui\ThemeRegistry;
@@ -204,9 +205,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         if (!$errors) {
             saveUpstreamSettings($envPath, $input, $messages, $errors);
             if (!$errors && $input['provider'] === 'twilio') {
-                $trunkId = ensureTwilioOutboundTrunk(providerSetupPdo(), $input);
+                $pdo = providerSetupPdo();
+                $trunkId = ensureTwilioOutboundTrunk($pdo, $input);
                 if ($trunkId > 0) {
                     $messages[] = 'Created or updated A2Billing Twilio outbound trunk #' . $trunkId . ' for ' . twilioRoutingModeLabel($input['twilio_routing_mode']) . '.';
+                    syncTwilioOutboundPjsipTrunk($pdo, $trunkId, $messages, $errors);
                 }
             }
             if (!$errors && $input['provider'] === 'twilio' && $input['twilio_sandbox_mode'] !== '1' && twilioCanTest($input)) {
@@ -311,6 +314,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $twilioTrunkId = ensureTwilioOutboundTrunk($rateImportPdo, $input);
             if ($twilioTrunkId > 0) {
                 $input['target_trunk_id'] = (string)$twilioTrunkId;
+                syncTwilioOutboundPjsipTrunk($rateImportPdo, $twilioTrunkId, $messages, $errors);
             }
             if ($formAction === 'import_rates' && $input['twilio_default_caller_id'] !== '') {
                 $twilioCidGroupId = ensureTwilioOutboundCidGroup($rateImportPdo, $input['twilio_default_caller_id']);
@@ -1191,6 +1195,73 @@ function normalizeTwilioOutboundTrunk(PDO $pdo, int $trunkId, array $input): voi
         twilioOutboundTrunkSyncKey($input),
         $trunkId,
     ]);
+}
+
+function syncTwilioOutboundPjsipTrunk(PDO $pdo, int $trunkId, array &$messages, array &$errors): void
+{
+    if ($trunkId <= 0) {
+        return;
+    }
+
+    try {
+        $statement = $pdo->prepare('SELECT * FROM cc_trunk WHERE id_trunk = ? LIMIT 1');
+        $statement->execute([$trunkId]);
+        $trunk = $statement->fetch(PDO::FETCH_ASSOC);
+        if (!is_array($trunk)) {
+            $errors[] = 'Could not reload Twilio PJSIP endpoint because trunk #' . $trunkId . ' was not found.';
+            return;
+        }
+
+        if (strtoupper(trim((string)($trunk['providertech'] ?? ''))) !== 'PJSIP') {
+            return;
+        }
+
+        $result = (new PjsipProvisioningService($pdo))->syncLegacyTrunk($trunk, 'admin:provider-setup');
+        if (($result['body']['success'] ?? false) !== true) {
+            $errors[] = 'Twilio PJSIP endpoint sync failed: ' . (string)($result['body']['message'] ?? 'Unknown error.');
+            return;
+        }
+
+        $endpointId = (string)($result['body']['endpoint']['endpoint_id'] ?? '');
+        $host = (string)($trunk['providerip'] ?? '');
+        $messages[] = 'Synced PJSIP endpoint ' . ($endpointId !== '' ? $endpointId : 'for trunk #' . $trunkId) . ' to sip:' . $host . '.';
+        reloadAsteriskPjsip($messages);
+    } catch (Throwable $exception) {
+        $errors[] = 'Twilio PJSIP endpoint sync failed: ' . $exception->getMessage();
+    }
+}
+
+function reloadAsteriskPjsip(array &$messages): void
+{
+    if (!defined('MANAGER_HOST') || !defined('MANAGER_USERNAME') || !defined('MANAGER_SECRET')) {
+        return;
+    }
+
+    $host = trim((string)MANAGER_HOST);
+    $username = trim((string)MANAGER_USERNAME);
+    $secret = trim((string)MANAGER_SECRET);
+    if ($host === '' || $username === '' || $secret === '') {
+        return;
+    }
+
+    $managerPath = __DIR__ . '/../lib/phpagi/phpagi-asmanager.php';
+    if (!class_exists('AGI_AsteriskManager') && is_file($managerPath)) {
+        require_once $managerPath;
+    }
+    if (!class_exists('AGI_AsteriskManager')) {
+        return;
+    }
+
+    try {
+        $manager = new AGI_AsteriskManager();
+        if ($manager->connect($host, $username, $secret)) {
+            $manager->Command('pjsip reload');
+            $manager->disconnect();
+            $messages[] = 'Requested Asterisk PJSIP reload through AMI.';
+        }
+    } catch (Throwable) {
+        // The database sync is the durable change; AMI reload is best-effort.
+    }
 }
 
 function twilioDefaultTrunkTechnology(string $routingMode, string $elasticTrunkSid, string $byocTrunkSid): string
