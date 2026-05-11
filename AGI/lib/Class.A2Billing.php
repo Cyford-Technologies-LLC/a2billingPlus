@@ -2734,9 +2734,13 @@ class A2Billing
         $retries = 0;
         $language = 'en';
         $callerID_enable = $this->agiconfig['cid_enable'];
+        if ($this->trusted_endpoint_accountcode) {
+            $callerID_enable = 0;
+            $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[PJSIP ACCOUNT CODE AUTH - skipping CID prompt path]");
+        }
 
         // -%-%-%-%-%-%- FIRST TRY WITH THE CALLERID AUTHENTICATION -%-%-%-%-%-%-
-        if ($callerID_enable == 1 && is_numeric($this->CallerID) && $this->CallerID > 0 && !$this->trusted_endpoint_accountcode) {
+        if ($callerID_enable == 1 && is_numeric($this->CallerID) && $this->CallerID > 0) {
 
             $this->debug(DEBUG, $agi, __FILE__, __LINE__, "[CID_ENABLE - CID_CONTROL - CID:" . $this->CallerID . "]");
 
