@@ -25,7 +25,7 @@ final class VectaVoIPSmsGatewayTest extends TestCase
 
         $this->assertTrue($result->success);
         $this->assertSame('msg_123', $result->gatewayMessageId);
-        $this->assertSame('https://api.example.test/v1/sms/send', $captured['url']);
+        $this->assertSame('https://api.vectavoip.com/v1/sms/send', $captured['url']);
         $this->assertSame('key-123', $captured['headers']['X-VectaVoIP-Api-Key']);
         $this->assertSame('secret-456', $captured['headers']['X-VectaVoIP-Api-Secret']);
         $this->assertSame(

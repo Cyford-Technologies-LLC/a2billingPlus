@@ -3,6 +3,7 @@
 declare(strict_types=1);
 
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProvisioningService;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
 
@@ -25,7 +26,7 @@ $configPath = $projectRoot . DIRECTORY_SEPARATOR . 'a2billing.conf';
 $schemaPath = $projectRoot . DIRECTORY_SEPARATOR . 'DataBase' . DIRECTORY_SEPARATOR . 'mariadb' . DIRECTORY_SEPARATOR . '11' . DIRECTORY_SEPARATOR . 'mariadb-11.sql';
 $migrationsPath = $projectRoot . DIRECTORY_SEPARATOR . 'install' . DIRECTORY_SEPARATOR . 'migrations';
 $lockPath = $projectRoot . DIRECTORY_SEPARATOR . 'install.lock';
-$defaultProviderApiBaseUrl = class_exists(VectaVoIPConnector::class) ? VectaVoIPConnector::API_BASE_URL : 'https://api.VectaVoIP.com';
+$defaultProviderApiBaseUrl = class_exists(VectaVoIPConnector::class) ? VectaVoIPConnector::API_BASE_URL : 'https://api.vectavoip.com';
 
 $defaults = [
     'company_name' => 'VectaVoIP',
@@ -54,7 +55,6 @@ $defaults = [
     'admin_password_confirm' => '',
     'setup_admin' => '1',
     'register_provider' => '',
-    'provider_api_base_url' => $defaultProviderApiBaseUrl,
     'provider_company_name' => '',
     'provider_company_domain' => '',
     'provider_contact_name' => '',
@@ -116,9 +116,6 @@ if ($posted) {
     }
     if ($input['mysql_root_password'] === '') {
         $errors[] = 'Container database root password is required.';
-    }
-    if ($input['register_provider'] === '1' && $input['provider_api_base_url'] === '') {
-        $errors[] = 'VectaVoIP API base URL is required for automatic provider registration.';
     }
     if ($input['register_provider'] === '1') {
         if ($input['provider_company_name'] === '') {
@@ -198,6 +195,9 @@ if ($posted) {
                 applyMigrations($pdo, $migrationsPath, $messages, $errors);
                 if ($input['setup_admin'] === '1') {
                     setupFirstAdmin($pdo, $input, $messages, $errors);
+                }
+                if (!$errors && $input['register_provider'] === '1') {
+                    provisionVectaVoIPDefaults($pdo, $messages, $errors);
                 }
             } else {
                 $messages[] = 'Database is reachable, but cc_card was not found. Enable schema initialization or import the database manually.';
@@ -488,7 +488,6 @@ function writeEnvFile(string $envPath, string $envExamplePath, array $input, arr
         'A2BP_ASTERISK_REALM' => 'asterisk',
         'A2BP_ASTERISK_USER_AGENT' => 'A2BillingPlus Sandbox',
         'A2BP_ASTERISK_IDENTIFIER_ORDER' => 'auth_username,username,ip,anonymous',
-        'VECTAVOIP_API_BASE_URL' => $input['provider_api_base_url'],
         'VECTAVOIP_INSTALL_KEY' => $input['provider_install_key'],
         'VECTAVOIP_INSTALLATION_ID' => $input['provider_installation_id'],
         'VECTAVOIP_API_KEY' => $input['provider_api_key'],
@@ -551,17 +550,19 @@ function registerVectaVoIPInstall(array &$input, array &$messages, array &$error
         $input['provider_install_key'] = generateInstallKey();
     }
 
-    $client = new VectaVoIPRegistrationClient($input['provider_api_base_url']);
+    $apiBaseUrl = class_exists(VectaVoIPConnector::class) ? VectaVoIPConnector::API_BASE_URL : 'https://api.vectavoip.com';
+    $client = new VectaVoIPRegistrationClient($apiBaseUrl);
     $result = $client->register(new VectaVoIPRegistrationRequest(
         $input['provider_install_key'],
+        $input['provider_contact_name'],
+        '',
         $input['provider_company_name'],
         $input['provider_company_domain'],
-        $input['provider_contact_name'],
         $input['provider_contact_email'],
-        $input['provider_contact_phone'],
-        $input['provider_details'],
+        installerClientIp(),
         $input['app_name'],
-        '0.1.0-alpha'
+        '0.1.0-alpha',
+        $input['provider_contact_name']
     ));
 
     if (!$result->isSuccessful()) {
@@ -573,6 +574,37 @@ function registerVectaVoIPInstall(array &$input, array &$messages, array &$error
     $input['provider_api_key'] = $result->getApiKey();
     $input['provider_api_secret'] = $result->getApiSecret();
     $messages[] = 'Registered this install with VectaVoIP and stored provider API credentials.';
+}
+
+function provisionVectaVoIPDefaults(PDO $pdo, array &$messages, array &$errors): void
+{
+    if (!class_exists(VectaVoIPProvisioningService::class)) {
+        $errors[] = 'Cannot configure local VectaVoIP provider defaults because Composer autoload is unavailable. Run composer install first.';
+        return;
+    }
+
+    foreach (['cc_provider', 'cc_trunk', 'cc_tariffplan'] as $table) {
+        if (!tableExists($pdo, $table)) {
+            $errors[] = 'Cannot configure local VectaVoIP provider defaults because ' . $table . ' is missing.';
+            return;
+        }
+    }
+
+    try {
+        $result = (new VectaVoIPProvisioningService($pdo))->provisionDefaults();
+        $messages[] = 'Configured local VectaVoIP provider defaults: provider #'
+            . (int)($result['provider_id'] ?? 0)
+            . ', trunk #' . (int)($result['trunk_id'] ?? 0)
+            . ', ratecard #' . (int)($result['ratecard_id'] ?? 0) . '.';
+    } catch (Throwable $exception) {
+        $errors[] = 'Local VectaVoIP provider provisioning failed: ' . $exception->getMessage();
+    }
+}
+
+function installerClientIp(): string
+{
+    $remoteAddr = $_SERVER['REMOTE_ADDR'] ?? '';
+    return is_scalar($remoteAddr) ? trim((string)$remoteAddr) : '';
 }
 
 function generateInstallKey(): string
@@ -1163,9 +1195,8 @@ function h(string $value): string
                     <input id="provider_contact_phone" name="provider_contact_phone" type="text" value="<?php echo h($input['provider_contact_phone']); ?>">
                 </div>
                 <div class="full" data-provider-registration>
-                    <label for="provider_api_base_url">VectaVoIP API Base URL</label>
-                    <input id="provider_api_base_url" name="provider_api_base_url" type="text" value="<?php echo h($input['provider_api_base_url']); ?>">
-                    <p class="muted">Default: <code>https://api.VectaVoIP.com</code>. Registration endpoint: <code>/v1/installations/register</code>.</p>
+                    <label>VectaVoIP API Base URL</label>
+                    <p class="muted"><code><?php echo h($defaultProviderApiBaseUrl); ?></code>. Registration endpoint: <code>/v1/installations/register</code>.</p>
                 </div>
                 <div class="full" data-provider-registration>
                     <label for="provider_details">Provider Registration Details</label>

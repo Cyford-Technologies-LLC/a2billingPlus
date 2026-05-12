@@ -78,7 +78,6 @@ final class ProviderApiControllerTest extends TestCase
     {
         putenv('VECTAVOIP_API_KEY=registered-key');
         putenv('VECTAVOIP_INSTALLATION_ID=inst_123');
-        putenv('VECTAVOIP_API_BASE_URL=https://api.vectavoip.com');
 
         try {
             $controller = new ProviderApiController(ProviderRegistryFactory::createDefault());
@@ -94,7 +93,6 @@ final class ProviderApiControllerTest extends TestCase
         } finally {
             putenv('VECTAVOIP_API_KEY');
             putenv('VECTAVOIP_INSTALLATION_ID');
-            putenv('VECTAVOIP_API_BASE_URL');
         }
     }
 
@@ -126,7 +124,7 @@ final class ProviderApiControllerTest extends TestCase
         $controller = new ProviderApiController(
             ProviderRegistryFactory::createDefault(),
             fn (string $baseUrl): VectaVoIPRegistrationClient => new VectaVoIPRegistrationClient($baseUrl, function (string $url, array $payload): array {
-                $this->assertSame('http://localhost:8080/api/sandbox/v1/installations/register', $url);
+                $this->assertSame('https://api.vectavoip.com/v1/installations/register', $url);
                 $this->assertSame('a2bp_test', $payload['install_key']);
                 $this->assertSame('janeadmin', $payload['username']);
                 $this->assertSame('secret-pass', $payload['password']);
@@ -151,7 +149,7 @@ final class ProviderApiControllerTest extends TestCase
         $response = $controller->handle(new JsonRequest('POST', [], [
             'action' => 'register_install',
             'provider' => 'vectavoip',
-            'base_url' => 'http://localhost:8080/api/sandbox',
+            'base_url' => 'http://ignored.example/api/sandbox',
             'install_key' => 'a2bp_test',
             'registration_username' => 'janeadmin',
             'registration_password' => 'secret-pass',
@@ -168,6 +166,53 @@ final class ProviderApiControllerTest extends TestCase
         $this->assertSame('inst_123', $response->getPayload()['installation_id']);
         $this->assertSame('key_123', $response->getPayload()['api_key']);
         $this->assertSame('VV12345', $response->getPayload()['metadata']['account_number']);
+    }
+
+    public function testRegistersProviderInstallAndProvisionsVectaVoIPDefaults(): void
+    {
+        $pdo = $this->provisioningPdo();
+        $controller = new ProviderApiController(
+            ProviderRegistryFactory::createDefault(),
+            fn (string $baseUrl): VectaVoIPRegistrationClient => new VectaVoIPRegistrationClient($baseUrl, function (string $url, array $payload): array {
+                $this->assertSame('Jane Admin', $payload['contact_name']);
+
+                return [
+                    'status' => 201,
+                    'body' => json_encode([
+                        'message' => 'registered',
+                        'installation_id' => 'inst_123',
+                        'api_key' => 'key_123',
+                        'api_secret' => 'secret_123',
+                        'metadata' => ['account_number' => 'VV12345'],
+                    ], JSON_THROW_ON_ERROR),
+                ];
+            }),
+            fn (): PDO => $pdo
+        );
+
+        $response = $controller->handle(new JsonRequest('POST', [], [
+            'action' => 'register_install',
+            'provider' => 'vectavoip',
+            'base_url' => 'http://ignored.example/api/sandbox',
+            'install_key' => 'a2bp_test',
+            'registration_username' => '',
+            'registration_password' => '',
+            'company_name' => 'ExampleCo',
+            'company_domain' => 'example.test',
+            'contact_name' => 'Jane Admin',
+            'contact_email' => 'jane@example.test',
+            'provision_defaults' => '1',
+        ]));
+
+        $payload = $response->getPayload();
+
+        $this->assertSame(201, $response->getStatusCode());
+        $this->assertTrue($payload['success']);
+        $this->assertTrue($payload['local_provider']['success']);
+        $this->assertSame(1, (int)$payload['local_provider']['provider_id']);
+        $this->assertSame('VectaVoIP', $pdo->query('SELECT provider_name FROM cc_provider')->fetchColumn());
+        $this->assertSame('VECTAVOIP', $pdo->query('SELECT trunkcode FROM cc_trunk')->fetchColumn());
+        $this->assertSame('VectaVoIP Retail', $pdo->query('SELECT tariffname FROM cc_tariffplan')->fetchColumn());
     }
 
     public function testDryRunsPreviewRateImport(): void
@@ -1122,6 +1167,40 @@ final class ProviderApiControllerTest extends TestCase
                 tag TEXT
             )'
         );
+
+        return $pdo;
+    }
+
+    private function provisioningPdo(): PDO
+    {
+        $pdo = new PDO('sqlite::memory:');
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $pdo->exec('CREATE TABLE cc_provider (id INTEGER PRIMARY KEY AUTOINCREMENT, provider_name TEXT NOT NULL, description TEXT NOT NULL)');
+        $pdo->exec('CREATE TABLE cc_trunk (
+            id_trunk INTEGER PRIMARY KEY AUTOINCREMENT,
+            trunkcode TEXT NOT NULL,
+            trunkprefix TEXT NOT NULL DEFAULT "",
+            providertech TEXT NOT NULL,
+            providerip TEXT NOT NULL,
+            removeprefix TEXT NOT NULL DEFAULT "",
+            creationdate TEXT NOT NULL DEFAULT "",
+            failover_trunk INTEGER NOT NULL DEFAULT 0,
+            addparameter TEXT NOT NULL DEFAULT "",
+            id_provider INTEGER NOT NULL DEFAULT 0,
+            inuse INTEGER NOT NULL DEFAULT 0,
+            maxuse INTEGER NOT NULL DEFAULT 0,
+            status INTEGER NOT NULL DEFAULT 1,
+            if_max_use INTEGER NOT NULL DEFAULT 0
+        )');
+        $pdo->exec('CREATE TABLE cc_tariffplan (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            iduser INTEGER NOT NULL DEFAULT 0,
+            tariffname TEXT NOT NULL,
+            description TEXT NOT NULL DEFAULT "",
+            id_trunk INTEGER NOT NULL DEFAULT 0,
+            dnidprefix TEXT NOT NULL DEFAULT "",
+            calleridprefix TEXT NOT NULL DEFAULT ""
+        )');
 
         return $pdo;
     }

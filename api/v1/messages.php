@@ -8,6 +8,7 @@ use A2BillingPlus\Http\ApiResponder;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Module\Messaging\SmsMessageRepository;
 use A2BillingPlus\Module\Messaging\VectaVoIPSmsGateway;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
@@ -105,7 +106,7 @@ if ($method === 'POST') {
 
     $apiKey = $config->string('VECTAVOIP_API_KEY');
     $apiSecret = $config->string('VECTAVOIP_API_SECRET');
-    $baseUrl = $config->string('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com');
+    $baseUrl = VectaVoIPConnector::API_BASE_URL;
 
     if ($apiKey !== '' && $apiSecret !== '') {
         $gateway = new VectaVoIPSmsGateway($baseUrl, $apiKey, $apiSecret);

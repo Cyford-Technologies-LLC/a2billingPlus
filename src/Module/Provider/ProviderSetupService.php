@@ -67,15 +67,16 @@ final class ProviderSetupService
         return $this->post([
             'action' => 'register_install',
             'provider' => $input['provider'] ?? 'vectavoip',
-            'base_url' => $input['base_url'],
             'install_key' => $input['install_key'],
             'registration_username' => $input['registration_username'] ?? '',
             'registration_password' => $input['registration_password'] ?? '',
             'company_name' => $input['company_name'],
             'company_domain' => $input['company_domain'],
+            'contact_name' => $input['contact_name'] ?? '',
             'contact_email' => $input['contact_email'],
             'app_name' => 'A2BillingPlus',
             'app_version' => '0.1.0-alpha',
+            'provision_defaults' => '1',
         ]);
     }
 

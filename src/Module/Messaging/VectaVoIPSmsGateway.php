@@ -4,19 +4,28 @@ declare(strict_types=1);
 
 namespace A2BillingPlus\Module\Messaging;
 
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
+
 final class VectaVoIPSmsGateway implements SmsGatewayInterface
 {
     private const SMS_PATH = '/v1/sms/send';
+
+    private readonly string $baseUrl;
+    private readonly string $apiKey;
+    private readonly string $apiSecret;
 
     /**
      * @param null|callable(string, string, array<string,string>): array{status:int,body:string} $transport
      */
     public function __construct(
-        private readonly string $baseUrl,
-        private readonly string $apiKey,
-        private readonly string $apiSecret,
+        string $baseUrl,
+        string $apiKey,
+        string $apiSecret,
         private $transport = null
     ) {
+        $this->baseUrl = VectaVoIPConnector::API_BASE_URL;
+        $this->apiKey = $apiKey;
+        $this->apiSecret = $apiSecret;
     }
 
     public function send(string $from, string $to, string $body): SmsResult

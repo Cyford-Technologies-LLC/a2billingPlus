@@ -20,6 +20,7 @@ final class VectaVoIPStatusClient
 
     public function check(ProviderCredentials $credentials): ProviderConnectionResult
     {
+        $credentials = $this->canonicalCredentials($credentials);
         $response = null;
         $lastError = '';
         for ($attempt = 1; $attempt <= max(1, $this->maxAttempts); $attempt++) {
@@ -138,6 +139,16 @@ final class VectaVoIPStatusClient
             'Authorization: Bearer ' . $credentials->getApiKey(),
             'X-VectaVoIP-Secret: ' . $credentials->getApiSecret(),
         ];
+    }
+
+    private function canonicalCredentials(ProviderCredentials $credentials): ProviderCredentials
+    {
+        return new ProviderCredentials(
+            VectaVoIPConnector::API_BASE_URL,
+            $credentials->getApiKey(),
+            $credentials->getApiSecret(),
+            $credentials->getMetadata()
+        );
     }
 
     /**

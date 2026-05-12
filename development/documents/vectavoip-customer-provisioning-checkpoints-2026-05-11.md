@@ -32,6 +32,75 @@ all agree.
 - Outbound SMS is authorized only from assigned DIDs and is recorded with the
   upstream provider reference.
 
+## VectaVoIP API Side Work For Next Session
+
+These are the provider-side items to handle in the VectaVoIP API session. A2BP
+should treat VectaVoIP as its provider; VectaVoIP should use Twilio behind the
+scenes for inventory, DID purchase, voice routing, and SMS where Twilio is the
+selected upstream.
+
+- [ ] Deploy the production-compatible VectaVoIP API at the real provider base
+  URL with `/v1/installations/register`, `/v1/installations/status`, and
+  `/v1/credentials/rotate`.
+- [ ] Keep the production API contract compatible with the local
+  `/api/vectavoip/v1/*` implementation so A2BP can switch base URLs without
+  code changes.
+- [ ] Registration must issue installation id, API key, API secret, account
+  number, allowed IP metadata, default package metadata, and available package
+  options.
+- [ ] Registration and status endpoints must support idempotency by
+  `install_key`, so repeated A2BP installer/admin submissions do not create
+  duplicate provider accounts.
+- [ ] Store VectaVoIP-side provider accounts by installation id and external id,
+  with clear ownership boundaries for A2BP installs and CRM/customer apps.
+- [ ] Add app-scoped API credentials for downstream apps, separate from the
+  installation API key/secret used by A2BP provider setup.
+- [ ] Persist Twilio upstream settings in provider-side storage: account SID,
+  API key/secret or auth token, default upstream provider, Elastic/Voice BYOC
+  trunk SID, default voice URL, default SMS URL, sandbox mode, and routing mode.
+- [ ] Add a VectaVoIP upstream health check that verifies Twilio auth, selected
+  trunk/SIP domain, and required voice/SMS callback URLs before enabling DID
+  purchase.
+- [ ] Implement DID search on VectaVoIP by calling Twilio available-number APIs
+  and normalizing results into provider-neutral fields: number, country,
+  region, locality, capabilities, monthly cost, setup cost, currency, and
+  upstream reference.
+- [ ] Implement DID purchase on VectaVoIP by calling Twilio
+  `IncomingPhoneNumbers`, attaching the number to the selected trunk or callback
+  URLs, and recording Twilio number SID, trunk SID, order/reference ids, cost,
+  and capabilities.
+- [ ] Make DID purchase idempotent by request id or `(installation_id, account,
+  did)` so retrying after a timeout does not buy the same number twice.
+- [ ] On VectaVoIP DID purchase, return a response A2BP can consume directly:
+  DID, provider code `twilio`, upstream reference, trunk reference, trunk name,
+  SMS capability, voice capability, monthly rate, setup rate, and assigned
+  account id.
+- [ ] Add DID assign/release endpoints that update VectaVoIP ownership state,
+  update Twilio routing when needed, and emit clear failures for unavailable
+  number, missing account, no trunk, upstream auth failure, and callback failure.
+- [ ] Add inbound voice routing support so Twilio sends calls for purchased
+  DIDs to the correct VectaVoIP/A2BP SIP target or webhook for that account.
+- [ ] Add outbound caller ID authorization rules so only DIDs assigned to the
+  account can be used as caller ID.
+- [ ] Add outbound SMS on VectaVoIP with enforcement that `from` is an assigned
+  SMS-capable DID and with Twilio message SID/status stored in VectaVoIP records.
+- [ ] Add inbound SMS webhook handling from Twilio, mapping the destination DID
+  to the owning account/app and forwarding to the customer app webhook with
+  signature headers.
+- [ ] Add webhook delivery retries and event records for DID purchased,
+  DID released, inbound SMS, outbound SMS status, and upstream routing changes.
+- [ ] Add provider-side audit logging for registration, credential rotation,
+  account create, DID search, DID purchase, DID assign/release, SMS send, and
+  webhook delivery.
+- [ ] Add sandbox mode fixtures for Twilio search/purchase/SMS so A2BP can test
+  the provider flow without buying real numbers.
+- [ ] Add contract tests that prove A2BP can register, status-check, create an
+  account, search DIDs, purchase a Twilio-backed DID, assign it, send SMS, and
+  receive inbound webhook events through VectaVoIP.
+- [ ] Document the exact request/response examples A2BP should use for
+  registration, DID search, DID purchase, DID assignment, release, SMS send, and
+  status checks.
+
 ## Security And Ownership
 
 - [ ] Create app-scoped provisioning credentials, separate from the global
@@ -69,6 +138,38 @@ all agree.
   local `vt_customer_id`.
 - [ ] Add API tests for create, duplicate create, lookup by external id,
   permission denied, and cross-app denied.
+
+## VectaVoIP Service And Subscription Plans
+
+A2Billing's legacy subscription screens can attach a recurring fee and call
+plan during signup, but they do not model a bundled VectaVoIP service that
+includes DID inventory, SIP/PJSIP phone service, channels, SMS, and provider
+routing. Build a VectaVoIP plan layer and project it into the legacy billing
+tables instead of expecting the legacy subscription form to carry all service
+entitlements.
+
+- [ ] Define a database-backed VectaVoIP service plan model with plan code,
+  display name, recurring fee, setup fee, included DID count, included phone
+  server/SIP seat count, channel limit, SMS flag, E911 flag, default upstream,
+  call plan id, ratecard id, trunk id, and outbound caller ID policy.
+- [ ] Map each billable VectaVoIP plan to `cc_subscription_service` and
+  `cc_card_subscription` so A2Billing can still invoice/charge the monthly
+  service fee.
+- [ ] Map each callable VectaVoIP plan to `cc_card.tariff`,
+  `cc_tariffgroup_plan`, ratecard, and trunk records so outbound calls route
+  without manual admin edits.
+- [ ] When a plan includes phone service, provisioning must create the SIP row
+  and PJSIP realtime rows automatically.
+- [ ] When a plan includes DIDs, provisioning must search/purchase or allocate
+  the DID, project it into `cc_did`, assign it to the customer, create inbound
+  destination rows, and add it to the customer's outbound caller ID group.
+- [ ] Track plan entitlements separately from billing rows so changing a
+  subscription fee does not silently change DID/SIP/channel permissions.
+- [ ] Add admin UI for creating/editing VectaVoIP plans rather than forcing
+  operators to combine legacy Subscription, DID, SIP, and Call Plan screens.
+- [ ] Add API tests proving that selecting a VectaVoIP plan provisions billing,
+  call routing, SIP/PJSIP, DID assignment, SMS permission, and outbound caller
+  ID in one idempotent operation.
 
 ## SIP And PJSIP
 
@@ -251,6 +352,9 @@ all agree.
 
 ## Current Highest-Risk Gaps
 
+- VectaVoIP's production API still needs the deployed Twilio-backed provider
+  contract that A2BP can call for registration, DID search, DID purchase,
+  assignment, release, voice routing, SMS, and webhooks.
 - App-scoped provisioning authorization is not complete.
 - Provider setup still needs a single atomic "make this provider usable" flow.
 - DID assignment needs to automatically create inbound voice destination and

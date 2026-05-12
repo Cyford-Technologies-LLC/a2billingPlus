@@ -56,33 +56,6 @@ Invoke-Step 'Provider API status smoke' {
     Invoke-RestMethod -Uri "$BaseUrl/api/v1/providers.php" -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
 }
 
-Invoke-Step 'Provider rate preview smoke' {
-    $body = @{
-        action = 'preview_rates'
-        provider = 'vectavoip'
-        base_url = 'http://localhost/api/sandbox'
-        api_key = 'sandbox_key'
-        rate_deck = 'retail'
-        currency = 'USD'
-    } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Uri "$BaseUrl/api/v1/providers.php" -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 6
-}
-
-Invoke-Step 'Provider dry-run import smoke' {
-    $body = @{
-        action = 'import_preview_rates'
-        provider = 'vectavoip'
-        base_url = 'http://localhost/api/sandbox'
-        api_key = 'sandbox_key'
-        target_ratecard_id = '5'
-        rate_deck = 'retail'
-        currency = 'USD'
-        dry_run = '1'
-        update_existing = '0'
-    } | ConvertTo-Json -Compress
-    Invoke-RestMethod -Uri "$BaseUrl/api/v1/providers.php" -Method Post -ContentType 'application/json' -Body $body | ConvertTo-Json -Depth 5
-}
-
 Invoke-Step 'VectaVoIP production-compatible registration smoke' {
     $installKey = 'a2bp_verify_' + [guid]::NewGuid().ToString('N')
     $body = @{

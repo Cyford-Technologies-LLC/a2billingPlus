@@ -22,7 +22,7 @@ final class VectaVoIPConnectorTest extends TestCase
     public function testConnectionAcceptsStructurallyValidCredentials(): void
     {
         $connector = new VectaVoIPConnector();
-        $result = $connector->testConnection(new ProviderCredentials('https://api.vectavoip.com/', 'test-key'));
+        $result = $connector->testConnection(new ProviderCredentials('https://other-provider.example/', 'test-key'));
 
         $this->assertTrue($result->isSuccessful());
         $this->assertSame('https://api.vectavoip.com', $result->getDetails()['base_url']);
@@ -32,17 +32,18 @@ final class VectaVoIPConnectorTest extends TestCase
     public function testProvidesRateImporter(): void
     {
         $connector = new VectaVoIPConnector();
-        $importer = $connector->getRateImporter(new ProviderCredentials('https://api.vectavoip.com', 'test-key'));
+        $importer = $connector->getRateImporter(new ProviderCredentials('https://other-provider.example', 'test-key'));
 
         $this->assertInstanceOf(VectaVoIPRateImporter::class, $importer);
+        $this->assertSame('https://api.vectavoip.com', $importer->getCredentials()->getBaseUrl());
     }
 
     public function testRatePreviewFetchesProviderRows(): void
     {
         $importer = new VectaVoIPRateImporter(
-            new ProviderCredentials('http://localhost/api/sandbox', 'test-key'),
+            new ProviderCredentials('https://other-provider.example', 'test-key'),
             function (string $url, ProviderCredentials $credentials): array {
-                $this->assertSame('http://localhost/api/sandbox/v1/rates/preview?rate_deck=retail&currency=USD&destination=US', $url);
+                $this->assertSame('https://api.vectavoip.com/v1/rates/preview?rate_deck=retail&currency=USD&destination=US', $url);
                 $this->assertSame('test-key', $credentials->getApiKey());
 
                 return [
@@ -69,7 +70,7 @@ final class VectaVoIPConnectorTest extends TestCase
     public function testRatePreviewReportsProviderFailure(): void
     {
         $importer = new VectaVoIPRateImporter(
-            new ProviderCredentials('http://localhost/api/sandbox', 'test-key'),
+            new ProviderCredentials('https://other-provider.example', 'test-key'),
             fn (): array => [
                 'status' => 422,
                 'body' => '{"message":"invalid deck"}',

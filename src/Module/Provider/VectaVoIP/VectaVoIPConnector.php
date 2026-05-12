@@ -43,9 +43,7 @@ final class VectaVoIPConnector implements ProviderConnectorInterface
 
     public function testConnection(ProviderCredentials $credentials): ProviderConnectionResult
     {
-        if ($credentials->getBaseUrl() === '') {
-            return new ProviderConnectionResult(false, 'VectaVoIP API base URL is required. Use https://api.vectavoip.com.');
-        }
+        $credentials = $this->canonicalCredentials($credentials);
 
         if ($credentials->getApiKey() === '') {
             return new ProviderConnectionResult(false, 'VectaVoIP API key is required. Contact info@VectaVoIP.com for access.');
@@ -64,7 +62,7 @@ final class VectaVoIPConnector implements ProviderConnectorInterface
 
     public function getRateImporter(ProviderCredentials $credentials): RateImporterInterface
     {
-        return new VectaVoIPRateImporter($credentials);
+        return new VectaVoIPRateImporter($this->canonicalCredentials($credentials));
     }
 
     private function statusClient(): VectaVoIPStatusClient
@@ -74,5 +72,15 @@ final class VectaVoIPConnector implements ProviderConnectorInterface
         }
 
         return new VectaVoIPStatusClient();
+    }
+
+    private function canonicalCredentials(ProviderCredentials $credentials): ProviderCredentials
+    {
+        return new ProviderCredentials(
+            self::API_BASE_URL,
+            $credentials->getApiKey(),
+            $credentials->getApiSecret(),
+            $credentials->getMetadata()
+        );
     }
 }

@@ -41,12 +41,8 @@ details: company name, domain, contact name, contact email, contact phone, and
 optional install notes. The local admin details are used only as fallback values
 when the provider contact fields are left blank.
 
-For sandbox testing without the production VectaVoIP API, set the API base URL
-to:
-
-```text
-http://localhost/api/sandbox
-```
+The VectaVoIP provider API host is fixed in code as `https://api.vectavoip.com`.
+The installer does not expose a provider-host override.
 
 ## Option 1: New MariaDB Container
 

@@ -20,6 +20,6 @@ final class VectaVoIPProviderModule implements ProviderModuleInterface
 
     public function apiBaseUrl(): string
     {
-        return $this->config->string('VECTAVOIP_API_BASE_URL', VectaVoIPConnector::API_BASE_URL);
+        return VectaVoIPConnector::API_BASE_URL;
     }
 }

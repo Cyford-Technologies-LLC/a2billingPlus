@@ -86,7 +86,6 @@ A2BillingPlus schema exists. Applied migration filenames are recorded in
 ## VectaVoIP Provider Registration
 
 ```text
-VECTAVOIP_API_BASE_URL=https://api.vectavoip.com
 VECTAVOIP_INSTALL_KEY=
 VECTAVOIP_INSTALLATION_ID=
 VECTAVOIP_API_KEY=
@@ -99,7 +98,8 @@ VECTAVOIP_WEBHOOK_SECRET_FILE=
 
 `install.php` writes these values when automatic VectaVoIP registration
 succeeds. The install key is generated locally, and the API key/secret are
-returned by the VectaVoIP registration server.
+returned by the VectaVoIP registration server. The VectaVoIP API host is the
+hardcoded provider URL `https://api.vectavoip.com`.
 
 When `VECTAVOIP_API_KEY_FILE` or `VECTAVOIP_API_SECRET_FILE` is set, runtime code
 reads credentials from those files. Direct environment values are used when file

@@ -78,30 +78,18 @@ X-VectaVoIP-Secret: <api_secret>
 Credential rotation returns the same API key and a new API secret. The old
 secret stops working immediately after rotation.
 
-## Sandbox Endpoint
+## Provider Host
 
-For local testing before `api.vectavoip.com` is live, set the installer API base
-URL to this value when the installer runs inside the Docker app container:
-
-```text
-http://localhost/api/sandbox
-```
-
-From the host machine or browser, the same sandbox endpoint is reachable at:
+The VectaVoIP provider host is fixed in code as:
 
 ```text
-http://localhost:8080/api/sandbox
+https://api.vectavoip.com
 ```
 
-The sandbox endpoint is:
-
-```text
-POST http://localhost:8080/api/sandbox/v1/installations/register
-```
-
-It returns deterministic sandbox credentials based on the install key, company
-name, and contact email. Do not use sandbox credentials for production provider
-access.
+A2BillingPlus provider setup does not expose a host override. Local development
+may call the production-compatible `/api/vectavoip/v1/*` endpoints directly, but
+the A2BillingPlus provider connector should always point at the canonical
+VectaVoIP API host.
 
 ## Local Provider API Actions
 
@@ -127,7 +115,6 @@ Register install:
 {
   "action": "register_install",
   "provider": "vectavoip",
-  "base_url": "http://localhost/api/sandbox",
   "install_key": "a2bp_optional_existing_key",
   "company_name": "Customer Company",
   "company_domain": "example.com",
@@ -148,7 +135,6 @@ Preview provider rates through the local API:
 {
   "action": "preview_rates",
   "provider": "vectavoip",
-  "base_url": "http://localhost/api/sandbox",
   "api_key": "sandbox_key",
   "rate_deck": "retail",
   "currency": "USD",
@@ -158,19 +144,12 @@ Preview provider rates through the local API:
 }
 ```
 
-The sandbox provider endpoint behind this action is:
-
-```text
-GET /api/sandbox/v1/rates/preview?rate_deck=retail&currency=USD
-```
-
 Dry-run import of the previewed rows into an A2BillingPlus ratecard:
 
 ```json
 {
   "action": "import_preview_rates",
   "provider": "vectavoip",
-  "base_url": "http://localhost/api/sandbox",
   "api_key": "sandbox_key",
   "target_ratecard_id": "5",
   "rate_deck": "retail",

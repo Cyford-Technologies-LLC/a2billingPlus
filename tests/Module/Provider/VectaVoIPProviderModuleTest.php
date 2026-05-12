@@ -18,12 +18,10 @@ final class VectaVoIPProviderModuleTest extends TestCase
         $this->assertInstanceOf(VectaVoIPConnector::class, $connectors[0]);
     }
 
-    public function testReadsConfiguredApiBaseUrl(): void
+    public function testUsesCanonicalApiBaseUrl(): void
     {
-        $module = new VectaVoIPProviderModule(new AppConfig([
-            'VECTAVOIP_API_BASE_URL' => 'https://provider.example',
-        ]));
+        $module = new VectaVoIPProviderModule(new AppConfig());
 
-        $this->assertSame('https://provider.example', $module->apiBaseUrl());
+        $this->assertSame('https://api.vectavoip.com', $module->apiBaseUrl());
     }
 }

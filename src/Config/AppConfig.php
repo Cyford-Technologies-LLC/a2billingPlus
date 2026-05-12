@@ -51,7 +51,6 @@ final class AppConfig
             'DIDWW_API_BASE_URL',
             'DIDWW_API_KEY',
             'DIDWW_API_VERSION',
-            'VECTAVOIP_API_BASE_URL',
             'VECTAVOIP_API_KEY',
             'VECTAVOIP_API_SECRET',
             'VECTAVOIP_INSTALLATION_ID',

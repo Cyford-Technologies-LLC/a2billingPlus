@@ -9,6 +9,7 @@ include_once '../lib/admin.smarty.php';
 use A2BillingPlus\Api\ProviderApiController;
 use A2BillingPlus\Bootstrap\ProviderRegistryFactory;
 use A2BillingPlus\Module\Provider\ProviderSetupService;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
 use A2BillingPlus\Module\Telephony\PjsipProvisioningService;
 use A2BillingPlus\Module\Ui\NavigationRegistry;
 use A2BillingPlus\Module\Ui\NavigationRenderer;
@@ -50,7 +51,7 @@ $twilioElasticTrunkSid = envString('TWILIO_ELASTIC_TRUNK_SID', envString('TWILIO
 $twilioByocTrunkSid = envString('TWILIO_BYOC_TRUNK_SID');
 
 $defaults = [
-    'base_url' => envString('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com'),
+    'base_url' => VectaVoIPConnector::API_BASE_URL,
     'api_key' => envString('VECTAVOIP_API_KEY'),
     'api_secret' => envString('VECTAVOIP_API_SECRET'),
     'default_upstream_provider' => envString('VECTAVOIP_DEFAULT_UPSTREAM_PROVIDER', 'local'),
@@ -127,6 +128,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $input['twilio_trunk_technology'] = twilioOutboundTrunkTechnology($input['twilio_trunk_technology']);
     $input['twilio_outbound_dial_prefix'] = twilioOutboundDialPrefix($input);
     $input['provider'] = trim((string)($_POST['provider_context'] ?? $_POST['provider'] ?? 'vectavoip'));
+    if ($input['provider'] === 'vectavoip') {
+        $input['base_url'] = VectaVoIPConnector::API_BASE_URL;
+    }
 
     if (!in_array($formAction, ['set_ui_theme', 'save_upstream_settings'], true) && $input['base_url'] === '') {
         $errors[] = 'Provider API base URL is required.';
@@ -152,7 +156,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $messages[] = (string)($registration['message'] ?? 'Provider registration completed.');
 
             if ($input['save_credentials'] === '1') {
-                saveProviderCredentials($envPath, $input['base_url'], $registration, $messages, $errors);
+                saveProviderCredentials($envPath, $registration, $messages, $errors);
+            }
+
+            $localProvider = $registration['local_provider'] ?? null;
+            if (is_array($localProvider) && ($localProvider['success'] ?? false) === true) {
+                $messages[] = 'Configured local VectaVoIP provider defaults: provider #'
+                    . (int)($localProvider['provider_id'] ?? 0)
+                    . ', trunk #' . (int)($localProvider['trunk_id'] ?? 0)
+                    . ', ratecard #' . (int)($localProvider['ratecard_id'] ?? 0) . '.';
+            } elseif (is_array($localProvider) && array_key_exists('success', $localProvider)) {
+                $errors[] = (string)($localProvider['message'] ?? 'Local VectaVoIP provider provisioning failed.');
             }
         }
     }
@@ -346,7 +360,7 @@ function envFileValues(): array
     return $values;
 }
 
-function saveProviderCredentials(string $envPath, string $baseUrl, array $registration, array &$messages, array &$errors): void
+function saveProviderCredentials(string $envPath, array $registration, array &$messages, array &$errors): void
 {
     if (!is_writable(dirname($envPath)) || (is_file($envPath) && !is_writable($envPath))) {
         $errors[] = '.env is not writable. Provider credentials were not saved.';
@@ -354,7 +368,6 @@ function saveProviderCredentials(string $envPath, string $baseUrl, array $regist
     }
 
     $values = [
-        'VECTAVOIP_API_BASE_URL' => $baseUrl,
         'VECTAVOIP_INSTALL_KEY' => (string)($registration['install_key'] ?? ''),
         'VECTAVOIP_INSTALLATION_ID' => (string)($registration['installation_id'] ?? ''),
         'VECTAVOIP_API_KEY' => (string)($registration['api_key'] ?? ''),
@@ -1827,11 +1840,9 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 <input type="hidden" name="provider_context" value="vectavoip">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
-                        <td width="220"><label for="base_url">API Base URL</label></td>
+                        <td width="220">API Base URL</td>
                         <td>
-                            <input id="base_url" name="base_url" type="text" size="70" value="<?php echo h($input['base_url']); ?>">
-                            <br><span style="color:#666;">Sandbox inside Docker: http://localhost/api/sandbox</span>
-                            <br><span style="color:#666;">Production-compatible local API: http://localhost/api/vectavoip</span>
+                            <code><?php echo h(VectaVoIPConnector::API_BASE_URL); ?></code>
                         </td>
                     </tr>
                     <tr>
@@ -1896,11 +1907,9 @@ function columnExists(PDO $pdo, string $table, string $column): bool
                 <input type="hidden" name="provider_context" value="vectavoip">
                 <table width="100%" cellspacing="0" cellpadding="8">
                     <tr>
-                        <td width="220"><label for="rate_base_url">API Base URL</label></td>
+                        <td width="220">API Base URL</td>
                         <td>
-                            <input id="rate_base_url" name="base_url" type="text" size="70" value="<?php echo h($input['base_url']); ?>">
-                            <br><span style="color:#666;">Sandbox inside Docker: http://localhost/api/sandbox</span>
-                            <br><span style="color:#666;">Production-compatible local API: http://localhost/api/vectavoip</span>
+                            <code><?php echo h(VectaVoIPConnector::API_BASE_URL); ?></code>
                         </td>
                     </tr>
                     <tr>

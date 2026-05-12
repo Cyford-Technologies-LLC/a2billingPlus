@@ -25,7 +25,7 @@ final class VectaVoIPStatusClientTest extends TestCase
             ];
         });
 
-        $result = $client->check(new ProviderCredentials('https://api.vectavoip.com', 'vvp_key', 'vvs_secret'));
+        $result = $client->check(new ProviderCredentials('https://other-provider.example', 'vvp_key', 'vvs_secret'));
 
         $this->assertTrue($result->isSuccessful());
         $this->assertSame('inst_123', $result->getDetails()['installation_id']);

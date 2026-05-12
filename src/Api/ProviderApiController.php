@@ -20,6 +20,7 @@ use A2BillingPlus\Module\Provider\Twilio\TwilioApiClient;
 use A2BillingPlus\Module\Provider\Twilio\TwilioConnector;
 use A2BillingPlus\Module\Provider\Twilio\TwilioProvisioningService;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPConnector;
+use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPProvisioningService;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationClient;
 use A2BillingPlus\Module\Provider\VectaVoIP\VectaVoIPRegistrationRequest;
 use A2BillingPlus\Module\Rate\RatecardImportService;
@@ -143,7 +144,7 @@ final class ProviderApiController
             'provider' => $connector->getProviderCode(),
             'registered' => $this->providerConfigured($connector->getProviderCode()),
             'installation_id' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'INSTALLATION_ID')),
-            'api_base_url' => $this->envString($this->providerEnvKey($connector->getProviderCode(), 'API_BASE_URL'), $connector->getApiBaseUrl()),
+            'api_base_url' => $connector->getApiBaseUrl(),
             'support_email' => $connector->getSupportEmail(),
             'locked' => $this->accessPolicy->isLocked($connector->getProviderCode()),
         ]);
@@ -248,7 +249,7 @@ final class ProviderApiController
         }
 
         $installKey = $request->getString('install_key', $this->generateInstallKey());
-        $apiBaseUrl = $request->getString('base_url', $connector->getApiBaseUrl());
+        $apiBaseUrl = $connector->getApiBaseUrl();
         $client = $this->registrationClient($apiBaseUrl);
 
         $result = $client->register(new VectaVoIPRegistrationRequest(
@@ -271,7 +272,12 @@ final class ProviderApiController
             ], 422);
         }
 
-        return new JsonResponse([
+        $localProvider = null;
+        if ($request->getString('provision_defaults', '0') === '1') {
+            $localProvider = $this->provisionVectaVoIPDefaults();
+        }
+
+        $payload = [
             'success' => true,
             'message' => $result->getMessage(),
             'provider' => $connector->getProviderCode(),
@@ -280,7 +286,27 @@ final class ProviderApiController
             'api_key' => $result->getApiKey(),
             'api_secret' => $result->getApiSecret(),
             'metadata' => $result->getMetadata(),
-        ], 201);
+        ];
+        if ($localProvider !== null) {
+            $payload['local_provider'] = $localProvider;
+        }
+
+        return new JsonResponse($payload, 201);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function provisionVectaVoIPDefaults(): array
+    {
+        try {
+            return (new VectaVoIPProvisioningService($this->pdo()))->provisionDefaults();
+        } catch (\Throwable $exception) {
+            return [
+                'success' => false,
+                'message' => 'Local VectaVoIP provider provisioning failed: ' . $exception->getMessage(),
+            ];
+        }
     }
 
     private function didwwInventorySnapshot(JsonRequest $request): JsonResponse
@@ -917,8 +943,12 @@ final class ProviderApiController
     private function credentialsFromRequest(JsonRequest $request): ProviderCredentials
     {
         $providerCode = $request->getString('provider', 'vectavoip');
+        $baseUrl = $providerCode === 'vectavoip'
+            ? VectaVoIPConnector::API_BASE_URL
+            : $request->getString('base_url', $this->envString($this->providerEnvKey($providerCode, 'API_BASE_URL'), $this->defaultBaseUrl($providerCode)));
+
         return new ProviderCredentials(
-            $request->getString('base_url', $this->envString($this->providerEnvKey($providerCode, 'API_BASE_URL'), $this->defaultBaseUrl($providerCode))),
+            $baseUrl,
             $request->getString('api_key', $this->envString($this->providerEnvKey($providerCode, 'API_KEY'))),
             $request->getString('api_secret', $this->envString($this->providerEnvKey($providerCode, 'API_SECRET'))),
             array_merge(

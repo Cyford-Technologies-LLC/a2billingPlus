@@ -14,13 +14,21 @@ final class VectaVoIPRateImporter implements RateImporterInterface
 {
     public const PREVIEW_PATH = '/v1/rates/preview';
 
+    private readonly ProviderCredentials $credentials;
+
     /**
      * @param null|callable(string, ProviderCredentials): array{status:int, body:string} $transport
      */
     public function __construct(
-        private readonly ProviderCredentials $credentials,
+        ProviderCredentials $credentials,
         private $transport = null
     ) {
+        $this->credentials = new ProviderCredentials(
+            VectaVoIPConnector::API_BASE_URL,
+            $credentials->getApiKey(),
+            $credentials->getApiSecret(),
+            $credentials->getMetadata()
+        );
     }
 
     public function preview(RateImportRequest $request): RateImportPreview
