@@ -62,6 +62,17 @@ final class CustomerProvisioningAccessPolicy
             }
         }
 
+        // ZeroAI-CRM is a single trusted platform provisioning arbitrary many
+        // tenants (app_id = "crm_{orgId}") behind one hardcoded platform
+        // connection — not a fixed set of pre-registered client apps. Rather
+        // than requiring every new CRM tenant's app_id to be hand-registered
+        // here before it can provision an account, the whole crm_ family
+        // shares one platform-level provisioning token.
+        $platformToken = $this->config->string('A2BP_CRM_PLATFORM_PROVISIONING_TOKEN');
+        if ($platformToken !== '' && str_starts_with($appId, 'crm_')) {
+            return $platformToken;
+        }
+
         return '';
     }
 

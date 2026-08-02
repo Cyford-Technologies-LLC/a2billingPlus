@@ -101,6 +101,18 @@ final class JsonRequest
             }
         }
 
+        // Apache (mod_php) never exposes the Authorization header via $_SERVER —
+        // it's stripped from the CGI/subprocess environment regardless of
+        // SetEnvIf. apache_request_headers()/getallheaders() see it correctly.
+        if (!isset($headers['Authorization']) && function_exists('getallheaders')) {
+            foreach (getallheaders() as $name => $value) {
+                if (strtolower((string)$name) === 'authorization') {
+                    $headers['Authorization'] = (string)$value;
+                    break;
+                }
+            }
+        }
+
         return $headers;
     }
 }
