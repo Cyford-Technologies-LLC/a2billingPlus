@@ -8,6 +8,8 @@ use A2BillingPlus\Http\ApiResponder;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Module\Messaging\SmsMessageRepository;
 use A2BillingPlus\Module\Messaging\VectaVoIPSmsGateway;
+use A2BillingPlus\Module\Provider\ProviderCredentials;
+use A2BillingPlus\Module\Provider\Twilio\TwilioApiClient;
 
 require_once __DIR__ . '/../../vendor/autoload.php';
 
@@ -117,6 +119,18 @@ if ($method === 'POST') {
             $result->gatewayMessageId,
             $result->success ? '' : $result->message
         );
+    } elseif ($config->string('TWILIO_ACCOUNT_SID') !== '') {
+        $twilioAccountSid = $config->string('TWILIO_ACCOUNT_SID');
+        $twilioAuthToken  = $config->string('TWILIO_AUTH_TOKEN');
+        $twilioBaseUrl    = $config->string('TWILIO_API_BASE_URL', TwilioApiClient::API_BASE_URL);
+        // Use Account SID + Auth Token (auth_token mode) — most compatible for Messages API
+        $credentials = new ProviderCredentials($twilioBaseUrl, $twilioAccountSid, $twilioAuthToken, ['account_sid' => $twilioAccountSid]);
+        try {
+            $twilioResult = (new TwilioApiClient())->sendMessage($credentials, $from, $to, $body);
+            $record = $repository->updateDelivery((int)$record['id'], 'sent', $twilioResult['sid'] ?? '', '');
+        } catch (\Throwable $ex) {
+            $record = $repository->updateDelivery((int)$record['id'], 'failed', '', $ex->getMessage());
+        }
     }
 
     ApiResponder::ok(['message' => $record], ['resource' => 'messages', 'action' => 'send'], 201)->send();

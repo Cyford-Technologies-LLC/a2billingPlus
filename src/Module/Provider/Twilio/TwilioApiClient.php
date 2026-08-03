@@ -184,6 +184,15 @@ final class TwilioApiClient
         );
     }
 
+    /**
+     * @return array<string, mixed>
+     */
+    public function sendMessage(ProviderCredentials $credentials, string $from, string $to, string $body): array
+    {
+        $payload = ['From' => $from, 'To' => $to, 'Body' => $body];
+        return $this->request('POST', $this->apiPath($credentials, '/Messages.json'), $credentials, [], $payload);
+    }
+
     private function apiPath(ProviderCredentials $credentials, string $path): string
     {
         $accountSid = trim($credentials->getMetadataValue('account_sid'));
