@@ -32,7 +32,15 @@ final class CustomerProvisioningAccessPolicy
             );
         }
 
-        if (!hash_equals($externalId, $appId)) {
+        // Exact match (standard case: app_id = external_id for master tenant accounts)
+        // OR: a crm_{orgId} app may provision did_{number} per-DID sub-accounts
+        //     without needing to change app_id — the tenant "owns" all its DID cards.
+        $exactMatch = hash_equals($externalId, $appId);
+        $didOnBehalfOfCrm = (
+            str_starts_with($externalId, 'did_')
+            && str_starts_with($appId, 'crm_')
+        );
+        if (!$exactMatch && !$didOnBehalfOfCrm) {
             return ApiResponder::error(
                 'customer_provisioning_scope_mismatch',
                 'The provisioning app id must match the requested customer external_id.',

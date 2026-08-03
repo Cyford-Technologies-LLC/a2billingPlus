@@ -183,14 +183,22 @@ final class CustomerAccountService
             $data['currency'] = 'USD';
         }
 
-        foreach (['status', 'id_group'] as $field) {
+        foreach (['status', 'id_group', 'tariff'] as $field) {
             if (array_key_exists($field, $payload)) {
                 $value = $this->intValue($payload, $field);
-                if ($value === null || ($field === 'status' && !in_array($value, [0, 1], true)) || ($field === 'id_group' && $value <= 0)) {
+                if ($value === null || ($field === 'status' && !in_array($value, [0, 1], true)) || ($field === 'id_group' && $value <= 0) || ($field === 'tariff' && $value <= 0)) {
                     return new CustomerAccountValidationResult(false, message: $field . ' is invalid.', field: $field);
                 }
                 $data[$field] = $value;
             }
+        }
+        if (array_key_exists('credit', $payload)) {
+            $raw = $payload['credit'];
+            $credit = is_numeric($raw) ? (float)$raw : null;
+            if ($credit === null || $credit < 0) {
+                return new CustomerAccountValidationResult(false, message: 'credit must be a non-negative number.', field: 'credit');
+            }
+            $data['credit'] = number_format($credit, 5, '.', '');
         }
         if ($existingId === null) {
             $data['status'] ??= 1;
