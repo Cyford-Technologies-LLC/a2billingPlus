@@ -28,7 +28,13 @@ if ($expectedKey === '') {
     exit;
 }
 
+// Apache mod_php strips Authorization from $_SERVER — fall back to getallheaders()
 $authHeader = $_SERVER['HTTP_AUTHORIZATION'] ?? '';
+if ($authHeader === '' && function_exists('getallheaders')) {
+    foreach (getallheaders() as $hName => $hVal) {
+        if (strtolower($hName) === 'authorization') { $authHeader = $hVal; break; }
+    }
+}
 if (!str_starts_with($authHeader, 'Bearer ')) {
     http_response_code(401);
     echo json_encode(['success' => false, 'error' => ['code' => 'missing_authorization', 'message' => 'Authorization header must use Bearer service key authentication.']]);
