@@ -87,7 +87,83 @@ if ($method === 'POST') {
     $customerId  = (int)$customerIdValue;
     $smsEnabled  = ($payload['sms_enabled']   ?? true) !== false;
     $voiceEnabled = ($payload['voice_enabled'] ?? true) !== false;
-    $webhookUrl  = trim((string)($payload['webhook_url'] ?? ''));
+    // Default webhook URL to CRM inbound handler if not provided
+    $crmWebhook  = (string)(getenv('CRM_SMS_WEBHOOK_URL') ?: 'https://zeroaiboss.com/api/integrations/phone-text/sms_inbound.php');
+    $webhookUrl  = trim((string)($payload['webhook_url'] ?? '')) ?: $crmWebhook;
+
+    // ── Auto-provision DID into inventory for Telnyx ─────────────────────────
+    // If the DID isn't in cc_vectavoip_did_inventory yet and Telnyx is active,
+    // purchase it from Telnyx first then seed the inventory row so the
+    // DidAssignmentService can find it.
+    if ($didRepo->findByNumber($did) === null) {
+        $smsProvider = $config->string('SMS_PROVIDER');
+        $telnyxKey   = $config->string('TELNYX_API_KEY');
+        $telnyxBase  = $config->string('TELNYX_API_BASE_URL', 'https://api.telnyx.com');
+
+        if ($smsProvider === '' && $telnyxKey !== '') { $smsProvider = 'telnyx'; }
+
+        if ($smsProvider === 'telnyx' && $telnyxKey !== '') {
+            // Purchase the number from Telnyx
+            $purchaseUrl = rtrim($telnyxBase, '/') . '/v2/phone_numbers';
+            $ch = curl_init($purchaseUrl);
+            curl_setopt_array($ch, [
+                CURLOPT_RETURNTRANSFER => true,
+                CURLOPT_POST           => true,
+                CURLOPT_TIMEOUT        => 20,
+                CURLOPT_HTTPHEADER     => [
+                    'Authorization: Bearer ' . $telnyxKey,
+                    'Content-Type: application/json',
+                    'Accept: application/json',
+                ],
+                CURLOPT_POSTFIELDS => json_encode([
+                    'phone_numbers' => [['phone_number' => $did]],
+                ]),
+            ]);
+            $raw      = curl_exec($ch);
+            $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+            $curlErr  = curl_error($ch);
+            curl_close($ch);
+
+            if ($raw === false || $curlErr !== '') {
+                ApiResponder::error('telnyx_purchase_failed', 'Could not purchase number: ' . $curlErr, 502)->send();
+                exit;
+            }
+
+            $purchaseBody = json_decode((string)$raw, true);
+            if ($httpCode >= 400) {
+                $rawMsg = $purchaseBody['errors'][0]['detail']
+                    ?? $purchaseBody['errors'][0]['title']
+                    ?? 'Telnyx purchase error';
+                // Pretrial / permission errors — surface a helpful message
+                $isPretrial = $httpCode === 404
+                    || stripos($rawMsg, 'not found') !== false
+                    || stripos($rawMsg, 'not permitted') !== false
+                    || stripos($rawMsg, 'upgrade') !== false;
+                $msg = $isPretrial
+                    ? 'Your Telnyx account must be upgraded past Pretrial before purchasing numbers. Add a payment method at telnyx.com/upgrade.'
+                    : $rawMsg;
+                ApiResponder::error('telnyx_purchase_failed', $msg, 502)->send();
+                exit;
+            }
+
+            // Telnyx returns either data[] array (bulk) or data{} object
+            $purchasedNumbers = $purchaseBody['data'] ?? [];
+            if (isset($purchasedNumbers['id'])) { $purchasedNumbers = [$purchasedNumbers]; }
+            $providerRef = $purchasedNumbers[0]['id'] ?? $did;
+
+            // Seed inventory row so DidAssignmentService can proceed
+            $now = gmdate('Y-m-d H:i:s');
+            $pdo->prepare(
+                "INSERT INTO cc_vectavoip_did_inventory
+                    (did, country, region, monthly_rate, setup_rate, currency, status, provider_reference, created_at, updated_at)
+                 VALUES (?, 'US', '', '1.00', '1.00', 'USD', 'available', ?, ?, ?)
+                 ON DUPLICATE KEY UPDATE status='available', provider_reference=VALUES(provider_reference), updated_at=VALUES(updated_at)"
+            )->execute([$did, $providerRef, $now, $now]);
+        } else {
+            ApiResponder::error('assignment_failed', 'DID not found in inventory.', 422)->send();
+            exit;
+        }
+    }
 
     $result = $assignmentService->assign($customerId, $did, $smsEnabled, $voiceEnabled, $actor, $webhookUrl);
 

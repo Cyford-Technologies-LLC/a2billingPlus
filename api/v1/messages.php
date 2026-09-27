@@ -7,6 +7,7 @@ use A2BillingPlus\Config\AppConfig;
 use A2BillingPlus\Http\ApiResponder;
 use A2BillingPlus\Http\JsonRequest;
 use A2BillingPlus\Module\Messaging\SmsMessageRepository;
+use A2BillingPlus\Module\Messaging\TelnyxSmsGateway;
 use A2BillingPlus\Module\Messaging\VectaVoIPSmsGateway;
 use A2BillingPlus\Module\Provider\ProviderCredentials;
 use A2BillingPlus\Module\Provider\Twilio\TwilioApiClient;
@@ -105,21 +106,39 @@ if ($method === 'POST') {
     $customerId = (int)$customerIdValue;
     $record = $repository->create($customerId, $from, $to, $body, 'outbound', 'pending');
 
-    $apiKey = $config->string('VECTAVOIP_API_KEY');
-    $apiSecret = $config->string('VECTAVOIP_API_SECRET');
-    $baseUrl = $config->string('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com');
+    $smsProvider    = $config->string('SMS_PROVIDER');
+    $apiKey         = $config->string('VECTAVOIP_API_KEY');
+    $apiSecret      = $config->string('VECTAVOIP_API_SECRET');
+    $vectaBaseUrl   = $config->string('VECTAVOIP_API_BASE_URL', 'https://api.vectavoip.com');
+    $telnyxKey      = $config->string('TELNYX_API_KEY');
+    $telnyxBase     = $config->string('TELNYX_API_BASE_URL', 'https://api.telnyx.com');
 
-    if ($apiKey !== '' && $apiSecret !== '') {
-        $gateway = new VectaVoIPSmsGateway($baseUrl, $apiKey, $apiSecret);
+    // Resolve which provider to use: explicit SMS_PROVIDER config, or auto-detect by credential presence.
+    $resolvedProvider = $smsProvider;
+    if ($resolvedProvider === '') {
+        if ($apiKey !== '' && $apiSecret !== '') {
+            $resolvedProvider = 'vectavoip';
+        } elseif ($telnyxKey !== '') {
+            $resolvedProvider = 'telnyx';
+        } elseif ($config->string('TWILIO_ACCOUNT_SID') !== '') {
+            $resolvedProvider = 'twilio';
+        }
+    }
+
+    if ($resolvedProvider === 'vectavoip') {
+        $gateway = new VectaVoIPSmsGateway($vectaBaseUrl, $apiKey, $apiSecret);
         $result = $gateway->send($from, $to, $body);
-        $status = $result->success ? 'sent' : 'failed';
         $record = $repository->updateDelivery(
             (int)$record['id'],
-            $status,
+            $result->success ? 'sent' : 'failed',
             $result->gatewayMessageId,
             $result->success ? '' : $result->message
         );
-    } elseif ($config->string('TWILIO_ACCOUNT_SID') !== '') {
+    } elseif ($resolvedProvider === 'telnyx') {
+        $gateway = new TelnyxSmsGateway($telnyxBase, $telnyxKey);
+        $result = $gateway->send($from, $to, $body);
+        $record = $repository->updateDelivery((int)$record['id'], $result->success ? 'sent' : 'failed', $result->gatewayMessageId, $result->success ? '' : $result->message);
+    } elseif ($resolvedProvider === 'twilio') {
         $twilioAccountSid = $config->string('TWILIO_ACCOUNT_SID');
         $twilioAuthToken  = $config->string('TWILIO_AUTH_TOKEN');
         $twilioBaseUrl    = $config->string('TWILIO_API_BASE_URL', TwilioApiClient::API_BASE_URL);
